@@ -56,6 +56,8 @@ export { Notice } from "./components/notice";
 export type { NoticeVariant, NoticeProps } from "./components/notice";
 export { Spinner } from "./components/spinner";
 export type { SpinnerProps } from "./components/spinner";
+export { Icon } from "./components/icon";
+export type { IconSize, IconProps } from "./components/icon";
 export { PricingGrid, PricingTier, PricingFeatureList, PricingFeature } from "./components/pricing";
 export {
   InlineTable,
@@ -98,3 +100,6 @@ export type { Provider, ProviderStep, ProviderType } from "./types/provider";
 export { SOURCE_PROVIDERS, DESTINATION_PROVIDERS } from "./data/providers";
 
 export { cn } from "./utils/cn";
+
+// Design tokens
+export * from "./tokens";

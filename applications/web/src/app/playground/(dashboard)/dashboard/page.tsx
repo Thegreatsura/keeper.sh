@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
 import { Heading1, Copy, CalendarGrid, EventList, TODAY_EVENTS, TOMORROW_EVENTS } from "@keeper.sh/ui";
+
+export const metadata: Metadata = {
+  title: "Dashboard - Keeper",
+  description: "View your calendar overview and upcoming events",
+};
 
 const ALL_EVENTS = [...TODAY_EVENTS, ...TOMORROW_EVENTS];
 

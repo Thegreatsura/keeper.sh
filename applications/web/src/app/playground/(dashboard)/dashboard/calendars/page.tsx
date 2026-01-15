@@ -136,7 +136,7 @@ const CalendarsPage = () => {
             <label className="text-sm font-medium text-neutral-700">Filter Type</label>
             <Select
               value={state.filterType}
-              onChange={(e) => actions.setFilterType(e.target.value as FilterType)}
+              onChange={(event) => actions.setFilterType(event.target.value as FilterType)}
             >
               <option value="contains">Event summary contains</option>
               <option value="does_not_contain">Event summary does not contain</option>
@@ -156,7 +156,7 @@ const CalendarsPage = () => {
                   label="Value"
                   type="text"
                   value={state.filterValue}
-                  onChange={(e) => actions.setFilterValue(e.target.value)}
+                  onChange={(event) => actions.setFilterValue(event.target.value)}
                   placeholder="Enter text..."
                 />
               ) : (
@@ -167,12 +167,12 @@ const CalendarsPage = () => {
                       <Input
                         type="time"
                         value={state.timeValue}
-                        onChange={(e) => actions.setTimeValue(e.target.value)}
+                        onChange={(event) => actions.setTimeValue(event.target.value)}
                         className="flex-1"
                       />
                       <Select
                         value={state.timePeriod}
-                        onChange={(e) => actions.setTimePeriod(e.target.value as "AM" | "PM")}
+                        onChange={(event) => actions.setTimePeriod(event.target.value as "AM" | "PM")}
                         className="w-24"
                       >
                         <option value="AM">AM</option>
@@ -184,7 +184,7 @@ const CalendarsPage = () => {
                     <label className="text-sm font-medium text-neutral-700">Timezone</label>
                     <Select
                       value={state.timezone}
-                      onChange={(e) => actions.setTimezone(e.target.value)}
+                      onChange={(event) => actions.setTimezone(event.target.value)}
                     >
                       <option value="EST">EST</option>
                       <option value="CST">CST</option>

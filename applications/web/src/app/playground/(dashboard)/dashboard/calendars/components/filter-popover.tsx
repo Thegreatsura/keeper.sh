@@ -55,9 +55,9 @@ const FilterPopoverContent: FC<FilterPopoverContentProps> = ({
   }, []);
 
   // Handle Enter key to save
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
       onSave();
     }
   };
@@ -73,7 +73,7 @@ const FilterPopoverContent: FC<FilterPopoverContentProps> = ({
         <Select
           ref={selectRef}
           value={filterType}
-          onChange={(e) => onFilterTypeChange(e.target.value as FilterType)}
+          onChange={(event) => onFilterTypeChange(event.target.value as FilterType)}
           size="small"
         >
           <option value="contains">Event summary contains</option>
@@ -95,7 +95,7 @@ const FilterPopoverContent: FC<FilterPopoverContentProps> = ({
               label="Value"
               type="text"
               value={filterValue}
-              onChange={(e) => onFilterValueChange(e.target.value)}
+              onChange={(event) => onFilterValueChange(event.target.value)}
               placeholder="Enter text..."
               size="small"
             />
@@ -110,13 +110,13 @@ const FilterPopoverContent: FC<FilterPopoverContentProps> = ({
                     ref={timeInputRef}
                     type="time"
                     value={timeValue}
-                    onChange={(e) => onTimeValueChange(e.target.value)}
+                    onChange={(event) => onTimeValueChange(event.target.value)}
                     className="flex-1"
                     size="small"
                   />
                   <Select
                     value={timePeriod}
-                    onChange={(e) => onTimePeriodChange(e.target.value as "AM" | "PM")}
+                    onChange={(event) => onTimePeriodChange(event.target.value as "AM" | "PM")}
                     className="w-20"
                     size="small"
                   >
@@ -129,7 +129,7 @@ const FilterPopoverContent: FC<FilterPopoverContentProps> = ({
                 <label className="text-xs font-medium text-neutral-700">Timezone</label>
                 <Select
                   value={timezone}
-                  onChange={(e) => onTimezoneChange(e.target.value)}
+                  onChange={(event) => onTimezoneChange(event.target.value)}
                   size="small"
                 >
                   <option value="EST">EST</option>

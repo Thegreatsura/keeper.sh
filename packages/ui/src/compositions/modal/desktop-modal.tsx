@@ -4,8 +4,7 @@ import type { FC, PropsWithChildren } from "react";
 import { useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { cn } from "../../utils/cn";
-
-const EASING = [0.16, 0.85, 0.2, 1] as const;
+import { MODAL_ANIMATION } from "../../tokens/motion";
 
 interface DesktopModalProps {
   onClose: () => void;
@@ -65,7 +64,7 @@ const DesktopModal: FC<PropsWithChildren<DesktopModalProps>> = ({ children, onCl
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.2, ease: EASING }}
+      transition={MODAL_ANIMATION.desktop}
       className="hidden md:flex fixed inset-0 z-200 items-center justify-center p-4"
       onClick={onClose}
     >

@@ -4,8 +4,7 @@ import type { FC, PropsWithChildren } from "react";
 import { useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { cn } from "../../utils/cn";
-
-const EASING = [0.16, 0.85, 0.2, 1] as const;
+import { MODAL_ANIMATION } from "../../tokens/motion";
 
 interface MobileSheetProps {
   onClose: () => void;
@@ -44,7 +43,7 @@ const MobileSheet: FC<PropsWithChildren<MobileSheetProps>> = ({ children, onClos
       initial={{ y: "100%" }}
       animate={{ y: 0 }}
       exit={{ y: "100%" }}
-      transition={{ duration: 0.3, ease: EASING }}
+      transition={MODAL_ANIMATION.mobile}
       className="md:hidden fixed inset-x-0 bottom-0 z-200"
     >
       <div className="w-full max-w-12 h-1 rounded-xl bg-neutral-50 mx-auto mb-1" />

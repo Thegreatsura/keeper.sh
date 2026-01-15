@@ -21,6 +21,7 @@
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-popover": "^1.1.15",
     "@tanstack/react-virtual": "^3.13.18",
+    "arktype": "^2.1.29",
     "clsx": "^2.1.1",
     "jotai": "^2.16.1",
     "lucide-react": "^0.562.0",

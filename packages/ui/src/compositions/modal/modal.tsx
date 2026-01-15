@@ -8,6 +8,7 @@ import { MobileSheet } from "./mobile-sheet";
 import { Heading3 } from "../../components/heading";
 import { Copy } from "../../components/copy";
 import { Button, ButtonText } from "../../components/button";
+import { MODAL_ANIMATION } from "../../tokens/motion";
 
 interface ModalProps {
   open: boolean;
@@ -25,7 +26,7 @@ const Modal: FC<PropsWithChildren<ModalProps>> = ({ open, onClose, className, ch
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={MODAL_ANIMATION.backdrop}
             onClick={onClose}
             aria-hidden="true"
             className="fixed inset-0 bg-black/50 z-150 backdrop-blur-[0.125rem]"
