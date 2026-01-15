@@ -6,7 +6,7 @@ const DAY_LABELS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 const DayHeaders: FC = () => (
   <div className="grid grid-cols-7 place-items-center">
     {DAY_LABELS.map((label) => (
-      <Copy key={label} className="text-[10px]">
+      <Copy key={label} className="text-[0.625rem]">
         {label}
       </Copy>
     ))}

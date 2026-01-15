@@ -17,7 +17,7 @@ const MobileSheet: FC<PropsWithChildren<MobileSheetProps>> = ({ children, onClos
     animate={{ y: 0 }}
     exit={{ y: "100%" }}
     transition={{ duration: 0.3, ease: EASING }}
-    className="fixed inset-x-0 bottom-0 z-200"
+    className="md:hidden fixed inset-x-0 bottom-0 z-200"
   >
     <div className="w-full max-w-12 h-1 rounded-xl bg-neutral-50 mx-auto mb-1" />
     <div className={cn("flex flex-col bg-neutral-50 rounded-t-xl shadow-lg overflow-auto max-h-[calc(90vh-0.75rem)] p-4", className)}>

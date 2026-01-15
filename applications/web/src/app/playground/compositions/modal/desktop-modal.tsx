@@ -72,7 +72,7 @@ const DesktopModal: FC<PropsWithChildren<DesktopModalProps>> = ({ children, onCl
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.2, ease: EASING }}
-      className="fixed inset-0 z-200 flex items-center justify-center p-4"
+      className="hidden md:flex fixed inset-0 z-200 items-center justify-center p-4"
       onClick={onClose}
     >
       <div

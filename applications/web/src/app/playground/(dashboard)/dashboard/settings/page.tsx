@@ -98,10 +98,10 @@ const SettingsPage = () => {
           onClose={() => setChangePasswordOpen(false)}
         />
         <ModalContent>
-          <Input inputSize="small" type="password" placeholder="Current password" />
+          <Input size="small" type="password" placeholder="Current password" />
           <Divider />
-          <Input inputSize="small" type="password" placeholder="New password" />
-          <Input inputSize="small" type="password" placeholder="Confirm new password" />
+          <Input size="small" type="password" placeholder="New password" />
+          <Input size="small" type="password" placeholder="Confirm new password" />
         </ModalContent>
         <ModalFooter
           onCancel={() => setChangePasswordOpen(false)}
@@ -117,7 +117,7 @@ const SettingsPage = () => {
           onClose={() => setDeleteAccountOpen(false)}
         />
         <ModalContent>
-          <Input inputSize="small" type="password" placeholder="Enter your password to confirm" />
+          <Input size="small" type="password" placeholder="Enter your password to confirm" />
         </ModalContent>
         <ModalFooter
           onCancel={() => setDeleteAccountOpen(false)}

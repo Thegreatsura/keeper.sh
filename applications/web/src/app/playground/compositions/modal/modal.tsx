@@ -1,10 +1,9 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useMemo } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { X } from "lucide-react";
-import { useIsMobile, Heading3, Copy, Button, ButtonText } from "@keeper.sh/ui";
+import { Heading3, Copy, Button, ButtonText } from "@keeper.sh/ui";
 import { DesktopModal } from "./desktop-modal";
 import { MobileSheet } from "./mobile-sheet";
 
@@ -14,22 +13,13 @@ interface ModalProps {
   className?: string;
 }
 
-const getModalComponent = (isMobile: boolean) => {
-  if (isMobile) {
-    return MobileSheet;
-  }
-  return DesktopModal;
-};
-
 const Modal: FC<PropsWithChildren<ModalProps>> = ({ open, onClose, className, children }) => {
-  const isMobile = useIsMobile();
-  const ModalComponent = useMemo(() => getModalComponent(isMobile), [isMobile]);
-
   return (
-    <AnimatePresence>
-      {open && (
-        <>
+    <>
+      <AnimatePresence>
+        {open && (
           <motion.div
+            key="backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -37,14 +27,29 @@ const Modal: FC<PropsWithChildren<ModalProps>> = ({ open, onClose, className, ch
             onClick={onClose}
             className="fixed inset-0 bg-black/50 z-150 backdrop-blur-[2px]"
           />
-          <ModalComponent onClose={onClose} className={className}>
+        )}
+      </AnimatePresence>
+      {/* Desktop: centered modal with scale animation */}
+      <AnimatePresence>
+        {open && (
+          <DesktopModal onClose={onClose} className={className}>
             <div className="flex flex-col gap-4">
               {children}
             </div>
-          </ModalComponent>
-        </>
-      )}
-    </AnimatePresence>
+          </DesktopModal>
+        )}
+      </AnimatePresence>
+      {/* Mobile: bottom sheet with slide animation */}
+      <AnimatePresence>
+        {open && (
+          <MobileSheet onClose={onClose} className={className}>
+            <div className="flex flex-col gap-4">
+              {children}
+            </div>
+          </MobileSheet>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 

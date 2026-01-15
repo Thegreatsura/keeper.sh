@@ -66,7 +66,6 @@ const AuthBackButton = () => {
 }
 
 const handleGoogleSignIn = () => {
-  // TODO: Google OAuth
 };
 
 const AuthFormInternal: FC<AuthFormProps> = ({ variant, strategy }) => {
@@ -90,7 +89,6 @@ const AuthFormInternal: FC<AuthFormProps> = ({ variant, strategy }) => {
       const formData = new FormData(event.currentTarget);
       const _username = formData.get("username");
       const _password = formData.get("password");
-      // TODO: non-commercial auth logic
     } else {
       setIsLoading(true);
       const formData = new FormData(event.currentTarget);
@@ -119,7 +117,7 @@ const AuthFormInternal: FC<AuthFormProps> = ({ variant, strategy }) => {
     <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-2">
       <OAuthButton
         onSignIn={handleGoogleSignIn}
-        icon={<img src="/integrations/icon-google.svg" alt="" width={16} height={16} />}
+        icon={<img src="/integrations/icon-google.svg" alt="" className="size-4" />}
       >
         Continue with Google
       </OAuthButton>

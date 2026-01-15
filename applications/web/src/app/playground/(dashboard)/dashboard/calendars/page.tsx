@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { ArrowDown, Ampersand, Filter, Copy as CopyIcon } from "lucide-react";
 import {
   Heading1,
@@ -7,7 +8,6 @@ import {
   List,
   ListItemAdd,
   Copy,
-  AddSourceModal,
   Select,
   Input,
   Modal,
@@ -23,6 +23,11 @@ import { SourceItem } from "./components/source-item";
 import { DestinationItem } from "./components/destination-item";
 import { FilterItem } from "./components/filter-item";
 import { useCalendarsState } from "./hooks/use-calendars-state";
+
+const AddSourceModal = dynamic(
+  () => import("@keeper.sh/ui").then((m) => ({ default: m.AddSourceModal })),
+  { ssr: false }
+);
 
 const ICAL_LINK = "https://keeper.sh/ical/u/abc123def456/filtered";
 

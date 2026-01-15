@@ -74,7 +74,7 @@ const FilterPopoverContent: FC<FilterPopoverContentProps> = ({
           ref={selectRef}
           value={filterType}
           onChange={(e) => onFilterTypeChange(e.target.value as FilterType)}
-          selectSize="small"
+          size="small"
         >
           <option value="contains">Event summary contains</option>
           <option value="does_not_contain">Event summary does not contain</option>
@@ -97,7 +97,7 @@ const FilterPopoverContent: FC<FilterPopoverContentProps> = ({
               value={filterValue}
               onChange={(e) => onFilterValueChange(e.target.value)}
               placeholder="Enter text..."
-              inputSize="small"
+              size="small"
             />
           )}
 
@@ -112,13 +112,13 @@ const FilterPopoverContent: FC<FilterPopoverContentProps> = ({
                     value={timeValue}
                     onChange={(e) => onTimeValueChange(e.target.value)}
                     className="flex-1"
-                    inputSize="small"
+                    size="small"
                   />
                   <Select
                     value={timePeriod}
                     onChange={(e) => onTimePeriodChange(e.target.value as "AM" | "PM")}
                     className="w-20"
-                    selectSize="small"
+                    size="small"
                   >
                     <option value="AM">AM</option>
                     <option value="PM">PM</option>
@@ -130,7 +130,7 @@ const FilterPopoverContent: FC<FilterPopoverContentProps> = ({
                 <Select
                   value={timezone}
                   onChange={(e) => onTimezoneChange(e.target.value)}
-                  selectSize="small"
+                  size="small"
                 >
                   <option value="EST">EST</option>
                   <option value="CST">CST</option>

@@ -185,7 +185,6 @@ const ListItemButton: FC<PropsWithChildren<ListItemButtonProps>> = ({ id, childr
   const { activeId, setActiveId, selectedId, setSelectedId, indicatorLayoutId } = useListContext();
   const isActive = activeId === id;
   const isSelected = selectedId === id;
-  // Show indicator if: hovering this item, OR (this item is selected AND nothing is being hovered)
   const showIndicator = isActive || (isSelected && activeId === null);
 
   useEffect(() => {

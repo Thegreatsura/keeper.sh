@@ -17,11 +17,9 @@ const DesktopModal: FC<PropsWithChildren<DesktopModalProps>> = ({ children, onCl
   const previousActiveElement = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    // Store previously focused element and focus the dialog
     previousActiveElement.current = document.activeElement as HTMLElement;
     dialogRef.current?.focus();
 
-    // Restore focus when unmounting
     return () => {
       previousActiveElement.current?.focus();
     };
@@ -32,13 +30,11 @@ const DesktopModal: FC<PropsWithChildren<DesktopModalProps>> = ({ children, onCl
     if (!dialog) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Handle Escape key
       if (event.key === "Escape") {
         onClose();
         return;
       }
 
-      // Handle Tab key for focus trap
       if (event.key === "Tab") {
         const focusableElements = dialog.querySelectorAll(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -47,13 +43,11 @@ const DesktopModal: FC<PropsWithChildren<DesktopModalProps>> = ({ children, onCl
         const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
 
         if (event.shiftKey) {
-          // Shift + Tab: moving backwards
           if (document.activeElement === firstElement) {
             lastElement.focus();
             event.preventDefault();
           }
         } else {
-          // Tab: moving forwards
           if (document.activeElement === lastElement) {
             firstElement.focus();
             event.preventDefault();
@@ -72,7 +66,7 @@ const DesktopModal: FC<PropsWithChildren<DesktopModalProps>> = ({ children, onCl
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.2, ease: EASING }}
-      className="fixed inset-0 z-200 flex items-center justify-center p-4"
+      className="hidden md:flex fixed inset-0 z-200 items-center justify-center p-4"
       onClick={onClose}
     >
       <div

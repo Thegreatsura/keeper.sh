@@ -13,6 +13,9 @@ const output = getOutputType();
 const config: NextConfig = {
   cacheComponents: true,
   ...(output && { output }),
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
   serverExternalPackages: [
     "pino",
     "pino-pretty",

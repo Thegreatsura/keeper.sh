@@ -11,8 +11,6 @@ interface DockIndicatorProps {
 const DockIndicator: FC<DockIndicatorProps> = ({ segment }) => {
   const selectedSegment = useSelectedLayoutSegment();
 
-  console.log({ selectedSegment })
-
   if (selectedSegment !== segment) {
     return null;
   }

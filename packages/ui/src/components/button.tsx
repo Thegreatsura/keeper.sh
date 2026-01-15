@@ -7,35 +7,31 @@ import { BUTTON_SIZES } from "../utils/sizes";
 import Link from "next/link";
 import { Spinner } from "./spinner";
 
-const variantStyles = {
-  primary: "bg-neutral-800 border-y border-y-neutral-500 text-white",
-  outline: "border border-neutral-300",
-  ghost: "border border-transparent",
-  "ghost-hitslop": "border border-transparent -m-4 p-4",
-};
-
-const hoverVariants = [
-  { variant: "primary" as const, asLink: false, class: "enabled:hover:brightness-90" },
-  { variant: "outline" as const, asLink: false, class: "enabled:hover:backdrop-brightness-95" },
-  { variant: "ghost" as const, asLink: false, class: "enabled:hover:backdrop-brightness-95" },
-  { variant: "ghost-hitslop" as const, asLink: false, class: "enabled:hover:backdrop-brightness-95" },
-  { variant: "primary" as const, asLink: true, class: "hover:brightness-90" },
-  { variant: "outline" as const, asLink: true, class: "hover:backdrop-brightness-95" },
-  { variant: "ghost" as const, asLink: true, class: "hover:backdrop-brightness-95" },
-  { variant: "ghost-hitslop" as const, asLink: true, class: "hover:backdrop-brightness-95" },
-];
-
 const buttonVariants = tv({
   base: "tracking-tighter font-medium rounded-xl w-fit flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2",
   variants: {
-    variant: variantStyles,
+    variant: {
+      primary: "bg-neutral-800 border-y border-y-neutral-500 text-white",
+      outline: "border border-neutral-300",
+      ghost: "border border-transparent",
+      "ghost-hitslop": "border border-transparent -m-4 p-4",
+    },
     size: BUTTON_SIZES,
     asLink: {
       true: "hover:cursor-pointer",
       false: "enabled:hover:cursor-pointer disabled:cursor-not-allowed",
     },
   },
-  compoundVariants: hoverVariants,
+  compoundVariants: [
+    { variant: "primary", asLink: false, class: "enabled:hover:brightness-90" },
+    { variant: "outline", asLink: false, class: "enabled:hover:backdrop-brightness-95" },
+    { variant: "ghost", asLink: false, class: "enabled:hover:backdrop-brightness-95" },
+    { variant: "ghost-hitslop", asLink: false, class: "enabled:hover:backdrop-brightness-95" },
+    { variant: "primary", asLink: true, class: "hover:brightness-90" },
+    { variant: "outline", asLink: true, class: "hover:backdrop-brightness-95" },
+    { variant: "ghost", asLink: true, class: "hover:backdrop-brightness-95" },
+    { variant: "ghost-hitslop", asLink: true, class: "hover:backdrop-brightness-95" },
+  ],
   defaultVariants: {
     variant: "primary",
     size: "default",
@@ -46,7 +42,12 @@ const buttonVariants = tv({
 const iconButtonVariants = tv({
   base: "rounded-xl flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2",
   variants: {
-    variant: variantStyles,
+    variant: {
+      primary: "bg-neutral-800 border-y border-y-neutral-500 text-white",
+      outline: "border border-neutral-300",
+      ghost: "border border-transparent",
+      "ghost-hitslop": "border border-transparent -m-4 p-4",
+    },
     size: {
       large: "size-10",
       default: "size-8",
@@ -58,7 +59,16 @@ const iconButtonVariants = tv({
       false: "enabled:hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
     },
   },
-  compoundVariants: hoverVariants,
+  compoundVariants: [
+    { variant: "primary", asLink: false, class: "enabled:hover:brightness-90" },
+    { variant: "outline", asLink: false, class: "enabled:hover:backdrop-brightness-95" },
+    { variant: "ghost", asLink: false, class: "enabled:hover:backdrop-brightness-95" },
+    { variant: "ghost-hitslop", asLink: false, class: "enabled:hover:backdrop-brightness-95" },
+    { variant: "primary", asLink: true, class: "hover:brightness-90" },
+    { variant: "outline", asLink: true, class: "hover:backdrop-brightness-95" },
+    { variant: "ghost", asLink: true, class: "hover:backdrop-brightness-95" },
+    { variant: "ghost-hitslop", asLink: true, class: "hover:backdrop-brightness-95" },
+  ],
   defaultVariants: {
     variant: "primary",
     size: "default",

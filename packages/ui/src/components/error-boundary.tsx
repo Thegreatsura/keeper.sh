@@ -29,7 +29,6 @@ class ErrorBoundary extends Component<PropsWithChildren<ErrorBoundaryProps>, Err
   override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.props.onError?.(error, errorInfo);
 
-    // Log to console in development
     if (process.env.NODE_ENV === "development") {
       console.error("ErrorBoundary caught an error:", error, errorInfo);
     }
@@ -59,7 +58,7 @@ interface DefaultErrorFallbackProps {
 
 function DefaultErrorFallback({ error, reset }: DefaultErrorFallbackProps) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
+    <div className="flex flex-col items-center justify-center min-h-[25rem] p-8">
       <div className="flex flex-col gap-4 max-w-md text-center">
         <div className="text-6xl">⚠️</div>
         <Heading2>Something went wrong</Heading2>

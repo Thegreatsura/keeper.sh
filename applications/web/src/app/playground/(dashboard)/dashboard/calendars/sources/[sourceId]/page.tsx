@@ -229,7 +229,7 @@ const CalendarDetailPage: FC<CalendarDetailPageProps> = ({ params }) => {
         <div className="flex flex-col gap-2">
           <Copy className="text-xs">Replace event titles with a custom name.</Copy>
           <Input
-            inputSize="small"
+            size="small"
             value={customSummary}
             onChange={({ target }) => setCustomSummary(target.value)}
             placeholder="Custom event name"
@@ -239,7 +239,7 @@ const CalendarDetailPage: FC<CalendarDetailPageProps> = ({ params }) => {
         <div className="flex flex-col gap-2">
           <Copy className="text-xs">Replace event descriptions with custom text.</Copy>
           <Input
-            inputSize="small"
+            size="small"
             value={customDescription}
             onChange={({ target }) => setCustomDescription(target.value)}
             placeholder="Custom event description"

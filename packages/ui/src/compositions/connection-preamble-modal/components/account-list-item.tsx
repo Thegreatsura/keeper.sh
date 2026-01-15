@@ -27,7 +27,7 @@ const AccountListItem: FC<AccountListItemProps> = ({
     )}
   >
     <div className="size-5 shrink-0 flex items-center justify-center">
-      <img src={icon} alt={name} width={20} height={20} />
+      <img src={icon} alt={name} className="size-5" />
     </div>
     <Copy as="span" size="sm" weight="medium" color="primary">{name}</Copy>
   </button>

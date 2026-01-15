@@ -15,7 +15,6 @@ import {
   ListItemLabel,
   Modal,
   ModalHeader,
-  useIsMobile
 } from "@keeper.sh/ui";
 import { Calendar, ExternalLink } from "lucide-react";
 
@@ -135,30 +134,12 @@ const PROVIDERS: Provider[] = [
 
 // Note: iCal Link is intentionally excluded as it's read-only and cannot be a destination
 
-const modalLayoutVariants = tv({
-  slots: {
-    content: "",
-    sidebar: "px-4 py-2",
-    details: "grid grid-cols-1 grid-rows-1",
-  },
-  variants: {
-    isMobile: {
-      true: {
-        content: "flex flex-col overflow-auto max-h-[60vh]",
-        sidebar: "border-b border-neutral-100",
-        details: "",
-      },
-      false: {
-        content: "grid grid-cols-[2fr_3fr] grid-rows-[minmax(0,1fr)] max-h-[60vh] overflow-hidden",
-        sidebar: "border-r border-neutral-100 overflow-auto",
-        details: "overflow-auto",
-      },
-    },
-  },
-  defaultVariants: {
-    isMobile: false,
-  },
-});
+// Responsive layout styles using Tailwind breakpoints
+const layoutStyles = {
+  content: "flex flex-col md:grid md:grid-cols-[2fr_3fr] md:grid-rows-[minmax(0,1fr)] overflow-auto md:overflow-hidden max-h-[60vh]",
+  sidebar: "px-4 py-2 border-b md:border-b-0 md:border-r border-neutral-100 md:overflow-auto",
+  details: "grid grid-cols-1 grid-rows-1 md:overflow-auto",
+};
 
 const providerDetailsVariants = tv({
   base: "col-start-1 row-start-1",
@@ -237,9 +218,7 @@ const ProviderDetails: FC<ProviderDetailsProps> = ({ provider, onConnect, classN
 );
 
 const AddDestinationModal: FC<AddDestinationModalProps> = ({ open, onClose, onConnect }) => {
-  const isMobile = useIsMobile();
   const [selectedProviderId, setSelectedProviderId] = useState<string>(PROVIDERS[0]?.id ?? "");
-  const layoutStyles = modalLayoutVariants({ isMobile });
 
   const handleConnect = () => {
     onConnect(selectedProviderId);
@@ -255,8 +234,8 @@ const AddDestinationModal: FC<AddDestinationModalProps> = ({ open, onClose, onCo
       <div className="p-4 border-b border-neutral-100">
         <ModalHeader title="Add destination" onClose={onClose} />
       </div>
-      <div className={layoutStyles.content()}>
-        <div className={layoutStyles.sidebar()}>
+      <div className={layoutStyles.content}>
+        <div className={layoutStyles.sidebar}>
           <Copy className="text-xs mb-2">Select a provider</Copy>
           <List className="mx-2">
             {PROVIDERS.map((provider) => (
@@ -275,7 +254,7 @@ const AddDestinationModal: FC<AddDestinationModalProps> = ({ open, onClose, onCo
           </List>
         </div>
 
-        <div className={layoutStyles.details()}>
+        <div className={layoutStyles.details}>
           {PROVIDERS.map((provider) => (
             <ProviderDetails
               key={provider.id}
