@@ -1,9 +1,10 @@
+import type { FC } from "react"
 import { FlexColumnGroup } from "@/components/flex-column-group"
 import { Heading1 } from "@/components/heading"
 import { Copy } from "@/components/copy"
-import { AuthForm } from "@/compositions/auth-form"
+import { AuthForm } from "@/compositions/auth-form/auth-form"
 
-function LoginPage() {
+const LoginPage: FC = () => {
   return (
     <main className="flex size-full items-center justify-center min-h-screen bg-background">
       <div className="w-full max-w-xs">
