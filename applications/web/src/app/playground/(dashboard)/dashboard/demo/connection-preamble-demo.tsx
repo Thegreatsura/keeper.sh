@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { Button, ButtonText, type Account } from "@keeper.sh/ui";
 
 const ConnectionPreambleModalProvider = dynamic(
-  () => import("@keeper.sh/ui").then((m) => ({ default: m.ConnectionPreambleModalProvider })),
+  () => import("@keeper.sh/ui").then((module) => ({ default: module.ConnectionPreambleModalProvider })),
   { ssr: false }
 );
 

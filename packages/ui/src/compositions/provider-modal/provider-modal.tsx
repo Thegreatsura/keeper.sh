@@ -77,7 +77,7 @@ const ProviderSelectionModal: FC<ProviderSelectionModalProps> = ({
 
         <div className={details()}>
           {(() => {
-            const provider = providers.find((p) => p.id === selectedProviderId);
+            const provider = providers.find((provider) => provider.id === selectedProviderId);
             return provider ? (
               <ProviderDetails
                 provider={provider}

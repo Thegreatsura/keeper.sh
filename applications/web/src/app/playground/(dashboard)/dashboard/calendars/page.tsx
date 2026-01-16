@@ -22,27 +22,27 @@ import { FilterItem } from "./components/filter-item";
 import { useCalendarsState } from "./hooks/use-calendars-state";
 
 const AddSourceModal = dynamic(
-  () => import("@keeper.sh/ui").then((m) => ({ default: m.AddSourceModal })),
+  () => import("@keeper.sh/ui").then((module) => ({ default: module.AddSourceModal })),
   { ssr: false }
 );
 
 const Modal = dynamic(
-  () => import("@keeper.sh/ui").then((m) => ({ default: m.Modal })),
+  () => import("@keeper.sh/ui").then((module) => ({ default: module.Modal })),
   { ssr: false }
 );
 
 const ModalHeader = dynamic(
-  () => import("@keeper.sh/ui").then((m) => ({ default: m.ModalHeader })),
+  () => import("@keeper.sh/ui").then((module) => ({ default: module.ModalHeader })),
   { ssr: false }
 );
 
 const ModalContent = dynamic(
-  () => import("@keeper.sh/ui").then((m) => ({ default: m.ModalContent })),
+  () => import("@keeper.sh/ui").then((module) => ({ default: module.ModalContent })),
   { ssr: false }
 );
 
 const ModalFooter = dynamic(
-  () => import("@keeper.sh/ui").then((m) => ({ default: m.ModalFooter })),
+  () => import("@keeper.sh/ui").then((module) => ({ default: module.ModalFooter })),
   { ssr: false }
 );
 
@@ -56,7 +56,7 @@ const CalendarsPage = () => {
   };
 
   const handleEditFilter = (id: string) => {
-    const filter = state.filters.find((f) => f.id === id);
+    const filter = state.filters.find((filter) => filter.id === id);
     if (filter) {
       actions.editFilter(id, filter);
     }
@@ -65,8 +65,8 @@ const CalendarsPage = () => {
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(ICAL_LINK);
-    } catch (err) {
-      console.error("Failed to copy:", err);
+    } catch (error) {
+      console.error("Failed to copy:", error);
     }
   };
 
@@ -151,7 +151,7 @@ const CalendarsPage = () => {
       <AddSourceModal open={state.addSourceOpen} onClose={actions.closeAddSource} />
 
       <Modal open={state.filterModalOpen} onClose={actions.closeFilterModal}>
-        <form onSubmit={(e) => { e.preventDefault(); actions.saveFilter(); }} className="flex flex-col gap-4">
+        <form onSubmit={(event) => { event.preventDefault(); actions.saveFilter(); }} className="flex flex-col gap-4">
           <ModalHeader
             title={state.editingFilterId ? "Edit Filter" : "Add Filter"}
             description="Configure the filter criteria for your events"

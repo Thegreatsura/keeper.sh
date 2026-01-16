@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { Copy, EventList, TODAY_EVENTS, TOMORROW_EVENTS } from "@keeper.sh/ui";
 
 const CalendarGrid = dynamic(
-  () => import("@keeper.sh/ui").then(m => ({ default: m.CalendarGrid })),
+  () => import("@keeper.sh/ui").then((module) => ({ default: module.CalendarGrid })),
   { ssr: false }
 );
 

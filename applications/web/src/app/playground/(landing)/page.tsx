@@ -9,7 +9,7 @@ import dynamic from "next/dynamic";
 import { Heading1, Heading2, Copy, Button, ButtonText, ButtonIcon, LinkOut, SyncCalendarsButton, PricingGrid, PricingTier, PricingFeatureList, PricingFeature } from "@keeper.sh/ui";
 
 const CalendarStack = dynamic(
-  () => import("@keeper.sh/ui").then(m => ({ default: m.CalendarStack })),
+  () => import("@keeper.sh/ui").then((module) => ({ default: module.CalendarStack })),
   {
     ssr: false,
     loading: () => <div className="w-full aspect-square bg-surface-muted rounded-xl animate-pulse" />
@@ -17,7 +17,7 @@ const CalendarStack = dynamic(
 );
 
 const SyncHoverProvider = dynamic(
-  () => import("@keeper.sh/ui").then(m => ({ default: m.SyncHoverProvider })),
+  () => import("@keeper.sh/ui").then((module) => ({ default: module.SyncHoverProvider })),
   { ssr: false }
 );
 
