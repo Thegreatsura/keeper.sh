@@ -15,14 +15,14 @@ const button = tv({
     flex gap-1.5 items-center justify-center rounded-xl w-fit text-sm font-medium text-nowrap select-none
     tracking-tighter border border-transparent shadow-xs
     enabled:hover:cursor-pointer
-    focus-visible:outline-2 outline-offset-1 outline-blue-500
+    focus-visible:outline-2 outline-offset-1 outline-border-emphasis
     disabled:opacity-75 disabled:brightness-100 disabled:backdrop-brightness-unset disabled:cursor-not-allowed
   `,
   variants: {
     variant: {
-      primary: "bg-neutral-950 text-white hover:brightness-90 active:brightness-80",
+      primary: "bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-active",
       secondary: "backdrop-brightness-95 hover:backdrop-brightness-90 active:backdrop-brightness-85 shadow-none",
-      border: "border-neutral-200 hover:backdrop-brightness-95 active:backdrop-brightness-90",
+      border: "border-border hover:backdrop-brightness-95 active:backdrop-brightness-90",
       ghost: "hover:backdrop-brightness-95 active:backdrop-brightness-90 shadow-none"
     },
     size: {
@@ -55,7 +55,7 @@ export const LinkButton: FC<WithButtonProps<ComponentProps<typeof Link>>> = ({ c
 
 export const Input: FC<WithButtonProps<DetailedHTMLProps<InputHTMLAttributes<HTMLInputElement>, HTMLInputElement>>> = ({ className, variant, size, ...props }) => {
   return (
-    <input {...props} className={cn("px-4 py-2.5 border-neutral-200 rounded-xl border tracking-tight shadow-xs bg-white focus-visible:outline-2 outline-offset-1 outline-blue-500 disabled:opacity-50 disabled:cursor-not-allowed", className)}></input>
+    <input {...props} className={cn("px-4 py-2.5 border-border rounded-xl border tracking-tight shadow-xs bg-surface-elevated focus-visible:outline-2 outline-offset-1 outline-border-emphasis disabled:opacity-50 disabled:cursor-not-allowed", className)}></input>
   )
 }
 
@@ -77,7 +77,7 @@ export const FlexColumnGroup: FC<PropsWithChildren<DetailedHTMLProps<HTMLAttribu
 
 export const Divider = () => {
   return (
-    <div className="w-full h-px my-2 bg-[repeating-linear-gradient(to_right,transparent,transparent_4px,var(--color-neutral-300)_4px,var(--color-neutral-300)_calc(4px*2),transparent_calc(4px*2))]" />
+    <div className="w-full h-px my-2 bg-[repeating-linear-gradient(to_right,transparent,transparent_4px,var(--color-border)_4px,var(--color-border)_calc(4px*2),transparent_calc(4px*2))]" />
   )
 }
 
@@ -91,19 +91,19 @@ export const Heading1: FC<HTMLProps<HTMLHeadingElement>> = ({ className, childre
 
 export const Copy: FC<HTMLProps<HTMLParagraphElement>> = ({ className, children, ...props }) => {
   return (
-    <p {...props} className={cn("tracking-tight leading-relaxed text-sm text-neutral-600", className)}>{children}</p>
+    <p {...props} className={cn("tracking-tight leading-relaxed text-sm text-foreground-secondary", className)}>{children}</p>
   )
 }
 
 export const MicroCopy: FC<HTMLProps<HTMLParagraphElement>> = ({ className, children, ...props }) => {
   return (
-    <p {...props} className={cn("text-xs tracking-tight leading-relaxed text-neutral-600", className)}>{children}</p>
+    <p {...props} className={cn("text-xs tracking-tight leading-relaxed text-foreground-secondary", className)}>{children}</p>
   )
 }
 
 export const InlineLink: FC<WithButtonProps<ComponentProps<typeof Link>>> = ({ className, children, ...props }) => {
   return (
-    <Link {...props} className={cn("inline underline text-blue-600", className)}>{children}</Link>
+    <Link {...props} className={cn("inline underline text-link", className)}>{children}</Link>
   )
 }
 
@@ -116,7 +116,7 @@ export default function Blayground() {
   }
 
   return (
-    <main className="flex size-full items-center justify-center min-h-screen bg-neutral-50">
+    <main className="flex size-full items-center justify-center min-h-screen bg-background">
       <div className="w-full max-w-xs">
         <FlexColumnGroup className="gap-2">
           <FlexColumnGroup className="py-2 items-center text-center">
@@ -133,7 +133,7 @@ export default function Blayground() {
           </LinkButton>
           <FlexRowGroup>
             <Divider />
-            <span className="text-xs px-2 text-neutral-400">or</span>
+            <span className="text-xs px-2 text-foreground-subtle">or</span>
             <Divider />
           </FlexRowGroup>
           <form onSubmit={handleSubmit} className="contents">
