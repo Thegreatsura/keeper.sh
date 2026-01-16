@@ -184,47 +184,53 @@ const CalendarDetailPage: FC<CalendarDetailPageProps> = ({ params }) => {
         />
       )}
 
-      <SectionHeader
-        title="Calendars"
-        description="Select which calendars to pull events from."
-      />
-      <List>
-        {source.subCalendars.map((calendar) => (
-          <SubCalendarItem key={calendar.id} calendar={calendar} />
-        ))}
-      </List>
+      <div className="flex flex-col gap-2">
+        <SectionHeader
+          title="Calendars"
+          description="Select which calendars to pull events from."
+        />
+        <List>
+          {source.subCalendars.map((calendar) => (
+            <SubCalendarItem key={calendar.id} calendar={calendar} />
+          ))}
+        </List>
+      </div>
 
-      <SectionHeader
-        title="Destinations"
-        description="Select which destinations to sync events to."
-      />
-      <List>
-        {destinations.map((destination) => (
-          <CalendarCheckboxItem
-            key={destination.id}
-            id={destination.id}
-            name={destination.name}
-            email={destination.email}
-            providerIcon={destination.provider.icon}
-            providerName={destination.provider.name}
-            checked={destination.enabled}
-            onChange={() => handleToggleDestination(destination.id)}
-          />
-        ))}
-      </List>
+      <div className="flex flex-col gap-2">
+        <SectionHeader
+          title="Destinations"
+          description="Select which destinations to sync events to."
+        />
+        <List>
+          {destinations.map((destination) => (
+            <CalendarCheckboxItem
+              key={destination.id}
+              id={destination.id}
+              name={destination.name}
+              email={destination.email}
+              providerIcon={destination.provider.icon}
+              providerName={destination.provider.name}
+              checked={destination.enabled}
+              onChange={() => handleToggleDestination(destination.id)}
+            />
+          ))}
+        </List>
+      </div>
 
-      <SectionHeader
-        title="Sync Settings"
-        description="Choose what event data to sync."
-      />
-      <List>
-        <ListItemCheckbox id="sync-summaries" checked={syncSummaries} onChange={setSyncSummaries}>
-          <ListItemLabel>Sync event summaries</ListItemLabel>
-        </ListItemCheckbox>
-        <ListItemCheckbox id="sync-descriptions" checked={syncDescriptions} onChange={setSyncDescriptions}>
-          <ListItemLabel>Sync event descriptions</ListItemLabel>
-        </ListItemCheckbox>
-      </List>
+      <div className="flex flex-col gap-2">
+        <SectionHeader
+          title="Sync Settings"
+          description="Choose what event data to sync."
+        />
+        <List>
+          <ListItemCheckbox id="sync-summaries" checked={syncSummaries} onChange={setSyncSummaries}>
+            <ListItemLabel>Sync event summaries</ListItemLabel>
+          </ListItemCheckbox>
+          <ListItemCheckbox id="sync-descriptions" checked={syncDescriptions} onChange={setSyncDescriptions}>
+            <ListItemLabel>Sync event descriptions</ListItemLabel>
+          </ListItemCheckbox>
+        </List>
+      </div>
 
       <div className="flex flex-col gap-4">
         <Heading2>Custom Values</Heading2>
@@ -250,18 +256,20 @@ const CalendarDetailPage: FC<CalendarDetailPageProps> = ({ params }) => {
         </div>
       </div>
 
-      <SectionHeader
-        title="Danger Zone"
-        description="Permanently remove this source and all synced events."
-      />
-      <Button
-        className="w-full"
-        variant="destructive"
-        onClick={() => setDeleteSourceOpen(true)}
-      >
-        <Trash2 size={14} />
-        <ButtonText>Delete Source</ButtonText>
-      </Button>
+      <div className="flex flex-col gap-2">
+        <SectionHeader
+          title="Danger Zone"
+          description="Permanently remove this source and all synced events."
+        />
+        <Button
+          className="w-full"
+          variant="destructive"
+          onClick={() => setDeleteSourceOpen(true)}
+        >
+          <Trash2 size={14} />
+          <ButtonText>Delete Source</ButtonText>
+        </Button>
+      </div>
 
       <Modal open={deleteSourceOpen} onClose={() => setDeleteSourceOpen(false)}>
         <ModalHeader

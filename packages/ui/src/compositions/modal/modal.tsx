@@ -8,6 +8,7 @@ import { MobileSheet } from "./mobile-sheet";
 import { Heading3 } from "../../components/heading";
 import { Copy } from "../../components/copy";
 import { Button, ButtonText } from "../../components/button";
+import { Divider } from "../../components/form-divider";
 import { MODAL_ANIMATION } from "../../tokens/motion";
 
 interface ModalProps {
@@ -83,7 +84,7 @@ const ModalHeader: FC<ModalHeaderProps> = ({ title, description, onClose }) => (
 );
 
 const ModalContent: FC<PropsWithChildren> = ({ children }) => (
-  <div className="flex flex-col gap-3">{children}</div>
+  <div className="flex flex-col gap-4">{children}</div>
 );
 
 interface ModalFooterProps {
@@ -101,13 +102,16 @@ const ModalFooter: FC<ModalFooterProps> = ({
   confirmText = "Confirm",
   variant = "default",
 }) => (
-  <div className="flex gap-2 mt-2">
-    <Button variant="outline" onClick={onCancel} className="flex-1">
-      <ButtonText>{cancelText}</ButtonText>
-    </Button>
-    <Button variant={variant === "danger" ? "destructive" : "primary"} onClick={onConfirm} className="flex-1">
-      <ButtonText>{confirmText}</ButtonText>
-    </Button>
+  <div className="flex flex-col gap-4">
+    <Divider />
+    <div className="flex gap-2">
+      <Button variant="outline" onClick={onCancel} className="flex-1">
+        <ButtonText>{cancelText}</ButtonText>
+      </Button>
+      <Button variant={variant === "danger" ? "destructive" : "primary"} onClick={onConfirm} className="flex-1">
+        <ButtonText>{confirmText}</ButtonText>
+      </Button>
+    </div>
   </div>
 );
 

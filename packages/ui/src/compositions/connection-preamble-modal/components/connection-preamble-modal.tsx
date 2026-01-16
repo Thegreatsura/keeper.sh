@@ -7,6 +7,7 @@ import { AccountList } from "./account-list";
 import { ConnectButton } from "./connect-button";
 import { Copy } from "../../../components/copy";
 import { Heading3 } from "../../../components/heading";
+import { Divider } from "../../../components/form-divider";
 import {
   useSetAccounts,
   useSetSelectedAccountId,
@@ -42,7 +43,10 @@ const ConnectionPreambleModal: FC<ConnectionPreambleModalProps> = ({
           <Copy>Select which account you would like to link to Keeper.</Copy>
           <AccountList />
         </div>
-        <ConnectButton onConnect={onConnect} />
+        <div className="flex flex-col gap-4">
+          <Divider />
+          <ConnectButton onConnect={onConnect} />
+        </div>
       </div>
     </Modal>
   );

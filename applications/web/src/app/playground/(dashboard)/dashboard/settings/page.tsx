@@ -57,42 +57,46 @@ const SettingsPage = () => {
       <div className="md:hidden">
         <Heading1>Settings</Heading1>
       </div>
-      <SectionHeader
-        title="Account"
-        description="Manage your account settings."
-      />
-      <List>
-        <ListItem id="email">
-          <div className="flex items-center justify-between px-4 py-2">
-            <ListItemLabel>Email</ListItemLabel>
-            <ListItemValue>john@example.com</ListItemValue>
-          </div>
-        </ListItem>
-        <ListItemButton id="change-password" onClick={() => setChangePasswordOpen(true)}>
-          <ListItemLabel>Password</ListItemLabel>
-          <ListItemValue>••••••••</ListItemValue>
-        </ListItemButton>
-        <ListItemButton id="delete-account" onClick={() => setDeleteAccountOpen(true)}>
-          <span className="text-xs text-red-600">Delete account</span>
-        </ListItemButton>
-      </List>
-
-      <SectionHeader
-        title="Passkeys"
-        description="Manage passkeys for passwordless sign-in."
-      />
-      <List>
-        {MOCK_PASSKEYS.map((passkey) => (
-          <ListItemButton key={passkey.id} id={passkey.id} onClick={() => setDeletePasskeyOpen(passkey)}>
-            <div className="flex items-center gap-2">
-              <Fingerprint size={14} className="text-foreground-subtle" />
-              <ListItemLabel>{passkey.name}</ListItemLabel>
+      <div className="flex flex-col gap-2">
+        <SectionHeader
+          title="Account"
+          description="Manage your account settings."
+        />
+        <List>
+          <ListItem id="email">
+            <div className="flex items-center justify-between px-4 py-2">
+              <ListItemLabel>Email</ListItemLabel>
+              <ListItemValue>john@example.com</ListItemValue>
             </div>
-            <ListItemValue>Added {formatDate(passkey.createdAt)}</ListItemValue>
+          </ListItem>
+          <ListItemButton id="change-password" onClick={() => setChangePasswordOpen(true)}>
+            <ListItemLabel>Password</ListItemLabel>
+            <ListItemValue>••••••••</ListItemValue>
           </ListItemButton>
-        ))}
-        <ListItemAdd>Add passkey</ListItemAdd>
-      </List>
+          <ListItemButton id="delete-account" onClick={() => setDeleteAccountOpen(true)}>
+            <span className="text-xs text-red-600">Delete account</span>
+          </ListItemButton>
+        </List>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <SectionHeader
+          title="Passkeys"
+          description="Manage passkeys for passwordless sign-in."
+        />
+        <List>
+          {MOCK_PASSKEYS.map((passkey) => (
+            <ListItemButton key={passkey.id} id={passkey.id} onClick={() => setDeletePasskeyOpen(passkey)}>
+              <div className="flex items-center gap-2">
+                <Fingerprint size={14} className="text-foreground-subtle" />
+                <ListItemLabel>{passkey.name}</ListItemLabel>
+              </div>
+              <ListItemValue>Added {formatDate(passkey.createdAt)}</ListItemValue>
+            </ListItemButton>
+          ))}
+          <ListItemAdd>Add passkey</ListItemAdd>
+        </List>
+      </div>
 
       <Modal open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)}>
         <ModalHeader
