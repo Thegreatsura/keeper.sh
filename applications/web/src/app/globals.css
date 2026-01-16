@@ -81,8 +81,8 @@ input:-webkit-autofill:disabled {
     --color-primary-foreground: var(--color-zinc-900);
     --color-focus-ring: oklch(1 0 0 / 0.2);
 
-    --color-destructive: var(--color-red-400);
-    --color-destructive-emphasis: var(--color-red-300);
+    --color-destructive: var(--color-red-500);
+    --color-destructive-emphasis: var(--color-red-400);
     --color-destructive-surface: var(--color-red-950);
     --color-destructive-border: var(--color-red-800);
 

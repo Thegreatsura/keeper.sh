@@ -29,7 +29,7 @@ const WeekColumn: FC<WeekColumnProps> = ({ weekColumnRef, virtualRows }) => {
             >
               <div className="absolute -top-px left-1/2 h-[calc(50%+0.0625rem)] w-px -translate-x-1/2 bg-surface-skeleton" />
               <div className="absolute top-1/2 left-1/2 h-[calc(50%+0.0625rem)] w-px -translate-x-1/2 bg-surface-skeleton" />
-              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-mono text-[0.625rem] text-foreground-subtle leading-none px-1 py-0.5 bg-surface-subtle rounded-xl">
+              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-mono text-[0.625rem] text-foreground-subtle leading-none px-1 py-0.5 bg-surface rounded-xl">
                 {weekNumber}
               </span>
             </div>

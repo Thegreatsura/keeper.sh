@@ -12,6 +12,7 @@ const buttonVariants = tv({
   variants: {
     variant: {
       primary: "bg-primary border-y border-y-primary text-primary-foreground",
+      destructive: "bg-destructive border-y border-y-destructive-emphasis text-white",
       outline: "border border-input text-foreground",
       ghost: "border border-transparent text-foreground",
       "ghost-hitslop": "border border-transparent text-foreground -m-4 p-4",
@@ -24,10 +25,12 @@ const buttonVariants = tv({
   },
   compoundVariants: [
     { variant: "primary", asLink: false, class: "enabled:hover:brightness-90" },
+    { variant: "destructive", asLink: false, class: "enabled:hover:brightness-90" },
     { variant: "outline", asLink: false, class: "enabled:hover:backdrop-brightness-95" },
     { variant: "ghost", asLink: false, class: "enabled:hover:backdrop-brightness-95" },
     { variant: "ghost-hitslop", asLink: false, class: "enabled:hover:backdrop-brightness-95" },
     { variant: "primary", asLink: true, class: "hover:brightness-90" },
+    { variant: "destructive", asLink: true, class: "hover:brightness-90" },
     { variant: "outline", asLink: true, class: "hover:backdrop-brightness-95" },
     { variant: "ghost", asLink: true, class: "hover:backdrop-brightness-95" },
     { variant: "ghost-hitslop", asLink: true, class: "hover:backdrop-brightness-95" },
@@ -44,6 +47,7 @@ const iconButtonVariants = tv({
   variants: {
     variant: {
       primary: "bg-primary border-y border-y-primary text-primary-foreground",
+      destructive: "bg-destructive border-y border-y-destructive-emphasis text-white",
       outline: "border border-input text-foreground",
       ghost: "border border-transparent text-foreground",
       "ghost-hitslop": "border border-transparent text-foreground -m-4 p-4",
@@ -61,10 +65,12 @@ const iconButtonVariants = tv({
   },
   compoundVariants: [
     { variant: "primary", asLink: false, class: "enabled:hover:brightness-90" },
+    { variant: "destructive", asLink: false, class: "enabled:hover:brightness-90" },
     { variant: "outline", asLink: false, class: "enabled:hover:backdrop-brightness-95" },
     { variant: "ghost", asLink: false, class: "enabled:hover:backdrop-brightness-95" },
     { variant: "ghost-hitslop", asLink: false, class: "enabled:hover:backdrop-brightness-95" },
     { variant: "primary", asLink: true, class: "hover:brightness-90" },
+    { variant: "destructive", asLink: true, class: "hover:brightness-90" },
     { variant: "outline", asLink: true, class: "hover:backdrop-brightness-95" },
     { variant: "ghost", asLink: true, class: "hover:backdrop-brightness-95" },
     { variant: "ghost-hitslop", asLink: true, class: "hover:backdrop-brightness-95" },

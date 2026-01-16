@@ -1,16 +1,6 @@
 import type { Metadata } from "next";
 
-import { Heading1, Heading2, Heading3, Copy, LinkOut, LegalSection } from "@keeper.sh/ui";
-import {
-  InlineTable,
-  InlineTableHeader,
-  InlineTableBody,
-  InlineTableRow,
-  InlineTableHead,
-  InlineTableCell,
-  InlineTableList,
-  InlineTableListItem,
-} from "../../components/inline-table";
+import { Heading1, Heading2, Heading3, Copy, LinkOut, LegalSection, InlineTable, InlineTableHeader, InlineTableBody, InlineTableRow, InlineTableHead, InlineTableCell, InlineTableList, InlineTableListItem } from "@keeper.sh/ui";
 
 export const metadata: Metadata = {
   description:

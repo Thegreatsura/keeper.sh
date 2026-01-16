@@ -255,8 +255,8 @@ const CalendarDetailPage: FC<CalendarDetailPageProps> = ({ params }) => {
         description="Permanently remove this source and all synced events."
       />
       <Button
-        variant="outline"
-        className="text-red-600 border-red-200 hover:bg-red-50"
+        className="w-full"
+        variant="destructive"
         onClick={() => setDeleteSourceOpen(true)}
       >
         <Trash2 size={14} />

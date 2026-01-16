@@ -19,9 +19,9 @@ const checkboxVariants = tv({
       "border border-input rounded-md transition-colors bg-surface",
       "peer-focus:ring-2 peer-focus:ring-border peer-focus:border-input",
       "peer-focus-visible:ring-input",
-      "peer-checked:bg-primary peer-checked:border-primary",
+      "peer-checked:bg-foreground peer-checked:border-foreground",
     ],
-    icon: "text-white opacity-0 peer-checked:opacity-100 transition-opacity",
+    icon: "text-surface opacity-0 peer-checked:opacity-100 transition-opacity",
     label: "text-foreground-secondary text-xs",
   },
   variants: {

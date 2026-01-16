@@ -1,7 +1,6 @@
 import type { FC, PropsWithChildren } from "react";
 import { Home, List, Calendar, Settings, LogOut } from "lucide-react";
-import { Dock, Scaffold, TopNav, TopNavItem } from "@keeper.sh/ui";
-import { DockItem } from "../../components/dock";
+import { Dock, DockItem, Scaffold, TopNav, TopNavItem } from "@keeper.sh/ui";
 
 const DashboardLayout: FC<PropsWithChildren> = ({ children }) => (
   <>

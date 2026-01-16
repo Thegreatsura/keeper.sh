@@ -251,8 +251,8 @@ const DestinationDetailPage: FC<DestinationDetailPageProps> = ({ params }) => {
         <Heading2>Danger Zone</Heading2>
         <Copy className="text-xs">Disconnect this destination. Synced events will remain on the calendar.</Copy>
         <Button
-          variant="outline"
-          className="text-red-600 border-red-200 hover:bg-red-50"
+          className="w-full"
+          variant="destructive"
           onClick={() => setDisconnectModalOpen(true)}
         >
           <Trash2 size={14} />

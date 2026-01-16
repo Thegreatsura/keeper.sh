@@ -41,7 +41,7 @@ const MonthRow: FC = () => {
               className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
               style={{ left: `${leftPercent}%` }}
             >
-              <span className="block font-mono text-[0.625rem] text-foreground-subtle leading-none px-1 bg-surface-subtle rounded-xl whitespace-nowrap">
+              <span className="block font-mono text-[0.625rem] text-foreground-subtle leading-none px-1 bg-surface rounded-xl whitespace-nowrap">
                 {label}
               </span>
             </motion.span>

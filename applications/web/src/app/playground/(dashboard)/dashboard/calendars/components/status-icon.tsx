@@ -13,7 +13,7 @@ export const StatusIcon: FC<StatusIconProps> = ({ status }) => {
     return <Check size={14} className="text-foreground-subtle" />;
   }
   if (status === "reauthenticate") {
-    return <AlertTriangle size={14} className="text-amber-400" />;
+    return <AlertTriangle size={14} className="text-warning" />;
   }
   return <div className="size-1 rounded-xl bg-red-500" />;
 };

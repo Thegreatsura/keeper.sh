@@ -94,13 +94,6 @@ interface ModalFooterProps {
   variant?: "default" | "danger";
 }
 
-const getConfirmButtonClassName = (variant: "default" | "danger") => {
-  if (variant === "danger") {
-    return "flex-1 bg-red-500 border-red-400";
-  }
-  return "flex-1";
-};
-
 const ModalFooter: FC<ModalFooterProps> = ({
   onCancel,
   onConfirm,
@@ -112,7 +105,7 @@ const ModalFooter: FC<ModalFooterProps> = ({
     <Button variant="outline" onClick={onCancel} className="flex-1">
       <ButtonText>{cancelText}</ButtonText>
     </Button>
-    <Button onClick={onConfirm} className={getConfirmButtonClassName(variant)}>
+    <Button variant={variant === "danger" ? "destructive" : "primary"} onClick={onConfirm} className="flex-1">
       <ButtonText>{confirmText}</ButtonText>
     </Button>
   </div>

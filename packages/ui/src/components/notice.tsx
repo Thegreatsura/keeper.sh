@@ -17,10 +17,10 @@ const noticeVariants = tv({
   variants: {
     variant: {
       warning: {
-        container: "bg-amber-100/25 border-amber-400/50",
-        iconWrapper: "text-amber-400",
-        title: "text-amber-950",
-        description: "text-amber-950",
+        container: "bg-warning-surface border-warning-border",
+        iconWrapper: "text-warning",
+        title: "text-warning",
+        description: "text-warning",
       },
       error: {
         container: "bg-red-100/25 border-red-400/50",

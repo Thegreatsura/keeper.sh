@@ -16,7 +16,7 @@ export { FormField } from "./components/form-field";
 export { FormDivider, Divider, LateralDivider } from "./components/form-divider";
 
 export { Scaffold } from "./components/scaffold";
-export { Dock, DockIndicator } from "./components/dock";
+export { Dock, DockItem, DockIndicator } from "./components/dock";
 export { TopNav, TopNavItem } from "./components/top-nav";
 export type { TopNavItemProps } from "./components/top-nav";
 
