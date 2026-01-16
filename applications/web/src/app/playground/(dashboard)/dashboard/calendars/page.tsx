@@ -151,7 +151,7 @@ const CalendarsPage = () => {
       <AddSourceModal open={state.addSourceOpen} onClose={actions.closeAddSource} />
 
       <Modal open={state.filterModalOpen} onClose={actions.closeFilterModal}>
-        <form onSubmit={(e) => { e.preventDefault(); actions.saveFilter(); }}>
+        <form onSubmit={(e) => { e.preventDefault(); actions.saveFilter(); }} className="flex flex-col gap-4">
           <ModalHeader
             title={state.editingFilterId ? "Edit Filter" : "Add Filter"}
             description="Configure the filter criteria for your events"

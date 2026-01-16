@@ -99,7 +99,7 @@ const SettingsPage = () => {
       </div>
 
       <Modal open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)}>
-        <form onSubmit={(e) => { e.preventDefault(); setChangePasswordOpen(false); }}>
+        <form onSubmit={(e) => { e.preventDefault(); setChangePasswordOpen(false); }} className="flex flex-col gap-4">
           <ModalHeader
             title="Change password"
             description="Enter your current password and a new password."
@@ -121,7 +121,7 @@ const SettingsPage = () => {
       </Modal>
 
       <Modal open={deleteAccountOpen} onClose={() => setDeleteAccountOpen(false)}>
-        <form onSubmit={(e) => { e.preventDefault(); setDeleteAccountOpen(false); }}>
+        <form onSubmit={(e) => { e.preventDefault(); setDeleteAccountOpen(false); }} className="flex flex-col gap-4">
           <ModalHeader
             title="Delete account"
             description="Are you sure you want to delete your account? This action cannot be undone."
