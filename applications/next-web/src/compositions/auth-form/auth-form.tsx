@@ -1,5 +1,0 @@
-import type { FC, PropsWithChildren } from "react"
-
-export const AuthForm: FC<PropsWithChildren> = ({ children }) => {
-  return <>{children}</>
-}

@@ -13,7 +13,12 @@ import { createBackLeftSkew, createBackRightSkew, createFrontSkew } from "@/comp
 import Image from "next/image"
 import type { EventRecord } from "@/compositions/calendar-illustration/utils/events"
 import { MarketingConnectCalendars } from "@/compositions/marketing-connect-calendars/marketing-connect-calendars"
+import { MarketingSyncCalendars } from "@/compositions/marketing-sync-calendars/marketing-sync-calendars"
+import { MarketingAnonymization } from "@/compositions/marketing-anonymization/marketing-anonymization"
 import { Header } from "@/components/header"
+import { PricingCard } from "@/components/pricing-card"
+import { MarketingSection } from "@/components/marketing-section"
+import { MarketingHowItWorks } from "@/compositions/marketing-how-it-works/marketing-how-it-works"
 
 const BACK_LEFT_EVENTS: EventRecord = {
   0: [2, 9, 16, 23],
@@ -39,10 +44,10 @@ const LandingPage: FC = () => {
     <>
       <main>
         <FlexColumnGroup className="py-16">
-          <div className="flex flex-col gap-2">
+          <FlexColumnGroup className="gap-2 items-center">
             <Heading1 className="text-center">All of your calendars in-sync.</Heading1>
             <Copy className="text-center">Synchronize events between your personal, work, business and school calendars. Open-source under AGPL-3.0.</Copy>
-          </div>
+          </FlexColumnGroup>
           <CalendarIllustration>
             <FlexRowGroup className="gap-1 my-4 justify-center">
               <CalendarIllustrationButton href="/register">
@@ -54,7 +59,7 @@ const LandingPage: FC = () => {
                 <ArrowUpRight size={15} />
               </LinkButton>
             </FlexRowGroup>
-            <div className="py-6">
+            <div className="py-8">
               <CalendarStack>
                 <Calendar skew={createBackLeftSkew(1)} events={BACK_LEFT_EVENTS} />
                 <Calendar skew={createBackRightSkew(1)} events={BACK_RIGHT_EVENTS} />
@@ -62,9 +67,10 @@ const LandingPage: FC = () => {
               </CalendarStack>
             </div>
           </CalendarIllustration>
-          <MarketingConnectCalendars />
-          <MarketingConnectCalendars />
-          <MarketingConnectCalendars />
+          <FlexColumnGroup className="py-6 gap-6">
+            <MarketingConnectCalendars />
+            <MarketingHowItWorks />
+          </FlexColumnGroup>
         </FlexColumnGroup>
       </main>
     </>
