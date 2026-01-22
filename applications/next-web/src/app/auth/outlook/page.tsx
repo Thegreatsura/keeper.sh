@@ -23,7 +23,7 @@ const OutlookAuthPage: FC = () => {
             <CalendarPermissionsIconPair provider="outlook" />
             <CalendarPermissionsContent>
               <Heading1>Connect Outlook</Heading1>
-              <Copy>Start importing your calendars, events, and syncing them across each other.</Copy>
+              <Copy>Start importing your events and sync them across all your calendars.</Copy>
             </CalendarPermissionsContent>
           </CalendarPermissionsHeader>
           <CalendarPermissionsListSection>
