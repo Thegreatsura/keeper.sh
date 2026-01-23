@@ -1,4 +1,4 @@
-import { User, CalendarDays, CalendarSync, Filter, Settings, LogOut, CalendarPlus } from "lucide-react";
+import { CalendarDays, CalendarSync, Filter, Settings, LogOut, CalendarPlus } from "lucide-react";
 import { FC, Suspense } from "react";
 import Image from "next/image";
 import KeeperLogoDark from "@/assets/keeper-dark-mode.svg";
@@ -8,11 +8,10 @@ import {
   NavigationItemIcon,
   NavigationItemLabel,
   NavigationItemRightContent,
-  NavigationDropdownItem,
-  NavigationDropdownHeader,
 } from "@/components/navigation-menu";
 import { DashboardCalendar } from "@/compositions/dashboard-calendar/dashboard-calendar";
-import { AccountsPreview, AccountItem } from "@/compositions/connected-accounts/connected-accounts";
+import { AccountItem } from "@/compositions/connected-accounts/connected-accounts";
+import { AccountsPopover } from "@/components/accounts-popover";
 
 const DashboardPage: FC = () => {
   return (
@@ -32,23 +31,13 @@ const DashboardPage: FC = () => {
           </NavigationItem>
         </NavigationMenu>
 
-        <NavigationMenu className="bg-surface-elevated rounded-2xl shadow-xs border border-border overflow-hidden p-0.5">
-          <NavigationDropdownItem
-            header={
-              <NavigationDropdownHeader>
-                <User className="text-foreground-muted" size={15} />
-                <NavigationItemLabel>Calendar Accounts</NavigationItemLabel>
-              </NavigationDropdownHeader>
-            }
-            rightContent={<AccountsPreview />}
-          >
-            <div className="flex flex-col">
-              <AccountItem href="/dashboard/accounts/1" icon="/integrations/icon-google.svg" name="Personal" email="ridafkih@gmail.com" eventCount={142} status="synced" />
-              <AccountItem href="/dashboard/accounts/2" icon="/integrations/icon-google.svg" name="Work" email="rida@ridafkih.dev" eventCount={89} status="error" />
-              <AccountItem href="/dashboard/accounts/3" icon="/integrations/icon-icloud.svg" name="Family" email="rida@icloud.com" eventCount={23} status="syncing" />
-              <AccountItem href="/dashboard/accounts/4" icon="/integrations/icon-fastmail.svg" name="Personal" email="rida@keeper.sh" eventCount={56} status="synced" />
-            </div>
-          </NavigationDropdownItem>
+        <NavigationMenu className="bg-surface-elevated rounded-2xl shadow-xs border border-border overflow-visible p-0.5">
+          <AccountsPopover>
+            <AccountItem href="/dashboard/accounts/1" icon="/integrations/icon-google.svg" name="Personal" email="ridafkih@gmail.com" eventCount={142} status="synced" />
+            <AccountItem href="/dashboard/accounts/2" icon="/integrations/icon-google.svg" name="Work" email="rida@ridafkih.dev" eventCount={89} status="error" />
+            <AccountItem href="/dashboard/accounts/3" icon="/integrations/icon-icloud.svg" name="Family" email="rida@icloud.com" eventCount={23} status="syncing" />
+            <AccountItem href="/dashboard/accounts/4" icon="/integrations/icon-fastmail.svg" name="Personal" email="rida@keeper.sh" eventCount={56} status="synced" />
+          </AccountsPopover>
 
           <NavigationItem href="/dashboard/calendars">
             <NavigationItemIcon>

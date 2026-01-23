@@ -1,11 +1,12 @@
 "use client";
 
-import type { FC, PropsWithChildren, ReactNode } from "react";
+import type { FC, PropsWithChildren, ReactNode, Ref } from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Copy } from "@/components/copy";
+import { cn } from "@/utils/cn";
 
 type NavigationMenuProps = {
   className?: string;
@@ -19,7 +20,7 @@ const NavigationMenu: FC<PropsWithChildren<NavigationMenuProps>> = ({ children, 
   );
 };
 
-const navigationItemClassName = "rounded-[0.875rem] flex items-center justify-between p-3 hover:backdrop-brightness-95";
+const navigationItemClassName = "rounded-[0.875rem] flex items-center justify-between p-3 hover:bg-surface-muted w-full hover:cursor-pointer";
 
 const NavigationItemBase: FC<PropsWithChildren> = ({ children }) => (
   <div className={navigationItemClassName}>
@@ -28,25 +29,37 @@ const NavigationItemBase: FC<PropsWithChildren> = ({ children }) => (
 );
 
 type NavigationItemLinkProps = {
-  href: string;
+  href?: string;
+  onClick?: () => void;
+  className?: string;
 };
 
-const NavigationItemLink: FC<PropsWithChildren<NavigationItemLinkProps>> = ({ href, children }) => {
+const NavigationItemLink: FC<PropsWithChildren<NavigationItemLinkProps>> = ({ href, onClick, className, children }) => {
+  if (!href) {
+    return (
+      <button onClick={onClick} className={cn(navigationItemClassName, className)}>
+        {children}
+      </button>
+    )
+  }
+
   return (
-    <Link href={href} className={navigationItemClassName}>
+    <Link href={href} className={cn(navigationItemClassName, className)}>
       {children}
     </Link>
   );
 };
 
 type NavigationItemProps = {
-  href: string;
+  ref?: Ref<HTMLLIElement>
+  href?: string;
+  onClick?: () => void;
 };
 
-const NavigationItem: FC<PropsWithChildren<NavigationItemProps>> = ({ href, children }) => {
+const NavigationItem: FC<PropsWithChildren<NavigationItemProps>> = ({ href, onClick, children, ref }) => {
   return (
-    <li>
-      <NavigationItemLink href={href}>
+    <li ref={ref}>
+      <NavigationItemLink href={href} onClick={onClick}>
         {children}
       </NavigationItemLink>
     </li>
@@ -82,7 +95,7 @@ const NavigationDropdownItem: FC<PropsWithChildren<NavigationDropdownItemProps>>
     <li>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full rounded-[0.875rem] flex items-center justify-between p-3 hover:backdrop-brightness-95 cursor-pointer"
+        className="w-full rounded-[0.875rem] flex items-center justify-between p-3 hover:bg-surface-muted cursor-pointer"
       >
         {header}
         <div className="flex items-center gap-2">
