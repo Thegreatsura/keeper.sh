@@ -6,6 +6,7 @@ import { User } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { AccountsPreview, AccountItem } from "@/compositions/connected-accounts/connected-accounts";
 import { NavigationItemIcon, NavigationItemLabel, NavigationItemRightContent, NavigationMenu } from "./navigation-menu";
+import { cn } from "@/utils/cn";
 
 export type Account = {
   id: string;
@@ -134,12 +135,20 @@ const AccountsPopover: FC<AccountsPopoverProps> = ({ accounts }) => {
               aria-label="Calendar Accounts"
               aria-modal="false"
               tabIndex={-1}
-              className="flex flex-col items-stretch justify-start border border-border -m-px bg-surface-elevated rounded-[0.875rem] shadow-xl absolute top-0 inset-x-0 overflow-hidden z-20 pointer-events-none"
+              className={
+                cn(
+                  "flex flex-col items-stretch justify-start shadow-xl border border-border -m-px bg-surface-elevated rounded-[0.875rem] absolute top-0 inset-x-0 overflow-hidden z-20 pointer-events-none",
+                )
+              }
               transition={{ duration: 0.16, height: { duration: 0.16 * 2 } }}
               style={{ transform: `translateY(calc(-50% + ${dummyPopoverHeightRef.current / 2}px))` }}
               initial={{ height: dummyPopoverHeightRef.current }}
               animate={{ height: 'auto' }}
-              exit={{ height: dummyPopoverHeightRef.current }}
+              exit={{
+                height: dummyPopoverHeightRef.current,
+                transition: { duration: 0.16, height: { duration: 0.16 * 2 }, opacity: { delay: 0.16 * 3/2 } },
+                opacity: 0,
+              }}
             >
               <div className="relative">
                 <NavigationMenu>
@@ -147,6 +156,7 @@ const AccountsPopover: FC<AccountsPopoverProps> = ({ accounts }) => {
                     transition={{ duration: 0.16 }}
                     initial={{ opacity: 1, filter: 'none', height: 'auto' }}
                     animate={{ opacity: 0, filter: 'blur(4px)', height: 0, translateY: -dummyPopoverHeightRef.current }}
+                    exit={{ opacity: 1, filter: 'none', height: 'auto', translateY: 0 }}
                   >
                     <div className="w-full rounded-[0.875rem] flex items-center justify-between p-3">
                       <AccountsPopoverTriggerContent />
@@ -157,6 +167,7 @@ const AccountsPopover: FC<AccountsPopoverProps> = ({ accounts }) => {
                     transition={{ duration: 0.16 }}
                     initial={{ opacity: 0, filter: 'blur(8px)' }}
                     animate={{ opacity: 1, filter: 'none' }}
+                    exit={{ opacity: 0, filter: 'blur(8px)' }}
                   >
                     {accounts.map((account, index) => (
                       <AccountItem
@@ -186,7 +197,7 @@ const AccountsPopover: FC<AccountsPopoverProps> = ({ accounts }) => {
           aria-haspopup="dialog"
           aria-expanded={isOpen}
           aria-controls="accounts-popover-content"
-          className="w-full rounded-[0.875rem] flex items-center justify-between p-3 hover:bg-surface-muted cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full rounded-[0.875rem] flex items-center justify-between p-3 hover:bg-surface-muted cursor-pointer transition-colors focus-visible:outline-2 outline-offset-1 outline-border-emphasis"
         >
           <AccountsPopoverTriggerContent />
         </button>

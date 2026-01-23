@@ -20,7 +20,7 @@ const NavigationMenu: FC<PropsWithChildren<NavigationMenuProps>> = ({ children, 
   );
 };
 
-const navigationItemClassName = "rounded-[0.875rem] flex items-center justify-between p-3 hover:bg-surface-muted w-full hover:cursor-pointer";
+const navigationItemClassName = "rounded-[0.875rem] flex items-center justify-between p-3 hover:bg-surface-muted w-full hover:cursor-pointer focus-visible:outline-2 outline-offset-1 outline-border-emphasis";
 
 const NavigationItemBase: FC<PropsWithChildren> = ({ children }) => (
   <div className={navigationItemClassName}>
