@@ -1,8 +1,22 @@
 import { cn } from "@/utils/cn"
+import { tv } from "tailwind-variants"
 import type { FC, HTMLProps } from "react"
 
-export const MicroCopy: FC<HTMLProps<HTMLParagraphElement>> = ({ className, children, ...props }) => {
+const microCopy = tv({
+  base: "text-xs tracking-tight leading-relaxed text-foreground-secondary",
+  variants: {
+    inverted: {
+      true: "text-neutral-500"
+    }
+  }
+})
+
+type MicroCopyProps = HTMLProps<HTMLParagraphElement> & {
+  inverted?: boolean
+}
+
+export const MicroCopy: FC<MicroCopyProps> = ({ className, children, inverted, ...props }) => {
   return (
-    <p {...props} className={cn("text-xs tracking-tight leading-relaxed text-foreground-secondary", className)}>{children}</p>
+    <p {...props} className={cn(microCopy({ inverted }), className)}>{children}</p>
   )
 }
