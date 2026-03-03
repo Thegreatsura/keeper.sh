@@ -1,7 +1,6 @@
-import { useEffect, type FormEvent } from "react";
+import type { SubmitEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Provider } from "jotai/react";
 import { motion, AnimatePresence, type Variants } from "motion/react";
 import { ArrowLeft, LoaderCircle } from "lucide-react";
 import { authFormStatusAtom, authFormErrorAtom, type AuthFormStatus } from "../../state/auth-form";
@@ -47,7 +46,7 @@ const backButtonVariants: Variants = {
 
 export function AuthForm({ copy }: { copy: AuthScreenCopy }) {
   return (
-    <Provider>
+    <>
       <div className="flex flex-col py-2">
         <Heading2 as="span" className="text-center">{copy.heading}</Heading2>
         <Text size="sm" tone="muted" align="center">{copy.subtitle}</Text>
@@ -55,13 +54,16 @@ export function AuthForm({ copy }: { copy: AuthScreenCopy }) {
       <SocialAuthButtons oauthActionLabel={copy.oauthActionLabel} />
       <Divider>or</Divider>
       <EmailForm submitLabel={copy.submitLabel} />
-      <Text size="sm" tone="muted" align="center">
-        {copy.switchPrompt}{" "}
-        <Link to={copy.switchTo} className="text-foreground underline underline-offset-2 hover:text-foreground-muted transition-colors">
-          {copy.switchCta}
-        </Link>
-      </Text>
-    </Provider>
+      <div className="flex flex-col gap-1.5">
+        <AuthError />
+        <Text size="sm" tone="muted" align="center">
+          {copy.switchPrompt}{" "}
+          <Link to={copy.switchTo} className="text-foreground underline underline-offset-2 hover:text-foreground-muted transition-colors">
+            {copy.switchCta}
+          </Link>
+        </Text>
+      </div>
+    </>
   );
 }
 
@@ -83,8 +85,7 @@ function SocialAuthButtons({ oauthActionLabel }: { oauthActionLabel: string }) {
 function EmailForm({ submitLabel }: { submitLabel: string }) {
   const setStatus = useSetAtom(authFormStatusAtom);
   const setError = useSetAtom(authFormErrorAtom);
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus("loading");
 
@@ -96,7 +97,6 @@ function EmailForm({ submitLabel }: { submitLabel: string }) {
 
   return (
     <form onSubmit={handleSubmit} className="contents">
-      <AuthErrorToast />
       <EmailInput />
       <div className="flex items-stretch">
         <BackButton />
@@ -106,44 +106,25 @@ function EmailForm({ submitLabel }: { submitLabel: string }) {
   );
 }
 
-function AuthErrorToast() {
+function AuthError() {
   const error = useAtomValue(authFormErrorAtom);
-  const setError = useSetAtom(authFormErrorAtom);
-
-  useEffect(() => {
-    if (!error?.active) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setError({ ...error, active: false });
-    }, 3000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [error, setError]);
+  const active = error?.active;
 
   return (
-    <AnimatePresence initial={false}>
-      {error?.active && (
-        <motion.div
-          className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4"
-          initial={{ opacity: 0, y: 24, filter: "blur(4px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          exit={{ opacity: 0, y: 12, filter: "blur(4px)" }}
-          transition={{ duration: 0.2 }}
-        >
-          <div
-            aria-live="polite"
-            className="pointer-events-auto w-fit max-w-sm rounded-xl border border-red-500/40 bg-background px-4 py-2.5 shadow-xs"
-            role="status"
-          >
-            <Text size="sm" tone="default" align="center" className="text-red-500 dark:text-red-400">
-              {error.message}
-            </Text>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <motion.div
+      className="overflow-hidden"
+      initial={false}
+      animate={{
+        height: active ? "auto" : 0,
+        opacity: active ? 1 : 0,
+        filter: active ? "blur(0px)" : "blur(4px)",
+      }}
+      transition={{ duration: 0.2 }}
+    >
+      <p className="text-sm tracking-tight text-red-400 text-center">
+        {error?.message}
+      </p>
+    </motion.div>
   );
 }
 

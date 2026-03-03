@@ -64,6 +64,16 @@ html {
 }
 
 @media (prefers-color-scheme: dark) {
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--ui-foreground);
+    -webkit-background-clip: text;
+    caret-color: var(--ui-foreground);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
   }
