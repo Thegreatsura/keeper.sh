@@ -2,9 +2,13 @@ import type { FC } from "react";
 import { ArrowLeft } from "lucide-react";
 import { LinkButton } from "@/components/button";
 
-const DashboardBackButton: FC = () => {
+type DashboardBackButtonProps = {
+  href?: string;
+};
+
+const DashboardBackButton: FC<DashboardBackButtonProps> = ({ href = "/dashboard" }) => {
   return (
-    <LinkButton href="/dashboard" variant="border" size="compact" className="aspect-square bg-surface-elevated">
+    <LinkButton href={href} variant="border" size="compact" className="aspect-square bg-surface-elevated">
       <ArrowLeft size={15} />
     </LinkButton>
   );

@@ -1,4 +1,4 @@
-import { CalendarDays, CalendarSync, Filter, Settings, LogOut, CalendarPlus } from "lucide-react";
+import { CalendarDays, Calendar, Settings, LogOut, CalendarPlus, Sparkles, CircleAlert, Lightbulb } from "lucide-react";
 import { FC } from "react";
 import KeeperLogo from "@/assets/keeper.svg";
 import {
@@ -9,13 +9,11 @@ import {
   NavigationItemRightContent,
 } from "@/components/navigation-menu";
 import { AccountsPopover } from "@/components/accounts-popover";
-import { PageOverlay } from "@/components/page-overlay";
+import { Copy } from "@/components/copy";
 
 const DashboardPage: FC = () => {
   return (
-    <>
-      <PageOverlay />
-      <div className="flex flex-col gap-12 items-stretch">
+    <div className="flex flex-col gap-12 items-stretch">
       <div className="flex flex-col gap-2 items-stretch">
         <NavigationMenu className="bg-surface-elevated rounded-2xl shadow-xs border border-border overflow-hidden p-0.5">
           <NavigationItem href="/dashboard/accounts/connect">
@@ -69,10 +67,10 @@ const DashboardPage: FC = () => {
             ]}
           />
 
-          <NavigationItem href="/dashboard/calendars">
+          <NavigationItem href="/dashboard/sync-groups/1">
             <NavigationItemIcon>
-              <CalendarSync className="text-foreground-muted" size={15} />
-              <NavigationItemLabel>Calendar Sync</NavigationItemLabel>
+              <Calendar className="text-foreground-muted" size={15} />
+              <NavigationItemLabel>Calendars</NavigationItemLabel>
             </NavigationItemIcon>
             <NavigationItemRightContent />
           </NavigationItem>
@@ -85,18 +83,38 @@ const DashboardPage: FC = () => {
             <NavigationItemRightContent />
           </NavigationItem>
 
-          <NavigationItem href="/dashboard/filters">
-            <NavigationItemIcon>
-              <Filter className="text-foreground-muted" size={15} />
-              <NavigationItemLabel>Global Event Filters</NavigationItemLabel>
-            </NavigationItemIcon>
-            <NavigationItemRightContent />
-          </NavigationItem>
-
           <NavigationItem href="/dashboard/settings">
             <NavigationItemIcon>
               <Settings className="text-foreground-muted" size={15} />
               <NavigationItemLabel>Account Settings</NavigationItemLabel>
+            </NavigationItemIcon>
+            <NavigationItemRightContent />
+          </NavigationItem>
+        </NavigationMenu>
+
+        <NavigationMenu className="overflow-hidden rounded-2xl">
+          <NavigationItem href="/dashboard/upgrade" className="bg-neutral-950 text-white border-neutral-800 border rounded-2xl hover:bg-neutral-900">
+            <NavigationItemIcon>
+              <Sparkles className="text-neutral-400" size={15} />
+              <Copy className="text-neutral-200">Upgrade to Pro</Copy>
+            </NavigationItemIcon>
+            <NavigationItemRightContent />
+          </NavigationItem>
+        </NavigationMenu>
+
+        <NavigationMenu className="bg-surface-elevated rounded-2xl shadow-xs border border-border overflow-hidden p-0.5">
+          <NavigationItem>
+            <NavigationItemIcon>
+              <CircleAlert className="text-foreground-muted" size={15} />
+              <NavigationItemLabel>Report Issue</NavigationItemLabel>
+            </NavigationItemIcon>
+            <NavigationItemRightContent />
+          </NavigationItem>
+
+          <NavigationItem>
+            <NavigationItemIcon>
+              <Lightbulb className="text-foreground-muted" size={15} />
+              <NavigationItemLabel>Feature Suggestion</NavigationItemLabel>
             </NavigationItemIcon>
             <NavigationItemRightContent />
           </NavigationItem>
@@ -115,7 +133,6 @@ const DashboardPage: FC = () => {
 
       <KeeperLogo className="size-8 text-border self-center" />
       </div>
-    </>
   );
 };
 

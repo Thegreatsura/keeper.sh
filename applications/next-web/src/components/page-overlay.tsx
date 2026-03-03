@@ -1,11 +1,18 @@
 "use client";
 
+import { useEffect } from "react";
 import { useAtom } from "jotai";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { pageOverlayActiveAtom } from "@/atoms/page-overlay";
 
 export const PageOverlay = () => {
   const [isActive, setActive] = useAtom(pageOverlayActiveAtom);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    setActive(false);
+  }, [pathname, setActive]);
 
   return (
     <AnimatePresence>

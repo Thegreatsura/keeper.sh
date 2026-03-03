@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, PropsWithChildren, ReactNode, Ref } from "react";
-import { useState, forwardRef } from "react";
+import { createContext, use, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -29,44 +29,54 @@ const NavigationItemBase: FC<PropsWithChildren> = ({ children }) => (
 );
 
 type NavigationItemLinkProps = {
+  ref?: Ref<HTMLAnchorElement>;
   href?: string;
   onClick?: () => void;
   className?: string;
 };
 
-const NavigationItemLink = forwardRef<HTMLAnchorElement, PropsWithChildren<NavigationItemLinkProps>>(
-  ({ href, onClick, className, children }, ref) => {
-    if (!href) {
-      return (
-        <button onClick={onClick} className={cn(navigationItemClassName, className)}>
-          {children}
-        </button>
-      );
-    }
-
+const NavigationItemLink: FC<PropsWithChildren<NavigationItemLinkProps>> = ({ href, onClick, className, children, ref }) => {
+  if (href) {
     return (
       <Link ref={ref} href={href} className={cn(navigationItemClassName, className)}>
         {children}
       </Link>
     );
   }
-);
 
-NavigationItemLink.displayName = 'NavigationItemLink';
+  if (onClick) {
+    return (
+      <button onClick={onClick} className={cn(navigationItemClassName, className)}>
+        {children}
+      </button>
+    );
+  }
+
+  return (
+    <div className={cn(navigationItemClassName, "hover:bg-transparent hover:cursor-default", className)}>
+      {children}
+    </div>
+  );
+};
+
+const NavigationItemContext = createContext(false);
 
 type NavigationItemProps = {
   ref?: Ref<HTMLLIElement>
   href?: string;
   onClick?: () => void;
+  className?: string;
 };
 
-const NavigationItem: FC<PropsWithChildren<NavigationItemProps>> = ({ href, onClick, children, ref }) => {
+const NavigationItem: FC<PropsWithChildren<NavigationItemProps>> = ({ href, onClick, className, children, ref }) => {
   return (
-    <li ref={ref}>
-      <NavigationItemLink href={href} onClick={onClick}>
-        {children}
-      </NavigationItemLink>
-    </li>
+    <NavigationItemContext.Provider value={!!href}>
+      <li ref={ref}>
+        <NavigationItemLink href={href} onClick={onClick} className={className}>
+          {children}
+        </NavigationItemLink>
+      </li>
+    </NavigationItemContext.Provider>
   );
 };
 
@@ -76,16 +86,23 @@ const NavigationItemIcon: FC<PropsWithChildren> = ({ children }) => (
   </div>
 );
 
-const NavigationItemLabel: FC<PropsWithChildren> = ({ children }) => (
-  <Copy className="text-foreground-muted">{children}</Copy>
+type NavigationItemLabelProps = {
+  className?: string;
+};
+
+const NavigationItemLabel: FC<PropsWithChildren<NavigationItemLabelProps>> = ({ children, className }) => (
+  <Copy className={cn("text-foreground-muted", className)}>{children}</Copy>
 );
 
-const NavigationItemRightContent: FC<PropsWithChildren> = ({ children }) => (
-  <div className="flex items-center gap-2">
-    {children}
-    <ArrowRight className="text-foreground-muted" size={15} />
-  </div>
-);
+const NavigationItemRightContent: FC<PropsWithChildren> = ({ children }) => {
+  const isLink = use(NavigationItemContext);
+  return (
+    <div className="flex items-center gap-2">
+      {children}
+      {isLink && <ArrowRight className="text-foreground-muted shrink-0" size={15} />}
+    </div>
+  );
+};
 
 type NavigationDropdownItemProps = {
   header: ReactNode;
