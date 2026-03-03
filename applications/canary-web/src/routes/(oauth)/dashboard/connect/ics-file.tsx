@@ -21,7 +21,7 @@ function RouteComponent() {
       <Text size="sm" tone="muted" align="left">
         Upload a one-time snapshot of your calendar. Future changes to the original calendar won&apos;t be reflected.
       </Text>
-      <ICSFileForm backHref="/dashboard/connect" />
+      <ICSFileForm />
     </div>
   );
 }

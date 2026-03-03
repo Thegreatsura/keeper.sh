@@ -8,7 +8,7 @@ export const Route = createFileRoute("/(oauth)/dashboard/connect/outlook")({
 function RouteComponent() {
   return (
     <div className="flex flex-col gap-3 w-full max-w-xs self-center">
-      <LinkOAuthPreamble provider="outlook" backHref="/dashboard/connect" />
+      <LinkOAuthPreamble provider="outlook" />
     </div>
   );
 }

@@ -23,7 +23,8 @@ const button = tv({
   }
 })
 
-type ButtonOptions = ComponentPropsWithoutRef<"button"> & VariantProps<typeof button>;
+export type ButtonProps = VariantProps<typeof button>;
+type ButtonOptions = ComponentPropsWithoutRef<"button"> & ButtonProps;
 type LinkButtonOptions = Omit<ComponentPropsWithoutRef<typeof Link>, "children" | "className"> &
   PropsWithChildren<VariantProps<typeof button> & { className?: string }>;
 type ExternalLinkButtonOptions = ComponentPropsWithoutRef<"a"> & VariantProps<typeof button>;

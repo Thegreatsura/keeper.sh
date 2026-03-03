@@ -1,14 +1,11 @@
 import { useState, type SubmitEvent } from "react";
-import { ArrowLeft, Upload } from "lucide-react";
-import { Button, ButtonText, LinkButton, ButtonIcon } from "../ui/button";
+import { Upload } from "lucide-react";
+import { BackButton } from "../ui/back-button";
+import { Button, ButtonText } from "../ui/button";
 import { Divider } from "../ui/divider";
 import { Input } from "../ui/input";
 
-interface ICSFeedFormProps {
-  backHref: string;
-}
-
-export function ICSFeedForm({ backHref }: ICSFeedFormProps) {
+export function ICSFeedForm() {
   const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
   };
@@ -23,11 +20,7 @@ export function ICSFeedForm({ backHref }: ICSFeedFormProps) {
       />
       <Divider />
       <div className="flex items-stretch gap-2">
-        <LinkButton to={backHref} variant="border" className="self-stretch justify-center px-3.5">
-          <ButtonIcon>
-            <ArrowLeft size={16} />
-          </ButtonIcon>
-        </LinkButton>
+        <BackButton variant="border" size="standard" className="self-stretch justify-center px-3.5" />
         <Button type="submit" className="grow justify-center">
           <ButtonText>Subscribe</ButtonText>
         </Button>
@@ -36,11 +29,7 @@ export function ICSFeedForm({ backHref }: ICSFeedFormProps) {
   );
 }
 
-interface ICSFileFormProps {
-  backHref: string;
-}
-
-export function ICSFileForm({ backHref }: ICSFileFormProps) {
+export function ICSFileForm() {
   const [fileName, setFileName] = useState<string | null>(null);
 
   const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
@@ -73,11 +62,7 @@ export function ICSFileForm({ backHref }: ICSFileFormProps) {
       </label>
       <Divider />
       <div className="flex items-stretch gap-2">
-        <LinkButton to={backHref} variant="border" className="self-stretch justify-center px-3.5">
-          <ButtonIcon>
-            <ArrowLeft size={16} />
-          </ButtonIcon>
-        </LinkButton>
+        <BackButton variant="border" size="standard" className="self-stretch justify-center px-3.5" />
         <Button type="submit" className="grow justify-center">
           <ButtonText>Upload</ButtonText>
         </Button>

@@ -1,6 +1,6 @@
 import type { SubmitEvent } from "react";
-import { ArrowLeft } from "lucide-react";
-import { Button, ButtonText, LinkButton, ButtonIcon } from "../ui/button";
+import { BackButton } from "../ui/back-button";
+import { Button, ButtonText } from "../ui/button";
 import { Divider } from "../ui/divider";
 import { Input } from "../ui/input";
 
@@ -14,10 +14,9 @@ const EMAIL_PLACEHOLDERS: Record<CalDAVProvider, string> = {
 
 interface CalDAVConnectFormProps {
   provider: CalDAVProvider;
-  backHref: string;
 }
 
-export function CalDAVConnectForm({ provider, backHref }: CalDAVConnectFormProps) {
+export function CalDAVConnectForm({ provider }: CalDAVConnectFormProps) {
   const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
   };
@@ -48,11 +47,7 @@ export function CalDAVConnectForm({ provider, backHref }: CalDAVConnectFormProps
       </div>
       <Divider />
       <div className="flex items-stretch gap-2">
-        <LinkButton to={backHref} variant="border" className="self-stretch justify-center px-3.5">
-          <ButtonIcon>
-            <ArrowLeft size={16} />
-          </ButtonIcon>
-        </LinkButton>
+        <BackButton variant="border" size="standard" className="self-stretch justify-center px-3.5" />
         <Button type="submit" className="grow justify-center">
           <ButtonText>Connect</ButtonText>
         </Button>

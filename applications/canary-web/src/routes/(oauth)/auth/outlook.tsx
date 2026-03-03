@@ -6,5 +6,5 @@ export const Route = createFileRoute("/(oauth)/auth/outlook")({
 });
 
 function RouteComponent() {
-  return <AuthOAuthPreamble provider="outlook" backHref="/login" />;
+  return <AuthOAuthPreamble provider="outlook" />;
 }

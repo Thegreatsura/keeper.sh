@@ -26,7 +26,9 @@ import { Route as oauthDashboardConnectRouteRouteImport } from './../../routes/(
 import { Route as dashboardDashboardSettingsRouteRouteImport } from './../../routes/(dashboard)/dashboard/settings/route'
 import { Route as dashboardDashboardConnectRouteRouteImport } from './../../routes/(dashboard)/dashboard/connect/route'
 import { Route as dashboardDashboardSettingsIndexRouteImport } from './../../routes/(dashboard)/dashboard/settings/index'
+import { Route as dashboardDashboardIntegrationsIndexRouteImport } from './../../routes/(dashboard)/dashboard/integrations/index'
 import { Route as dashboardDashboardConnectIndexRouteImport } from './../../routes/(dashboard)/dashboard/connect/index'
+import { Route as dashboardDashboardCalendarsIndexRouteImport } from './../../routes/(dashboard)/dashboard/calendars/index'
 import { Route as oauthDashboardConnectOutlookRouteImport } from './../../routes/(oauth)/dashboard/connect/outlook'
 import { Route as oauthDashboardConnectMicrosoftRouteImport } from './../../routes/(oauth)/dashboard/connect/microsoft'
 import { Route as oauthDashboardConnectIcsFileRouteImport } from './../../routes/(oauth)/dashboard/connect/ics-file'
@@ -37,6 +39,8 @@ import { Route as oauthDashboardConnectCaldavRouteImport } from './../../routes/
 import { Route as oauthDashboardConnectAppleRouteImport } from './../../routes/(oauth)/dashboard/connect/apple'
 import { Route as dashboardDashboardSettingsPasskeysRouteImport } from './../../routes/(dashboard)/dashboard/settings/passkeys'
 import { Route as dashboardDashboardSettingsChangePasswordRouteImport } from './../../routes/(dashboard)/dashboard/settings/change-password'
+import { Route as dashboardDashboardConnectSourceRouteImport } from './../../routes/(dashboard)/dashboard/connect/source'
+import { Route as dashboardDashboardConnectDestinationRouteImport } from './../../routes/(dashboard)/dashboard/connect/destination'
 
 const oauthRouteRoute = oauthRouteRouteImport.update({
   id: '/(oauth)',
@@ -123,11 +127,23 @@ const dashboardDashboardSettingsIndexRoute =
     path: '/',
     getParentRoute: () => dashboardDashboardSettingsRouteRoute,
   } as any)
+const dashboardDashboardIntegrationsIndexRoute =
+  dashboardDashboardIntegrationsIndexRouteImport.update({
+    id: '/dashboard/integrations/',
+    path: '/dashboard/integrations/',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
 const dashboardDashboardConnectIndexRoute =
   dashboardDashboardConnectIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => dashboardDashboardConnectRouteRoute,
+  } as any)
+const dashboardDashboardCalendarsIndexRoute =
+  dashboardDashboardCalendarsIndexRouteImport.update({
+    id: '/dashboard/calendars/',
+    path: '/dashboard/calendars/',
+    getParentRoute: () => dashboardRouteRoute,
   } as any)
 const oauthDashboardConnectOutlookRoute =
   oauthDashboardConnectOutlookRouteImport.update({
@@ -189,6 +205,18 @@ const dashboardDashboardSettingsChangePasswordRoute =
     path: '/change-password',
     getParentRoute: () => dashboardDashboardSettingsRouteRoute,
   } as any)
+const dashboardDashboardConnectSourceRoute =
+  dashboardDashboardConnectSourceRouteImport.update({
+    id: '/source',
+    path: '/source',
+    getParentRoute: () => dashboardDashboardConnectRouteRoute,
+  } as any)
+const dashboardDashboardConnectDestinationRoute =
+  dashboardDashboardConnectDestinationRouteImport.update({
+    id: '/destination',
+    path: '/destination',
+    getParentRoute: () => dashboardDashboardConnectRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/auth': typeof oauthAuthRouteRouteWithChildren
@@ -202,6 +230,8 @@ export interface FileRoutesByFullPath {
   '/auth/google': typeof oauthAuthGoogleRoute
   '/auth/outlook': typeof oauthAuthOutlookRoute
   '/dashboard/': typeof dashboardDashboardIndexRoute
+  '/dashboard/connect/destination': typeof dashboardDashboardConnectDestinationRoute
+  '/dashboard/connect/source': typeof dashboardDashboardConnectSourceRoute
   '/dashboard/settings/change-password': typeof dashboardDashboardSettingsChangePasswordRoute
   '/dashboard/settings/passkeys': typeof dashboardDashboardSettingsPasskeysRoute
   '/dashboard/connect/apple': typeof oauthDashboardConnectAppleRoute
@@ -212,7 +242,9 @@ export interface FileRoutesByFullPath {
   '/dashboard/connect/ics-file': typeof oauthDashboardConnectIcsFileRoute
   '/dashboard/connect/microsoft': typeof oauthDashboardConnectMicrosoftRoute
   '/dashboard/connect/outlook': typeof oauthDashboardConnectOutlookRoute
+  '/dashboard/calendars/': typeof dashboardDashboardCalendarsIndexRoute
   '/dashboard/connect/': typeof dashboardDashboardConnectIndexRoute
+  '/dashboard/integrations/': typeof dashboardDashboardIntegrationsIndexRoute
   '/dashboard/settings/': typeof dashboardDashboardSettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -225,6 +257,8 @@ export interface FileRoutesByTo {
   '/dashboard/connect': typeof dashboardDashboardConnectIndexRoute
   '/auth/google': typeof oauthAuthGoogleRoute
   '/auth/outlook': typeof oauthAuthOutlookRoute
+  '/dashboard/connect/destination': typeof dashboardDashboardConnectDestinationRoute
+  '/dashboard/connect/source': typeof dashboardDashboardConnectSourceRoute
   '/dashboard/settings/change-password': typeof dashboardDashboardSettingsChangePasswordRoute
   '/dashboard/settings/passkeys': typeof dashboardDashboardSettingsPasskeysRoute
   '/dashboard/connect/apple': typeof oauthDashboardConnectAppleRoute
@@ -235,6 +269,8 @@ export interface FileRoutesByTo {
   '/dashboard/connect/ics-file': typeof oauthDashboardConnectIcsFileRoute
   '/dashboard/connect/microsoft': typeof oauthDashboardConnectMicrosoftRoute
   '/dashboard/connect/outlook': typeof oauthDashboardConnectOutlookRoute
+  '/dashboard/calendars': typeof dashboardDashboardCalendarsIndexRoute
+  '/dashboard/integrations': typeof dashboardDashboardIntegrationsIndexRoute
   '/dashboard/settings': typeof dashboardDashboardSettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -255,6 +291,8 @@ export interface FileRoutesById {
   '/(oauth)/auth/google': typeof oauthAuthGoogleRoute
   '/(oauth)/auth/outlook': typeof oauthAuthOutlookRoute
   '/(dashboard)/dashboard/': typeof dashboardDashboardIndexRoute
+  '/(dashboard)/dashboard/connect/destination': typeof dashboardDashboardConnectDestinationRoute
+  '/(dashboard)/dashboard/connect/source': typeof dashboardDashboardConnectSourceRoute
   '/(dashboard)/dashboard/settings/change-password': typeof dashboardDashboardSettingsChangePasswordRoute
   '/(dashboard)/dashboard/settings/passkeys': typeof dashboardDashboardSettingsPasskeysRoute
   '/(oauth)/dashboard/connect/apple': typeof oauthDashboardConnectAppleRoute
@@ -265,7 +303,9 @@ export interface FileRoutesById {
   '/(oauth)/dashboard/connect/ics-file': typeof oauthDashboardConnectIcsFileRoute
   '/(oauth)/dashboard/connect/microsoft': typeof oauthDashboardConnectMicrosoftRoute
   '/(oauth)/dashboard/connect/outlook': typeof oauthDashboardConnectOutlookRoute
+  '/(dashboard)/dashboard/calendars/': typeof dashboardDashboardCalendarsIndexRoute
   '/(dashboard)/dashboard/connect/': typeof dashboardDashboardConnectIndexRoute
+  '/(dashboard)/dashboard/integrations/': typeof dashboardDashboardIntegrationsIndexRoute
   '/(dashboard)/dashboard/settings/': typeof dashboardDashboardSettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -282,6 +322,8 @@ export interface FileRouteTypes {
     | '/auth/google'
     | '/auth/outlook'
     | '/dashboard/'
+    | '/dashboard/connect/destination'
+    | '/dashboard/connect/source'
     | '/dashboard/settings/change-password'
     | '/dashboard/settings/passkeys'
     | '/dashboard/connect/apple'
@@ -292,7 +334,9 @@ export interface FileRouteTypes {
     | '/dashboard/connect/ics-file'
     | '/dashboard/connect/microsoft'
     | '/dashboard/connect/outlook'
+    | '/dashboard/calendars/'
     | '/dashboard/connect/'
+    | '/dashboard/integrations/'
     | '/dashboard/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -305,6 +349,8 @@ export interface FileRouteTypes {
     | '/dashboard/connect'
     | '/auth/google'
     | '/auth/outlook'
+    | '/dashboard/connect/destination'
+    | '/dashboard/connect/source'
     | '/dashboard/settings/change-password'
     | '/dashboard/settings/passkeys'
     | '/dashboard/connect/apple'
@@ -315,6 +361,8 @@ export interface FileRouteTypes {
     | '/dashboard/connect/ics-file'
     | '/dashboard/connect/microsoft'
     | '/dashboard/connect/outlook'
+    | '/dashboard/calendars'
+    | '/dashboard/integrations'
     | '/dashboard/settings'
   id:
     | '__root__'
@@ -334,6 +382,8 @@ export interface FileRouteTypes {
     | '/(oauth)/auth/google'
     | '/(oauth)/auth/outlook'
     | '/(dashboard)/dashboard/'
+    | '/(dashboard)/dashboard/connect/destination'
+    | '/(dashboard)/dashboard/connect/source'
     | '/(dashboard)/dashboard/settings/change-password'
     | '/(dashboard)/dashboard/settings/passkeys'
     | '/(oauth)/dashboard/connect/apple'
@@ -344,7 +394,9 @@ export interface FileRouteTypes {
     | '/(oauth)/dashboard/connect/ics-file'
     | '/(oauth)/dashboard/connect/microsoft'
     | '/(oauth)/dashboard/connect/outlook'
+    | '/(dashboard)/dashboard/calendars/'
     | '/(dashboard)/dashboard/connect/'
+    | '/(dashboard)/dashboard/integrations/'
     | '/(dashboard)/dashboard/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -476,12 +528,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardDashboardSettingsIndexRouteImport
       parentRoute: typeof dashboardDashboardSettingsRouteRoute
     }
+    '/(dashboard)/dashboard/integrations/': {
+      id: '/(dashboard)/dashboard/integrations/'
+      path: '/dashboard/integrations'
+      fullPath: '/dashboard/integrations/'
+      preLoaderRoute: typeof dashboardDashboardIntegrationsIndexRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
     '/(dashboard)/dashboard/connect/': {
       id: '/(dashboard)/dashboard/connect/'
       path: '/'
       fullPath: '/dashboard/connect/'
       preLoaderRoute: typeof dashboardDashboardConnectIndexRouteImport
       parentRoute: typeof dashboardDashboardConnectRouteRoute
+    }
+    '/(dashboard)/dashboard/calendars/': {
+      id: '/(dashboard)/dashboard/calendars/'
+      path: '/dashboard/calendars'
+      fullPath: '/dashboard/calendars/'
+      preLoaderRoute: typeof dashboardDashboardCalendarsIndexRouteImport
+      parentRoute: typeof dashboardRouteRoute
     }
     '/(oauth)/dashboard/connect/outlook': {
       id: '/(oauth)/dashboard/connect/outlook'
@@ -553,6 +619,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardDashboardSettingsChangePasswordRouteImport
       parentRoute: typeof dashboardDashboardSettingsRouteRoute
     }
+    '/(dashboard)/dashboard/connect/source': {
+      id: '/(dashboard)/dashboard/connect/source'
+      path: '/source'
+      fullPath: '/dashboard/connect/source'
+      preLoaderRoute: typeof dashboardDashboardConnectSourceRouteImport
+      parentRoute: typeof dashboardDashboardConnectRouteRoute
+    }
+    '/(dashboard)/dashboard/connect/destination': {
+      id: '/(dashboard)/dashboard/connect/destination'
+      path: '/destination'
+      fullPath: '/dashboard/connect/destination'
+      preLoaderRoute: typeof dashboardDashboardConnectDestinationRouteImport
+      parentRoute: typeof dashboardDashboardConnectRouteRoute
+    }
   }
 }
 
@@ -573,11 +653,16 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
 )
 
 interface dashboardDashboardConnectRouteRouteChildren {
+  dashboardDashboardConnectDestinationRoute: typeof dashboardDashboardConnectDestinationRoute
+  dashboardDashboardConnectSourceRoute: typeof dashboardDashboardConnectSourceRoute
   dashboardDashboardConnectIndexRoute: typeof dashboardDashboardConnectIndexRoute
 }
 
 const dashboardDashboardConnectRouteRouteChildren: dashboardDashboardConnectRouteRouteChildren =
   {
+    dashboardDashboardConnectDestinationRoute:
+      dashboardDashboardConnectDestinationRoute,
+    dashboardDashboardConnectSourceRoute: dashboardDashboardConnectSourceRoute,
     dashboardDashboardConnectIndexRoute: dashboardDashboardConnectIndexRoute,
   }
 
@@ -610,6 +695,8 @@ interface dashboardRouteRouteChildren {
   dashboardDashboardConnectRouteRoute: typeof dashboardDashboardConnectRouteRouteWithChildren
   dashboardDashboardSettingsRouteRoute: typeof dashboardDashboardSettingsRouteRouteWithChildren
   dashboardDashboardIndexRoute: typeof dashboardDashboardIndexRoute
+  dashboardDashboardCalendarsIndexRoute: typeof dashboardDashboardCalendarsIndexRoute
+  dashboardDashboardIntegrationsIndexRoute: typeof dashboardDashboardIntegrationsIndexRoute
 }
 
 const dashboardRouteRouteChildren: dashboardRouteRouteChildren = {
@@ -618,6 +705,9 @@ const dashboardRouteRouteChildren: dashboardRouteRouteChildren = {
   dashboardDashboardSettingsRouteRoute:
     dashboardDashboardSettingsRouteRouteWithChildren,
   dashboardDashboardIndexRoute: dashboardDashboardIndexRoute,
+  dashboardDashboardCalendarsIndexRoute: dashboardDashboardCalendarsIndexRoute,
+  dashboardDashboardIntegrationsIndexRoute:
+    dashboardDashboardIntegrationsIndexRoute,
 }
 
 const dashboardRouteRouteWithChildren = dashboardRouteRoute._addFileChildren(

@@ -10,7 +10,7 @@ export const Route = createFileRoute(
 function RouteComponent() {
   return (
     <div className="flex flex-col gap-3 w-full max-w-xs self-center">
-      <LinkOAuthPreamble provider="microsoft-365" backHref="/dashboard/connect" />
+      <LinkOAuthPreamble provider="microsoft-365" />
     </div>
   );
 }

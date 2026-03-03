@@ -33,7 +33,7 @@ function RouteComponent() {
         <li className="text-sm tracking-tight text-foreground-muted">Click &ldquo;Generate password&rdquo;</li>
         <li className="text-sm tracking-tight text-foreground-muted">Copy the password, and paste it below</li>
       </ol>
-      <CalDAVConnectForm provider="fastmail" backHref="/dashboard/connect" />
+      <CalDAVConnectForm provider="fastmail" />
     </div>
   );
 }

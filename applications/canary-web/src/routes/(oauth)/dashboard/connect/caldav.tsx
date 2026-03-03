@@ -28,7 +28,7 @@ function RouteComponent() {
       <Text size="sm" tone="muted" align="left">
         Your CalDAV server URL can typically be found in your calendar provider&apos;s settings or documentation.
       </Text>
-      <CalDAVConnectForm provider="caldav" backHref="/dashboard/connect" />
+      <CalDAVConnectForm provider="caldav" />
     </div>
   );
 }

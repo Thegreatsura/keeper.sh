@@ -1,12 +1,13 @@
 import type { ReactNode, FormEvent } from "react";
-import { ArrowLeft, ArrowLeftRight, Check } from "lucide-react";
+import { ArrowLeftRight, Check } from "lucide-react";
 import KeeperLogo from "../../assets/keeper.svg?react";
 import { authClient } from "../../lib/auth-client";
+import { BackButton } from "../ui/back-button";
 import { Heading2 } from "../ui/heading";
 import { Text } from "../ui/text";
 import { TextLink } from "../ui/text-link";
 import { Divider } from "../ui/divider";
-import { Button, ButtonText, LinkButton, ButtonIcon } from "../ui/button";
+import { Button, ButtonText } from "../ui/button";
 
 type Provider = "google" | "outlook" | "microsoft-365";
 
@@ -30,12 +31,11 @@ const PROVIDER_SOCIAL_MAP: Partial<Record<Provider, string>> = {
 
 interface PreambleLayoutProps {
   provider: Provider;
-  backHref: string;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   children?: ReactNode;
 }
 
-function PreambleLayout({ provider, backHref, onSubmit, children }: PreambleLayoutProps) {
+function PreambleLayout({ provider, onSubmit, children }: PreambleLayoutProps) {
   return (
     <>
       <ProviderIconPair>
@@ -62,11 +62,7 @@ function PreambleLayout({ provider, backHref, onSubmit, children }: PreambleLayo
       <Divider />
       <form onSubmit={onSubmit} className="contents">
         <div className="flex items-stretch gap-2">
-          <LinkButton to={backHref} variant="border" className="self-stretch justify-center px-3.5">
-            <ButtonIcon>
-              <ArrowLeft size={16} />
-            </ButtonIcon>
-          </LinkButton>
+          <BackButton variant="border" size="standard" className="self-stretch justify-center px-3.5" />
           <Button type="submit" className="grow justify-center">
             <ButtonText>Connect</ButtonText>
           </Button>
@@ -79,10 +75,9 @@ function PreambleLayout({ provider, backHref, onSubmit, children }: PreambleLayo
 
 interface AuthOAuthPreambleProps {
   provider: Provider;
-  backHref: string;
 }
 
-export function AuthOAuthPreamble({ provider, backHref }: AuthOAuthPreambleProps) {
+export function AuthOAuthPreamble({ provider }: AuthOAuthPreambleProps) {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const socialProvider = PROVIDER_SOCIAL_MAP[provider];
@@ -91,8 +86,8 @@ export function AuthOAuthPreamble({ provider, backHref }: AuthOAuthPreambleProps
   };
 
   return (
-    <PreambleLayout provider={provider} backHref={backHref} onSubmit={handleSubmit}>
-      <TextLink to={backHref}>
+    <PreambleLayout provider={provider} onSubmit={handleSubmit}>
+      <TextLink to="/login">
         Don&apos;t import my calendars yet, just log me in.
       </TextLink>
     </PreambleLayout>
@@ -101,16 +96,16 @@ export function AuthOAuthPreamble({ provider, backHref }: AuthOAuthPreambleProps
 
 interface LinkOAuthPreambleProps {
   provider: Provider;
-  backHref: string;
 }
 
-export function LinkOAuthPreamble({ provider, backHref }: LinkOAuthPreambleProps) {
+export function LinkOAuthPreamble({ provider }: LinkOAuthPreambleProps) {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    window.location.href = `/api/sources/authorize?provider=${provider}`;
   };
 
   return (
-    <PreambleLayout provider={provider} backHref={backHref} onSubmit={handleSubmit} />
+    <PreambleLayout provider={provider} onSubmit={handleSubmit} />
   );
 }
 

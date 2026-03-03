@@ -6,5 +6,5 @@ export const Route = createFileRoute("/(oauth)/auth/google")({
 });
 
 function RouteComponent() {
-  return <AuthOAuthPreamble provider="google" backHref="/login" />;
+  return <AuthOAuthPreamble provider="google" />;
 }

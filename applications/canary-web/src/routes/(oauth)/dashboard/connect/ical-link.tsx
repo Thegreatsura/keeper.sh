@@ -21,7 +21,7 @@ function RouteComponent() {
       <Text size="sm" tone="muted" align="left">
         Subscribe to a read-only calendar feed from any ICS-compatible source, supported by most calendar providers.
       </Text>
-      <ICSFeedForm backHref="/dashboard/connect" />
+      <ICSFeedForm />
     </div>
   );
 }

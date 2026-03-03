@@ -8,7 +8,7 @@ export const Route = createFileRoute("/(oauth)/dashboard/connect/google")({
 function RouteComponent() {
   return (
     <div className="flex flex-col gap-3 w-full max-w-xs self-center">
-      <LinkOAuthPreamble provider="google" backHref="/dashboard/connect" />
+      <LinkOAuthPreamble provider="google" />
     </div>
   );
 }

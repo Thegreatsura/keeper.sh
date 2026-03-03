@@ -31,7 +31,7 @@ function RouteComponent() {
         <li className="text-sm tracking-tight text-foreground-muted">Label and generate the password, then copy it</li>
         <li className="text-sm tracking-tight text-foreground-muted">Paste the app-specific password below</li>
       </ol>
-      <CalDAVConnectForm provider="icloud" backHref="/dashboard/connect" />
+      <CalDAVConnectForm provider="icloud" />
     </div>
   );
 }

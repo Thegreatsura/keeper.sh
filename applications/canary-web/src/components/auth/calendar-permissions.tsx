@@ -1,10 +1,11 @@
 import type { PropsWithChildren, SubmitEvent } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowLeftRight, Check } from "lucide-react";
+import { ArrowLeftRight, Check } from "lucide-react";
 import KeeperLogo from "../../assets/keeper.svg?react";
+import { BackButton } from "../ui/back-button";
 import { Text } from "../ui/text";
 import { Divider } from "../ui/divider";
-import { Button, LinkButton, ButtonIcon } from "../ui/button";
+import { Button } from "../ui/button";
 
 type Provider = "google" | "outlook";
 
@@ -87,7 +88,7 @@ function Actions({ children }: PropsWithChildren) {
   );
 }
 
-function ConnectForm({ backHref }: { backHref: string }) {
+function ConnectForm() {
   const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
   };
@@ -95,11 +96,7 @@ function ConnectForm({ backHref }: { backHref: string }) {
   return (
     <form onSubmit={handleSubmit} className="contents">
       <div className="flex items-stretch">
-        <LinkButton to={backHref} variant="border" className="self-stretch justify-center mr-2 px-3.5">
-          <ButtonIcon>
-            <ArrowLeft size={16} />
-          </ButtonIcon>
-        </LinkButton>
+        <BackButton variant="border" size="standard" className="self-stretch justify-center mr-2 px-3.5" />
         <Button type="submit" className="grow justify-center">
           Connect
         </Button>

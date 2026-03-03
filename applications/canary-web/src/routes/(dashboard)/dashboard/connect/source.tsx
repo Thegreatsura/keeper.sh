@@ -9,7 +9,7 @@ import {
   NavigationMenuItemTrailing,
 } from "../../../../components/ui/navigation-menu";
 
-export const Route = createFileRoute("/(dashboard)/dashboard/connect/")({
+export const Route = createFileRoute("/(dashboard)/dashboard/connect/source")({
   component: RouteComponent,
 });
 
@@ -21,35 +21,35 @@ function RouteComponent() {
         <NavigationMenuItem to="/dashboard/connect/google">
           <NavigationMenuItemIcon>
             <img src="/integrations/icon-google.svg" alt="" width={15} height={15} />
-            <NavigationMenuItemLabel>Connect Google Calendar</NavigationMenuItemLabel>
+            <NavigationMenuItemLabel>Google Calendar</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
         <NavigationMenuItem to="/dashboard/connect/outlook">
           <NavigationMenuItemIcon>
             <img src="/integrations/icon-outlook.svg" alt="" width={15} height={15} />
-            <NavigationMenuItemLabel>Connect Outlook</NavigationMenuItemLabel>
+            <NavigationMenuItemLabel>Outlook</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
         <NavigationMenuItem to="/dashboard/connect/apple">
           <NavigationMenuItemIcon>
             <img src="/integrations/icon-icloud.svg" alt="" width={15} height={15} />
-            <NavigationMenuItemLabel>Connect iCloud</NavigationMenuItemLabel>
+            <NavigationMenuItemLabel>iCloud</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
         <NavigationMenuItem to="/dashboard/connect/microsoft">
           <NavigationMenuItemIcon>
             <img src="/integrations/icon-microsoft-365.svg" alt="" width={15} height={15} />
-            <NavigationMenuItemLabel>Connect Microsoft 365</NavigationMenuItemLabel>
+            <NavigationMenuItemLabel>Microsoft 365</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
         <NavigationMenuItem to="/dashboard/connect/fastmail">
           <NavigationMenuItemIcon>
             <img src="/integrations/icon-fastmail.svg" alt="" width={15} height={15} />
-            <NavigationMenuItemLabel>Connect Fastmail</NavigationMenuItemLabel>
+            <NavigationMenuItemLabel>Fastmail</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
@@ -58,7 +58,7 @@ function RouteComponent() {
         <NavigationMenuItem to="/dashboard/connect/caldav">
           <NavigationMenuItemIcon>
             <Calendar size={15} />
-            <NavigationMenuItemLabel>Connect CalDAV Server</NavigationMenuItemLabel>
+            <NavigationMenuItemLabel>CalDAV Server</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
@@ -67,14 +67,14 @@ function RouteComponent() {
         <NavigationMenuItem to="/dashboard/connect/ical-link">
           <NavigationMenuItemIcon>
             <Link size={15} />
-            <NavigationMenuItemLabel>Subscribe to ICS Calendar Feed</NavigationMenuItemLabel>
+            <NavigationMenuItemLabel>ICS Calendar Feed</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
         <NavigationMenuItem to="/dashboard/connect/ics-file">
           <NavigationMenuItemIcon>
             <Upload size={15} />
-            <NavigationMenuItemLabel>Upload ICS Snapshot File</NavigationMenuItemLabel>
+            <NavigationMenuItemLabel>ICS Snapshot File</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>

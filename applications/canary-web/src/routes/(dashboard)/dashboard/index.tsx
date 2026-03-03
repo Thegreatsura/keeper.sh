@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Link2, Calendar, CalendarDays, Settings, Sparkles, LogOut, Bell, Eye } from "lucide-react";
+import useSWR from "swr";
+import { CalendarPlus, CalendarArrowDown, Calendar, CalendarDays, Settings, Sparkles, LogOut, Bell, Eye } from "lucide-react";
 import { signOut } from "../../../lib/auth";
 import KeeperLogo from "../../../assets/keeper.svg?react";
 import {
@@ -17,6 +18,12 @@ export const Route = createFileRoute("/(dashboard)/dashboard/")({
   component: RouteComponent,
 });
 
+const fetcher = async <T,>(url: string): Promise<T> => {
+  const response = await fetch(url, { credentials: "include" });
+  if (!response.ok) throw new Error("Failed to fetch");
+  return response.json();
+};
+
 function RouteComponent() {
   const navigate = useNavigate();
   const handleLogout = async () => {
@@ -25,25 +32,37 @@ function RouteComponent() {
   };
   const [notifications, setNotifications] = useState(true);
   const [publicProfile, setPublicProfile] = useState(false);
+  const { data: sources = [] } = useSWR<unknown[]>("/api/sources", fetcher);
+  const { data: destinations = [] } = useSWR<unknown[]>("/api/destinations", fetcher);
+  const hasCalendars = sources.length > 0 || destinations.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <NavigationMenu>
-          <NavigationMenuItem to="/dashboard/connect">
+          <NavigationMenuItem to="/dashboard/connect/source">
             <NavigationMenuItemIcon>
-              <Link2 size={15} />
-              <NavigationMenuItemLabel>Link Calendar Account</NavigationMenuItemLabel>
+              <CalendarPlus size={15} />
+              <NavigationMenuItemLabel>Add Source Calendar</NavigationMenuItemLabel>
             </NavigationMenuItemIcon>
             <NavigationMenuItemTrailing />
           </NavigationMenuItem>
-          <NavigationMenuItem to="/dashboard/calendars">
+          <NavigationMenuItem to="/dashboard/connect/destination">
             <NavigationMenuItemIcon>
-              <Calendar size={15} />
-              <NavigationMenuItemLabel>Calendars</NavigationMenuItemLabel>
+              <CalendarArrowDown size={15} />
+              <NavigationMenuItemLabel>Add Destination Calendar</NavigationMenuItemLabel>
             </NavigationMenuItemIcon>
             <NavigationMenuItemTrailing />
           </NavigationMenuItem>
+          {hasCalendars && (
+            <NavigationMenuItem to="/dashboard/calendars">
+              <NavigationMenuItemIcon>
+                <Calendar size={15} />
+                <NavigationMenuItemLabel>Calendars</NavigationMenuItemLabel>
+              </NavigationMenuItemIcon>
+              <NavigationMenuItemTrailing />
+            </NavigationMenuItem>
+          )}
           <NavigationMenuItem to="/dashboard/events">
             <NavigationMenuItemIcon>
               <CalendarDays size={15} />
