@@ -1,19 +1,39 @@
-import { SubmitEvent, useRef } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, type FormEvent } from "react";
+import { Link } from "@tanstack/react-router";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Provider } from "jotai/react";
 import { motion, AnimatePresence, type Variants } from "motion/react";
 import { ArrowLeft, LoaderCircle } from "lucide-react";
-import { authFormStatusAtom, authFormErrorAtom, type AuthFormStatus } from "../../../state/auth-form";
-import { Button, LinkButton, ExternalLinkButton, ButtonText, ButtonIcon } from "../../../components/ui/button";
-import { Divider } from "../../../components/ui/divider";
-import { Heading2 } from "../../../components/ui/heading";
-import { Input } from "../../../components/ui/input";
-import { Text } from "../../../components/ui/text";
+import { authFormStatusAtom, authFormErrorAtom, type AuthFormStatus } from "../../state/auth-form";
+import { Button, LinkButton, ExternalLinkButton, ButtonText, ButtonIcon } from "../ui/button";
+import { Divider } from "../ui/divider";
+import { Heading2 } from "../ui/heading";
+import { Input } from "../ui/input";
+import { Text } from "../ui/text";
 
-export const Route = createFileRoute("/(auth)/login/")({
-  component: RouteComponent,
-});
+export type AuthScreenCopy = {
+  heading: string;
+  subtitle: string;
+  oauthActionLabel: string;
+  submitLabel: string;
+  switchPrompt: string;
+  switchCta: string;
+  switchTo: "/login" | "/register";
+};
+
+type SocialAuthProvider = {
+  id: string;
+  label: string;
+  href: "/auth/google" | "/auth/outlook";
+  iconSrc: string;
+};
+
+const AUTH_ERROR_MESSAGE = "Invalid email or password. Please try again.";
+
+const SOCIAL_AUTH_PROVIDERS: readonly SocialAuthProvider[] = [
+  { id: "google", label: "Google", href: "/auth/google", iconSrc: "/integrations/icon-google.svg" },
+  { id: "outlook", label: "Outlook", href: "/auth/outlook", iconSrc: "/integrations/icon-outlook.svg" },
+];
 
 const submitTextVariants: Record<AuthFormStatus, Variants[string]> = {
   idle: { opacity: 1, filter: "none", y: 0, scale: 1 },
@@ -25,76 +45,102 @@ const backButtonVariants: Variants = {
   visible: { width: "auto", opacity: 1, filter: "blur(0px)" },
 };
 
-function RouteComponent() {
+export function AuthForm({ copy }: { copy: AuthScreenCopy }) {
   return (
     <Provider>
       <div className="flex flex-col py-2">
-        <Heading2 as="span" className="text-center">Welcome back</Heading2>
-        <Text size="sm" tone="muted" align="center">Sign in to your Keeper account</Text>
+        <Heading2 as="span" className="text-center">{copy.heading}</Heading2>
+        <Text size="sm" tone="muted" align="center">{copy.subtitle}</Text>
       </div>
-      <ExternalLinkButton href="/auth/google" className="w-full justify-center" variant="border">
-        <ButtonIcon>
-          <img src="/integrations/icon-google.svg" alt="" width={16} height={16} />
-        </ButtonIcon>
-        <ButtonText>Sign in with Google</ButtonText>
-      </ExternalLinkButton>
-      <ExternalLinkButton href="/auth/outlook" className="w-full justify-center" variant="border">
-        <ButtonIcon>
-          <img src="/integrations/icon-outlook.svg" alt="" width={16} height={16} />
-        </ButtonIcon>
-        <ButtonText>Sign in with Outlook</ButtonText>
-      </ExternalLinkButton>
+      <SocialAuthButtons oauthActionLabel={copy.oauthActionLabel} />
       <Divider>or</Divider>
-      <EmailForm />
+      <EmailForm submitLabel={copy.submitLabel} />
       <Text size="sm" tone="muted" align="center">
-        Don't have an account yet? <Link to="/register" className="text-foreground underline underline-offset-2 hover:text-foreground-muted transition-colors">Register</Link>
+        {copy.switchPrompt}{" "}
+        <Link to={copy.switchTo} className="text-foreground underline underline-offset-2 hover:text-foreground-muted transition-colors">
+          {copy.switchCta}
+        </Link>
       </Text>
     </Provider>
   );
 }
 
-function EmailForm() {
+function SocialAuthButtons({ oauthActionLabel }: { oauthActionLabel: string }) {
+  return (
+    <>
+      {SOCIAL_AUTH_PROVIDERS.map((provider) => (
+        <ExternalLinkButton key={provider.id} href={provider.href} className="w-full justify-center" variant="border">
+          <ButtonIcon>
+            <img src={provider.iconSrc} alt="" width={16} height={16} />
+          </ButtonIcon>
+          <ButtonText>{`${oauthActionLabel} with ${provider.label}`}</ButtonText>
+        </ExternalLinkButton>
+      ))}
+    </>
+  );
+}
+
+function EmailForm({ submitLabel }: { submitLabel: string }) {
   const setStatus = useSetAtom(authFormStatusAtom);
   const setError = useSetAtom(authFormErrorAtom);
 
-  const handleSubmit = (event: SubmitEvent) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus("loading");
 
     setTimeout(() => {
       setStatus("idle");
-      setError({ message: "Invalid email or password. Please try again.", active: true });
+      setError({ message: AUTH_ERROR_MESSAGE, active: true });
     }, 1500);
   };
 
   return (
     <form onSubmit={handleSubmit} className="contents">
-      <EmailError />
+      <AuthErrorToast />
       <EmailInput />
       <div className="flex items-stretch">
         <BackButton />
-        <SubmitButton>Sign in</SubmitButton>
+        <SubmitButton>{submitLabel}</SubmitButton>
       </div>
     </form>
   );
 }
 
-function EmailError() {
+function AuthErrorToast() {
   const error = useAtomValue(authFormErrorAtom);
+  const setError = useSetAtom(authFormErrorAtom);
+
+  useEffect(() => {
+    if (!error?.active) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setError({ ...error, active: false });
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [error, setError]);
 
   return (
     <AnimatePresence initial={false}>
       {error?.active && (
         <motion.div
-          className="overflow-visible flex flex-col justify-end"
-          initial={{ height: 0, opacity: 0, filter: "blur(4px)" }}
-          animate={{ height: "auto", opacity: 1, filter: "blur(0px)" }}
-          exit={{ height: 0, opacity: 0, filter: "blur(4px)" }}
+          className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4"
+          initial={{ opacity: 0, y: 24, filter: "blur(4px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          exit={{ opacity: 0, y: 12, filter: "blur(4px)" }}
           transition={{ duration: 0.2 }}
         >
-          <Text size="sm" tone="default" align="left" className="text-red-500">
-            {error.message}
-          </Text>
+          <div
+            aria-live="polite"
+            className="pointer-events-auto w-fit max-w-sm rounded-xl border border-red-500/40 bg-background px-4 py-2.5 shadow-xs"
+            role="status"
+          >
+            <Text size="sm" tone="default" align="center" className="text-red-500 dark:text-red-400">
+              {error.message}
+            </Text>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -105,7 +151,6 @@ function EmailInput() {
   const status = useAtomValue(authFormStatusAtom);
   const error = useAtomValue(authFormErrorAtom);
   const setError = useSetAtom(authFormErrorAtom);
-  const ref = useRef<HTMLInputElement>(null);
 
   const handleChange = () => {
     if (error?.active) {
@@ -115,7 +160,6 @@ function EmailInput() {
 
   return (
     <Input
-      ref={ref}
       id="email"
       name="email"
       disabled={status === "loading"}
