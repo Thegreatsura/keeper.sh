@@ -1,4 +1,5 @@
 import type { ComponentPropsWithoutRef, PropsWithChildren } from "react";
+import { Link } from "@tanstack/react-router";
 import { tv, type VariantProps } from "tailwind-variants/lite";
 
 const button = tv({
@@ -21,10 +22,25 @@ const button = tv({
 })
 
 type ButtonOptions = ComponentPropsWithoutRef<"button"> & VariantProps<typeof button>;
+type LinkButtonOptions = Omit<ComponentPropsWithoutRef<typeof Link>, "children" | "className"> &
+  PropsWithChildren<VariantProps<typeof button> & { className?: string }>;
+type ExternalLinkButtonOptions = ComponentPropsWithoutRef<"a"> & VariantProps<typeof button>;
 
 export function Button({ children, size, variant, className, ...props }: ButtonOptions) {
   return (
     <button className={button({ size, variant, className })} {...props}>{children}</button>
+  )
+}
+
+export function LinkButton({ children, size, variant, className, ...props }: LinkButtonOptions) {
+  return (
+    <Link className={button({ size, variant, className })} {...props}>{children}</Link>
+  )
+}
+
+export function ExternalLinkButton({ children, size, variant, className, ...props }: ExternalLinkButtonOptions) {
+  return (
+    <a className={button({ size, variant, className })} {...props}>{children}</a>
   )
 }
 
@@ -33,5 +49,5 @@ export function ButtonText({ children }: PropsWithChildren) {
 }
 
 export function ButtonIcon({ children }: PropsWithChildren) {
-  return <div className="*:[svg]:sizeA">{children}</div>
+  return children
 }

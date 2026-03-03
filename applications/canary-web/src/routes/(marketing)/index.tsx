@@ -2,7 +2,7 @@ import { useSetAtom } from 'jotai'
 import { createFileRoute } from '@tanstack/react-router'
 import { Heading1, Heading2 } from '../../components/ui/heading'
 import { Text } from '../../components/ui/text'
-import { Button, ButtonIcon, ButtonText } from '../../components/ui/button'
+import { ButtonIcon, ButtonText, ExternalLinkButton, LinkButton } from '../../components/ui/button'
 import { MarketingIllustrationCalendar, MarketingIllustrationCalendarCard, Skew, SkewTuple } from '../../components/marketing/marketing-illustration-calendar'
 import {
   MarketingFeatureBentoBody,
@@ -146,7 +146,8 @@ function RouteComponent() {
       </Text>
       <div className="contents *:z-20">
         <div className="flex items-center gap-2 mx-auto">
-          <Button
+          <LinkButton
+            to="/register"
             size="compact"
             onMouseEnter={() => setEmphasized(true)}
             onMouseLeave={() => setEmphasized(false)}
@@ -155,13 +156,19 @@ function RouteComponent() {
             <ButtonIcon>
               <ArrowRightIcon size={16} />
             </ButtonIcon>
-          </Button>
-          <Button size="compact" variant="border">
+          </LinkButton>
+          <ExternalLinkButton
+            href="https://github.com"
+            target="_blank"
+            rel="noreferrer"
+            size="compact"
+            variant="border"
+          >
             <ButtonText>View GitHub</ButtonText>
             <ButtonIcon>
               <ArrowUpRightIcon size={16} />
             </ButtonIcon>
-          </Button>
+          </ExternalLinkButton>
         </div>
       </div>
       <div className="contents *:z-10">

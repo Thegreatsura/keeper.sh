@@ -3,7 +3,7 @@ import { Layout, LayoutItem } from '../../components/ui/layout'
 import { MarketingHeader, MarketingHeaderActions, MarketingHeaderBranding } from '../../components/marketing/marketing-header'
 import { MarketingFooter, MarketingFooterTagline, MarketingFooterNav, MarketingFooterNavGroup, MarketingFooterNavGroupLabel, MarketingFooterNavItem } from '../../components/marketing/marketing-footer'
 import KeeperLogo from "../../assets/keeper.svg?react";
-import { Button, ButtonIcon, ButtonText } from '../../components/ui/button';
+import { ButtonIcon, ButtonText, ExternalLinkButton, LinkButton } from '../../components/ui/button';
 import { HeartIcon, StarIcon } from 'lucide-react';
 
 export const Route = createFileRoute('/(marketing)')({
@@ -19,18 +19,18 @@ function RouteComponent() {
             <KeeperLogo className="max-w-6" />
           </MarketingHeaderBranding>
           <MarketingHeaderActions>
-            <Button size="compact" variant="ghost">
+            <ExternalLinkButton size="compact" variant="ghost" href="https://github.com" target="_blank" rel="noreferrer">
               <ButtonIcon>
                 <StarIcon size={14} />
               </ButtonIcon>
               <ButtonText>403</ButtonText>
-            </Button>
-            <Button size="compact" variant="border">
+            </ExternalLinkButton>
+            <LinkButton size="compact" variant="border" to="/login">
               <ButtonText>Login</ButtonText>
-            </Button>
-            <Button size="compact" variant="highlight">
+            </LinkButton>
+            <LinkButton size="compact" variant="highlight" to="/register">
               <ButtonText>Register</ButtonText>
-            </Button>
+            </LinkButton>
           </MarketingHeaderActions>
         </MarketingHeader>
       </LayoutItem>

@@ -2,7 +2,7 @@ import type { PropsWithChildren } from "react";
 import { tv, type VariantProps } from "tailwind-variants/lite";
 import { Heading2, Heading3 } from "../ui/heading";
 import { Text } from "../ui/text";
-import { Button, ButtonText } from "../ui/button";
+import { ButtonText, LinkButton } from "../ui/button";
 import { CheckIcon, InfinityIcon, MinusIcon } from "lucide-react";
 
 type ClassNameProps = PropsWithChildren<{ className?: string }>;
@@ -12,6 +12,7 @@ export type MarketingPricingFeatureValueKind =
   | "check"
   | "minus"
   | "infinity";
+
 type MarketingPricingPlanCardProps = {
   highlighted?: boolean;
   name: string;
@@ -82,19 +83,7 @@ const pricingPlanHeading = tv({
   variants: {
     tone: {
       default: "",
-      inverse: "!text-foreground-inverse",
-    },
-  },
-  defaultVariants: {
-    tone: "default",
-  },
-});
-
-const pricingPlanMutedText = tv({
-  variants: {
-    tone: {
-      default: "text-left text-foreground-muted",
-      inverse: "text-left !text-foreground-inverse-muted",
+      inverse: "text-foreground-inverse",
     },
   },
   defaultVariants: {
@@ -115,6 +104,18 @@ const pricingPlanButton = tv({
   },
 });
 
+const pricingFeatureValueDisplay = tv({
+  variants: {
+    tone: {
+      default: "text-foreground",
+      muted: "text-foreground-muted",
+    },
+  },
+  defaultVariants: {
+    tone: "default",
+  },
+});
+
 export function MarketingPricingPlanCard({
   highlighted = false,
   name,
@@ -124,6 +125,7 @@ export function MarketingPricingPlanCard({
   ctaLabel,
 }: MarketingPricingPlanCardProps) {
   const tone = highlighted ? "inverse" : "default";
+  const copyTone = highlighted ? "inverseMuted" : "muted";
 
   return (
     <MarketingPricingCard tone={tone}>
@@ -131,20 +133,20 @@ export function MarketingPricingPlanCard({
         <Heading3 className={pricingPlanHeading({ tone })}>{name}</Heading3>
         <div className="flex items-baseline gap-1">
           <Heading2 className={pricingPlanHeading({ tone })}>{price}</Heading2>
-          <Text size="sm" className={pricingPlanMutedText({ tone })}>
+          <Text size="sm" tone={copyTone} align="left">
             {period}
           </Text>
         </div>
         <MarketingPricingCardCopy>
-          <Text size="sm" className={pricingPlanMutedText({ tone })}>
+          <Text size="sm" tone={copyTone} align="left">
             {description}
           </Text>
         </MarketingPricingCardCopy>
       </MarketingPricingCardBody>
       <MarketingPricingCardAction>
-        <Button variant="border" className={pricingPlanButton({ tone })}>
+        <LinkButton variant="border" className={pricingPlanButton({ tone })} to="/register">
           <ButtonText>{ctaLabel}</ButtonText>
-        </Button>
+        </LinkButton>
       </MarketingPricingCardAction>
     </MarketingPricingCard>
   );
@@ -177,7 +179,8 @@ export function MarketingPricingFeatureDisplay({
   value: MarketingPricingFeatureValueKind;
   muted?: boolean;
 }) {
-  const className = muted ? "text-foreground-muted" : "text-foreground";
+  const tone = muted ? "muted" : "default";
+  const className = pricingFeatureValueDisplay({ tone });
 
   if (value === "check") {
     return <CheckIcon size={16} className={className} />;
@@ -192,7 +195,7 @@ export function MarketingPricingFeatureDisplay({
   }
 
   return (
-    <Text size="sm" className={className}>
+    <Text size="sm" tone={muted ? "muted" : "default"}>
       {value}
     </Text>
   );
