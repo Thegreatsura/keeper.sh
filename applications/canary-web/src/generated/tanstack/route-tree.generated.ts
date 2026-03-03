@@ -9,12 +9,19 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './../../routes/__root'
+import { Route as oauthRouteRouteImport } from './../../routes/(oauth)/route'
 import { Route as marketingRouteRouteImport } from './../../routes/(marketing)/route'
 import { Route as authRouteRouteImport } from './../../routes/(auth)/route'
 import { Route as marketingIndexRouteImport } from './../../routes/(marketing)/index'
 import { Route as authRegisterRouteImport } from './../../routes/(auth)/register'
 import { Route as authLoginRouteImport } from './../../routes/(auth)/login'
+import { Route as oauthAuthOutlookRouteImport } from './../../routes/(oauth)/auth.outlook'
+import { Route as oauthAuthGoogleRouteImport } from './../../routes/(oauth)/auth.google'
 
+const oauthRouteRoute = oauthRouteRouteImport.update({
+  id: '/(oauth)',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const marketingRouteRoute = marketingRouteRouteImport.update({
   id: '/(marketing)',
   getParentRoute: () => rootRouteImport,
@@ -38,46 +45,74 @@ const authLoginRoute = authLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => authRouteRoute,
 } as any)
+const oauthAuthOutlookRoute = oauthAuthOutlookRouteImport.update({
+  id: '/auth/outlook',
+  path: '/auth/outlook',
+  getParentRoute: () => oauthRouteRoute,
+} as any)
+const oauthAuthGoogleRoute = oauthAuthGoogleRouteImport.update({
+  id: '/auth/google',
+  path: '/auth/google',
+  getParentRoute: () => oauthRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/login': typeof authLoginRoute
   '/register': typeof authRegisterRoute
   '/': typeof marketingIndexRoute
+  '/auth/google': typeof oauthAuthGoogleRoute
+  '/auth/outlook': typeof oauthAuthOutlookRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof authLoginRoute
   '/register': typeof authRegisterRoute
   '/': typeof marketingIndexRoute
+  '/auth/google': typeof oauthAuthGoogleRoute
+  '/auth/outlook': typeof oauthAuthOutlookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/(auth)': typeof authRouteRouteWithChildren
   '/(marketing)': typeof marketingRouteRouteWithChildren
+  '/(oauth)': typeof oauthRouteRouteWithChildren
   '/(auth)/login': typeof authLoginRoute
   '/(auth)/register': typeof authRegisterRoute
   '/(marketing)/': typeof marketingIndexRoute
+  '/(oauth)/auth/google': typeof oauthAuthGoogleRoute
+  '/(oauth)/auth/outlook': typeof oauthAuthOutlookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/login' | '/register' | '/'
+  fullPaths: '/login' | '/register' | '/' | '/auth/google' | '/auth/outlook'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/register' | '/'
+  to: '/login' | '/register' | '/' | '/auth/google' | '/auth/outlook'
   id:
     | '__root__'
     | '/(auth)'
     | '/(marketing)'
+    | '/(oauth)'
     | '/(auth)/login'
     | '/(auth)/register'
     | '/(marketing)/'
+    | '/(oauth)/auth/google'
+    | '/(oauth)/auth/outlook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   authRouteRoute: typeof authRouteRouteWithChildren
   marketingRouteRoute: typeof marketingRouteRouteWithChildren
+  oauthRouteRoute: typeof oauthRouteRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/(oauth)': {
+      id: '/(oauth)'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof oauthRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(marketing)': {
       id: '/(marketing)'
       path: ''
@@ -113,6 +148,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authLoginRouteImport
       parentRoute: typeof authRouteRoute
     }
+    '/(oauth)/auth/outlook': {
+      id: '/(oauth)/auth/outlook'
+      path: '/auth/outlook'
+      fullPath: '/auth/outlook'
+      preLoaderRoute: typeof oauthAuthOutlookRouteImport
+      parentRoute: typeof oauthRouteRoute
+    }
+    '/(oauth)/auth/google': {
+      id: '/(oauth)/auth/google'
+      path: '/auth/google'
+      fullPath: '/auth/google'
+      preLoaderRoute: typeof oauthAuthGoogleRouteImport
+      parentRoute: typeof oauthRouteRoute
+    }
   }
 }
 
@@ -142,9 +191,24 @@ const marketingRouteRouteWithChildren = marketingRouteRoute._addFileChildren(
   marketingRouteRouteChildren,
 )
 
+interface oauthRouteRouteChildren {
+  oauthAuthGoogleRoute: typeof oauthAuthGoogleRoute
+  oauthAuthOutlookRoute: typeof oauthAuthOutlookRoute
+}
+
+const oauthRouteRouteChildren: oauthRouteRouteChildren = {
+  oauthAuthGoogleRoute: oauthAuthGoogleRoute,
+  oauthAuthOutlookRoute: oauthAuthOutlookRoute,
+}
+
+const oauthRouteRouteWithChildren = oauthRouteRoute._addFileChildren(
+  oauthRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   authRouteRoute: authRouteRouteWithChildren,
   marketingRouteRoute: marketingRouteRouteWithChildren,
+  oauthRouteRoute: oauthRouteRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

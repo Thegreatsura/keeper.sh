@@ -4,7 +4,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { motion, AnimatePresence, type Variants } from "motion/react";
 import { ArrowLeft, LoaderCircle } from "lucide-react";
 import { authFormStatusAtom, authFormErrorAtom, type AuthFormStatus } from "../../state/auth-form";
-import { Button, LinkButton, ExternalLinkButton, ButtonText, ButtonIcon } from "../ui/button";
+import { Button, LinkButton, ButtonText, ButtonIcon } from "../ui/button";
 import { Divider } from "../ui/divider";
 import { Heading2 } from "../ui/heading";
 import { Input } from "../ui/input";
@@ -23,15 +23,15 @@ export type AuthScreenCopy = {
 type SocialAuthProvider = {
   id: string;
   label: string;
-  href: "/auth/google" | "/auth/outlook";
+  to: "/auth/google" | "/auth/outlook";
   iconSrc: string;
 };
 
 const AUTH_ERROR_MESSAGE = "Invalid email or password. Please try again.";
 
 const SOCIAL_AUTH_PROVIDERS: readonly SocialAuthProvider[] = [
-  { id: "google", label: "Google", href: "/auth/google", iconSrc: "/integrations/icon-google.svg" },
-  { id: "outlook", label: "Outlook", href: "/auth/outlook", iconSrc: "/integrations/icon-outlook.svg" },
+  { id: "google", label: "Google", to: "/auth/google", iconSrc: "/integrations/icon-google.svg" },
+  { id: "outlook", label: "Outlook", to: "/auth/outlook", iconSrc: "/integrations/icon-outlook.svg" },
 ];
 
 const submitTextVariants: Record<AuthFormStatus, Variants[string]> = {
@@ -71,12 +71,12 @@ function SocialAuthButtons({ oauthActionLabel }: { oauthActionLabel: string }) {
   return (
     <>
       {SOCIAL_AUTH_PROVIDERS.map((provider) => (
-        <ExternalLinkButton key={provider.id} href={provider.href} className="w-full justify-center" variant="border">
+        <LinkButton key={provider.id} to={provider.to} className="w-full justify-center" variant="border">
           <ButtonIcon>
             <img src={provider.iconSrc} alt="" width={16} height={16} />
           </ButtonIcon>
           <ButtonText>{`${oauthActionLabel} with ${provider.label}`}</ButtonText>
-        </ExternalLinkButton>
+        </LinkButton>
       ))}
     </>
   );
