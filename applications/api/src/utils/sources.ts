@@ -1,8 +1,8 @@
-import { calendarAccountsTable, calendarsTable } from "@keeper.sh/database/schema";
+import { calendarAccountsTable, calendarsTable, sourceDestinationMappingsTable } from "@keeper.sh/database/schema";
 import { CalendarFetchError, fetchAndSyncSource, pullRemoteCalendar } from "@keeper.sh/calendar";
 import { and, eq, inArray } from "drizzle-orm";
 import { triggerDestinationSync } from "./sync";
-import { createMappingsForNewSource } from "./source-destination-mappings";
+
 import { spawnBackgroundJob } from "./background-task";
 import { database, premiumService } from "../context";
 
@@ -88,7 +88,10 @@ const createSource = async (userId: string, name: string, url: string): Promise<
     .where(
       and(
         eq(calendarsTable.userId, userId),
-        inArray(calendarsTable.role, ["source", "both"]),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.sourceCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     );
 
@@ -107,6 +110,7 @@ const createSource = async (userId: string, name: string, url: string): Promise<
     .insert(calendarAccountsTable)
     .values({
       authType: "none",
+      displayName: url,
       provider: "ics",
       userId,
     })
@@ -122,7 +126,6 @@ const createSource = async (userId: string, name: string, url: string): Promise<
       accountId: account.id,
       calendarType: ICAL_CALENDAR_TYPE,
       name,
-      role: "source",
       url,
       userId,
     })
@@ -131,8 +134,6 @@ const createSource = async (userId: string, name: string, url: string): Promise<
   if (!source) {
     throw new Error("Failed to create source");
   }
-
-  await createMappingsForNewSource(userId, source.id);
 
   spawnBackgroundJob("ical-source-sync", { userId, calendarId: source.id }, async () => {
     await fetchAndSyncSource(database, source);

@@ -1,4 +1,4 @@
-import { calendarAccountsTable, calendarsTable } from "@keeper.sh/database/schema";
+import { calendarAccountsTable, calendarsTable, sourceDestinationMappingsTable } from "@keeper.sh/database/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { withAuth, withWideEvent } from "../../../utils/middleware";
 import { ErrorResponse } from "../../../utils/responses";
@@ -29,7 +29,10 @@ const countUserDestinations = async (userId: string): Promise<number> => {
     .where(
       and(
         eq(calendarsTable.userId, userId),
-        inArray(calendarsTable.role, ["destination", "both"]),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     );
 

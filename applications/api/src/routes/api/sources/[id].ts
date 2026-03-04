@@ -20,6 +20,7 @@ export const GET = withWideEvent(
         id: calendarsTable.id,
         name: calendarsTable.name,
         calendarType: calendarsTable.calendarType,
+        capabilities: calendarsTable.capabilities,
         provider: calendarAccountsTable.provider,
         url: calendarsTable.url,
         calendarUrl: calendarsTable.calendarUrl,
@@ -58,13 +59,16 @@ export const PATCH = withWideEvent(
     const body = (await request.json()) as { name?: string };
     const { name } = body;
 
-    if (!name || typeof name !== "string") {
-      return ErrorResponse.badRequest("Name is required").toResponse();
+    const updates: Record<string, string> = {};
+    if (name && typeof name === "string") updates.name = name;
+
+    if (Object.keys(updates).length === 0) {
+      return ErrorResponse.badRequest("No valid fields to update").toResponse();
     }
 
     const [updated] = await database
       .update(calendarsTable)
-      .set({ name })
+      .set(updates)
       .where(
         and(
           eq(calendarsTable.id, id),

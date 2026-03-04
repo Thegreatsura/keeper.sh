@@ -1,4 +1,4 @@
-import { calendarsTable, syncStatusTable } from "@keeper.sh/database/schema";
+import { calendarsTable, sourceDestinationMappingsTable, syncStatusTable } from "@keeper.sh/database/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { withAuth, withWideEvent } from "../../../utils/middleware";
 import { database } from "../../../context";
@@ -20,7 +20,10 @@ const GET = withWideEvent(
       .where(
         and(
           eq(calendarsTable.userId, userId),
-          inArray(calendarsTable.role, ["destination", "both"]),
+          inArray(calendarsTable.id,
+            database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+              .from(sourceDestinationMappingsTable)
+          ),
         ),
       );
 

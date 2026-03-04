@@ -1,5 +1,5 @@
 import { calendarAccountsTable, calendarsTable, eventStatesTable } from "@keeper.sh/database/schema";
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, arrayContains, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { normalizeDateRange, parseDateRangeParams } from "./date-range";
 import { database } from "../context";
 
@@ -40,7 +40,7 @@ const getEventsInRange = async (userId: string, url: URL): Promise<EnrichedEvent
     .where(
       and(
         eq(calendarsTable.userId, userId),
-        inArray(calendarsTable.role, ["source", "both"]),
+        arrayContains(calendarsTable.capabilities, ["pull"]),
       ),
     );
 

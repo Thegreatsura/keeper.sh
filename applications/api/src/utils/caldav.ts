@@ -1,4 +1,4 @@
-import { calendarAccountsTable, calendarsTable } from "@keeper.sh/database/schema";
+import { calendarAccountsTable, calendarsTable, sourceDestinationMappingsTable } from "@keeper.sh/database/schema";
 import { createCalDAVClient } from "@keeper.sh/provider-caldav";
 import { encryptPassword } from "@keeper.sh/encryption";
 import { isCalDAVProvider } from "@keeper.sh/provider-registry";
@@ -96,7 +96,10 @@ const createCalDAVDestination = async (
     .where(
       and(
         eq(calendarsTable.userId, userId),
-        inArray(calendarsTable.role, ["destination", "both"]),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     );
 

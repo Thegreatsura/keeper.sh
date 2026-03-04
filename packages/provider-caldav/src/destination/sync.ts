@@ -3,6 +3,7 @@ import {
   caldavCredentialsTable,
   calendarsTable,
   eventStatesTable,
+  sourceDestinationMappingsTable,
 } from "@keeper.sh/database/schema";
 import { getStartOfToday } from "@keeper.sh/date-utils";
 import { decryptPassword } from "@keeper.sh/encryption";
@@ -52,7 +53,10 @@ const createCalDAVService = (config: CalDAVServiceConfig): CalDAVService => {
         and(
           providerCondition,
           eq(calendarsTable.userId, userId),
-          inArray(calendarsTable.role, ["destination", "both"]),
+          inArray(calendarsTable.id,
+            database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+              .from(sourceDestinationMappingsTable)
+          ),
         ),
       );
 
@@ -84,7 +88,10 @@ const createCalDAVService = (config: CalDAVServiceConfig): CalDAVService => {
       .where(
         and(
           eq(calendarAccountsTable.provider, provider),
-          inArray(calendarsTable.role, ["destination", "both"]),
+          inArray(calendarsTable.id,
+            database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+              .from(sourceDestinationMappingsTable)
+          ),
         ),
       );
 

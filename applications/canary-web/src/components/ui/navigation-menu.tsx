@@ -25,7 +25,7 @@ const MenuVariantContext = createContext<MenuVariant>("default");
 const ItemIsLinkContext = createContext(false);
 
 const navigationMenuItem = tv({
-  base: "rounded-xl flex items-center justify-between p-3 w-full",
+  base: "rounded-xl flex items-center justify-between gap-3 p-3 w-full",
   variants: {
     variant: {
       default: "",
@@ -205,7 +205,7 @@ export function NavigationMenuItemIcon({ children }: PropsWithChildren) {
   const variant = use(MenuVariantContext);
 
   return (
-    <div className={cn("flex items-center gap-2 [&>:not(p)]:shrink-0", navigationMenuItemIcon({ variant }))()}>
+    <div className={cn("flex items-center gap-2 min-w-0 [&>:not(p)]:shrink-0", navigationMenuItemIcon({ variant }))()}>
       {children}
     </div>
   );
@@ -217,12 +217,24 @@ export function NavigationMenuItemLabel({ children }: PropsWithChildren) {
   return <Text size="sm" tone={LABEL_TONE[variant ?? "default"]} align="left" className="truncate">{children}</Text>;
 }
 
+export function NavigationMenuEmptyItem({ children }: PropsWithChildren) {
+  const variant = use(MenuVariantContext);
+
+  return (
+    <li>
+      <div className={navigationMenuItem({ variant, interactive: false })}>
+        <Text size="sm" tone={LABEL_TONE[variant ?? "default"]} align="center" className="w-full">{children}</Text>
+      </div>
+    </li>
+  );
+}
+
 export function NavigationMenuItemTrailing({ children }: PropsWithChildren) {
   const isLink = use(ItemIsLinkContext);
   const variant = use(MenuVariantContext);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 shrink-0">
       {children}
       {isLink && <ArrowRight className={cn("shrink-0", navigationMenuItemIcon({ variant }))()} size={15} />}
     </div>

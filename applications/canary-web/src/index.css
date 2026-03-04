@@ -91,7 +91,7 @@ html {
   --color-ring: var(--ui-ring);
 
   --font-sans: "Geist Sans", system-ui, sans-serif;
-  --font-serif: "Lora", Georgia, serif;
+  --font-lora: "Lora", Georgia, serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
 
   --breakpoint-xs: 28rem;

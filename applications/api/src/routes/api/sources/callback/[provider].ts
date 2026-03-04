@@ -7,7 +7,7 @@ import {
   validateState,
 } from "../../../../utils/destinations";
 import { createOAuthSourceCredential } from "../../../../utils/oauth-source-credentials";
-import { storeCallbackState } from "../../../../utils/oauth-callback-state";
+import { importOAuthAccountCalendars } from "../../../../utils/oauth-sources";
 import { baseUrl } from "../../../../context";
 
 const MS_PER_SECOND = 1000;
@@ -19,7 +19,6 @@ const GET = withWideEvent(async ({ request, params }) => {
     return ErrorResponse.notFound().toResponse();
   }
 
-  const successBaseUrl = "/dashboard/integrations";
   const errorUrl = buildRedirectUrl("/dashboard/integrations", {
     error: "Failed to connect source",
     source: "error",
@@ -64,9 +63,15 @@ const GET = withWideEvent(async ({ request, params }) => {
       refreshToken: tokens.refresh_token,
     });
 
-    const token = await storeCallbackState({ credentialId, provider });
-    const successUrl = buildRedirectUrl(successBaseUrl, { token });
+    await importOAuthAccountCalendars({
+      accessToken: tokens.access_token,
+      email: userInfo.email,
+      oauthCredentialId: credentialId,
+      provider,
+      userId,
+    });
 
+    const successUrl = buildRedirectUrl("/dashboard/calendars", {});
     return Response.redirect(successUrl.toString());
   } catch (error) {
     if (error instanceof OAuthError) {

@@ -53,9 +53,9 @@ const graphBar = tv({
   base: "flex-1 rounded-[0.625rem]",
   variants: {
     period: {
-      past: "bg-neutral-100 border border-neutral-200",
+      past: "bg-background-hover border border-border-elevated",
       today: "bg-emerald-400 border-transparent",
-      future: "bg-emerald-400 border-emerald-500 bg-[repeating-linear-gradient(-45deg,_transparent_0_4px,_var(--color-illustration-stripe)_4px_6px)]",
+      future: "bg-emerald-400 border-emerald-500 bg-[repeating-linear-gradient(-45deg,transparent_0_4px,var(--color-illustration-stripe)_4px_8px)]",
     },
   },
 });

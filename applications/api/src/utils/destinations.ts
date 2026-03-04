@@ -3,6 +3,7 @@ import {
   calendarAccountsTable,
   calendarsTable,
   oauthCredentialsTable,
+  sourceDestinationMappingsTable,
   syncStatusTable,
 } from "@keeper.sh/database/schema";
 import { and, eq, inArray } from "drizzle-orm";
@@ -13,7 +14,7 @@ import type {
   ValidatedState,
 } from "@keeper.sh/provider-core";
 import { database, oauthProviders } from "../context";
-import { createMappingsForNewDestination } from "./source-destination-mappings";
+
 
 const FIRST_RESULT_LIMIT = 1;
 const EMPTY_RESULT_COUNT = 0;
@@ -107,9 +108,8 @@ const initializeSyncStatus = async (calendarId: string): Promise<void> => {
   await database.insert(syncStatusTable).values({ calendarId }).onConflictDoNothing();
 };
 
-const setupNewDestination = async (userId: string, calendarId: string): Promise<void> => {
+const setupNewDestination = async (calendarId: string): Promise<void> => {
   await initializeSyncStatus(calendarId);
-  await createMappingsForNewDestination(userId, calendarId);
 };
 
 interface AccountInsertData {
@@ -165,7 +165,10 @@ const upsertAccountAndCalendar = async (data: AccountInsertData): Promise<string
     .where(
       and(
         eq(calendarsTable.accountId, account.id),
-        eq(calendarsTable.role, "destination"),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     )
     .limit(FIRST_RESULT_LIMIT);
@@ -179,8 +182,8 @@ const upsertAccountAndCalendar = async (data: AccountInsertData): Promise<string
     .values({
       accountId: account.id,
       calendarType: authType,
+      capabilities: ["pull", "push"],
       name: `${base.provider} destination`,
-      role: "destination",
       userId: base.userId,
     })
     .returning({ id: calendarsTable.id });
@@ -218,7 +221,10 @@ const saveCalendarDestination = async (
       .where(
         and(
           eq(calendarsTable.accountId, existingAccount.id),
-          eq(calendarsTable.role, "destination"),
+          inArray(calendarsTable.id,
+            database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+              .from(sourceDestinationMappingsTable)
+          ),
         ),
       )
       .limit(FIRST_RESULT_LIMIT);
@@ -248,7 +254,7 @@ const saveCalendarDestination = async (
   });
 
   if (calendarId) {
-    await setupNewDestination(userId, calendarId);
+    await setupNewDestination(calendarId);
   }
 };
 
@@ -265,7 +271,10 @@ const listCalendarDestinations = async (userId: string): Promise<CalendarDestina
     .where(
       and(
         eq(calendarAccountsTable.userId, userId),
-        inArray(calendarsTable.role, ["destination", "both"]),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     );
 
@@ -332,7 +341,10 @@ const saveCalDAVDestination = async (
       .where(
         and(
           eq(calendarsTable.accountId, existingAccount.id),
-          eq(calendarsTable.role, "destination"),
+          inArray(calendarsTable.id,
+            database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+              .from(sourceDestinationMappingsTable)
+          ),
         ),
       )
       .limit(FIRST_RESULT_LIMIT);
@@ -377,15 +389,15 @@ const saveCalDAVDestination = async (
     .values({
       accountId: account.id,
       calendarType: "caldav",
+      capabilities: ["pull", "push"],
       calendarUrl,
       name: `${provider} destination`,
-      role: "destination",
       userId,
     })
     .returning({ id: calendarsTable.id });
 
   if (calendar) {
-    await setupNewDestination(userId, calendar.id);
+    await setupNewDestination(calendar.id);
   }
 };
 

@@ -2,12 +2,15 @@ import {
   calendarAccountsTable,
   calendarsTable,
   oauthCredentialsTable,
+  sourceDestinationMappingsTable,
 } from "@keeper.sh/database/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, notInArray } from "drizzle-orm";
+import { listUserCalendars as listGoogleCalendars } from "@keeper.sh/provider-google-calendar";
+import { listUserCalendars as listOutlookCalendars } from "@keeper.sh/provider-outlook";
 import { spawnBackgroundJob } from "./background-task";
 import { getSourceProvider } from "@keeper.sh/provider-registry/server";
 import { database, premiumService, oauthProviders } from "../context";
-import { createMappingsForNewSource } from "./source-destination-mappings";
+
 import { triggerDestinationSync } from "./sync";
 
 const FIRST_RESULT_LIMIT = 1;
@@ -85,7 +88,10 @@ const getUserOAuthSources = async (
         eq(calendarsTable.userId, userId),
         eq(calendarsTable.calendarType, OAUTH_CALENDAR_TYPE),
         eq(calendarAccountsTable.provider, provider),
-        inArray(calendarsTable.role, ["source", "both"]),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.sourceCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     );
 
@@ -106,7 +112,10 @@ const verifyOAuthSourceOwnership = async (userId: string, calendarId: string): P
         eq(calendarsTable.id, calendarId),
         eq(calendarsTable.userId, userId),
         eq(calendarsTable.calendarType, OAUTH_CALENDAR_TYPE),
-        inArray(calendarsTable.role, ["source", "both"]),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.sourceCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     )
     .limit(FIRST_RESULT_LIMIT);
@@ -264,7 +273,10 @@ const createOAuthSource = async (
     .where(
       and(
         eq(calendarsTable.userId, userId),
-        inArray(calendarsTable.role, ["source", "both"]),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.sourceCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     );
 
@@ -294,6 +306,8 @@ const createOAuthSource = async (
     .insert(calendarAccountsTable)
     .values({
       authType: "oauth",
+      displayName: credential.email,
+      email: credential.email,
       oauthCredentialId,
       provider,
       userId,
@@ -309,12 +323,12 @@ const createOAuthSource = async (
     .values({
       accountId: account.id,
       calendarType: OAUTH_CALENDAR_TYPE,
+      capabilities: ["pull", "push"],
       excludeFocusTime,
       excludeOutOfOffice,
       excludeWorkingLocation,
       externalCalendarId,
       name,
-      role: "source",
       userId,
     })
     .returning();
@@ -322,8 +336,6 @@ const createOAuthSource = async (
   if (!source) {
     throw new Error("Failed to create OAuth calendar source");
   }
-
-  await createMappingsForNewSource(userId, source.id);
 
   spawnBackgroundJob("oauth-source-sync", { userId, provider }, async () => {
     await syncOAuthSourcesByProvider(provider);
@@ -338,6 +350,110 @@ const createOAuthSource = async (
   };
 };
 
+interface ExternalCalendar {
+  externalId: string;
+  name: string;
+}
+
+const listProviderCalendars: Record<string, (accessToken: string) => Promise<ExternalCalendar[]>> = {
+  google: async (accessToken) => {
+    const calendars = await listGoogleCalendars(accessToken);
+    return calendars.map((c) => ({ externalId: c.id, name: c.summary }));
+  },
+  outlook: async (accessToken) => {
+    const calendars = await listOutlookCalendars(accessToken);
+    return calendars.map((c) => ({ externalId: c.id, name: c.name }));
+  },
+};
+
+interface ImportOAuthAccountOptions {
+  userId: string;
+  provider: string;
+  oauthCredentialId: string;
+  accessToken: string;
+  email: string | null;
+}
+
+const importOAuthAccountCalendars = async (options: ImportOAuthAccountOptions): Promise<void> => {
+  const { userId, provider, oauthCredentialId, accessToken, email } = options;
+
+  const listCalendars = listProviderCalendars[provider];
+  if (!listCalendars) {
+    throw new Error(`No calendar listing support for provider: ${provider}`);
+  }
+
+  // Find or create calendar_account
+  const [existingAccount] = await database
+    .select({ id: calendarAccountsTable.id })
+    .from(calendarAccountsTable)
+    .where(
+      and(
+        eq(calendarAccountsTable.userId, userId),
+        eq(calendarAccountsTable.provider, provider),
+        eq(calendarAccountsTable.oauthCredentialId, oauthCredentialId),
+      ),
+    )
+    .limit(FIRST_RESULT_LIMIT);
+
+  const accountId = existingAccount?.id ?? (
+    await database
+      .insert(calendarAccountsTable)
+      .values({
+        authType: "oauth",
+        displayName: email,
+        email,
+        oauthCredentialId,
+        provider,
+        userId,
+      })
+      .returning({ id: calendarAccountsTable.id })
+  )[0]?.id;
+
+  if (!accountId) {
+    throw new Error("Failed to find or create calendar account");
+  }
+
+  // Fetch all calendars from provider
+  const externalCalendars = await listCalendars(accessToken);
+
+  // Find which external IDs already exist under this account
+  const existingCalendars = await database
+    .select({ externalCalendarId: calendarsTable.externalCalendarId })
+    .from(calendarsTable)
+    .where(
+      and(
+        eq(calendarsTable.accountId, accountId),
+        eq(calendarsTable.userId, userId),
+      ),
+    );
+
+  const existingIds = new Set(existingCalendars.map((c) => c.externalCalendarId));
+  const newCalendars = externalCalendars.filter((c) => !existingIds.has(c.externalId));
+
+  if (newCalendars.length === 0) return;
+
+  // Insert all new calendars
+  const inserted = await database
+    .insert(calendarsTable)
+    .values(
+      newCalendars.map((c) => ({
+        accountId,
+        calendarType: OAUTH_CALENDAR_TYPE,
+        capabilities: ["pull", "push"],
+        externalCalendarId: c.externalId,
+        name: c.name,
+        userId,
+      })),
+    )
+    .returning({ id: calendarsTable.id });
+
+  // Trigger sync
+  spawnBackgroundJob("oauth-account-import", { userId, provider }, async () => {
+    await syncOAuthSourcesByProvider(provider);
+    triggerDestinationSync(userId);
+  });
+};
+
 const deleteOAuthSource = async (userId: string, calendarId: string): Promise<boolean> => {
   const [deleted] = await database
     .delete(calendarsTable)
@@ -346,7 +462,10 @@ const deleteOAuthSource = async (userId: string, calendarId: string): Promise<bo
         eq(calendarsTable.id, calendarId),
         eq(calendarsTable.userId, userId),
         eq(calendarsTable.calendarType, OAUTH_CALENDAR_TYPE),
-        inArray(calendarsTable.role, ["source", "both"]),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.sourceCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     )
     .returning();
@@ -371,5 +490,6 @@ export {
   getOAuthDestinationCredentials,
   getOAuthSourceCredentials,
   createOAuthSource,
+  importOAuthAccountCalendars,
   deleteOAuthSource,
 };

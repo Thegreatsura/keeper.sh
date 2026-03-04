@@ -1,4 +1,4 @@
-import { syncStatusTable, calendarsTable } from "@keeper.sh/database/schema";
+import { syncStatusTable, calendarsTable, sourceDestinationMappingsTable } from "@keeper.sh/database/schema";
 import { createWebsocketHandler } from "@keeper.sh/broadcast";
 import type { Socket } from "@keeper.sh/broadcast";
 import { and, eq, inArray } from "drizzle-orm";
@@ -20,7 +20,10 @@ const sendInitialSyncStatus = async (userId: string, socket: Socket): Promise<vo
     .where(
       and(
         eq(calendarsTable.userId, userId),
-        inArray(calendarsTable.role, ["destination", "both"]),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     );
 

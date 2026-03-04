@@ -1,4 +1,4 @@
-import { calendarsTable, eventStatesTable } from "@keeper.sh/database/schema";
+import { calendarsTable, eventStatesTable, sourceDestinationMappingsTable } from "@keeper.sh/database/schema";
 import { KEEPER_EVENT_SUFFIX } from "@keeper.sh/constants";
 import { generateIcsCalendar } from "ts-ics";
 import type { IcsCalendar, IcsEvent } from "ts-ics";
@@ -52,7 +52,10 @@ const generateUserCalendar = async (identifier: string): Promise<string | null> 
     .where(
       and(
         eq(calendarsTable.userId, userId),
-        inArray(calendarsTable.role, ["source", "both"]),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.sourceCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     );
 

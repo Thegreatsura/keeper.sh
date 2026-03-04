@@ -53,7 +53,10 @@ const getUserCalDAVSources = async (userId: string, provider?: string): Promise<
   const conditions = [
     eq(calendarsTable.userId, userId),
     eq(calendarsTable.calendarType, CALDAV_CALENDAR_TYPE),
-    inArray(calendarsTable.role, ["source", "both"]),
+    inArray(calendarsTable.id,
+      database.selectDistinct({ id: sourceDestinationMappingsTable.sourceCalendarId })
+        .from(sourceDestinationMappingsTable)
+    ),
   ];
 
   if (provider) {
@@ -98,7 +101,10 @@ const countUserSources = async (userId: string): Promise<number> => {
     .where(
       and(
         eq(calendarsTable.userId, userId),
-        inArray(calendarsTable.role, ["source", "both"]),
+        inArray(calendarsTable.id,
+      database.selectDistinct({ id: sourceDestinationMappingsTable.sourceCalendarId })
+        .from(sourceDestinationMappingsTable)
+    ),
       ),
     );
 
@@ -156,6 +162,7 @@ const createCalDAVSource = async (
     .values({
       authType: "caldav",
       caldavCredentialId: credential.id,
+      displayName: data.serverUrl,
       provider: data.provider,
       userId,
     })
@@ -170,34 +177,15 @@ const createCalDAVSource = async (
     .values({
       accountId: account.id,
       calendarType: CALDAV_CALENDAR_TYPE,
+      capabilities: ["pull", "push"],
       calendarUrl: data.calendarUrl,
       name: data.name,
-      role: "source",
       userId,
     })
     .returning();
 
   if (!source) {
     throw new Error("Failed to create CalDAV source");
-  }
-
-  const destinations = await database
-    .select({ id: calendarsTable.id })
-    .from(calendarsTable)
-    .where(
-      and(
-        eq(calendarsTable.userId, userId),
-        inArray(calendarsTable.role, ["destination", "both"]),
-      ),
-    );
-
-  if (destinations.length > 0) {
-    const mappings = destinations.map((dest) => ({
-      destinationCalendarId: dest.id,
-      sourceCalendarId: source.id,
-    }));
-
-    await database.insert(sourceDestinationMappingsTable).values(mappings);
   }
 
   return {

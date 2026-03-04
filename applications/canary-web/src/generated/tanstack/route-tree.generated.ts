@@ -26,6 +26,7 @@ import { Route as oauthDashboardConnectRouteRouteImport } from './../../routes/(
 import { Route as dashboardDashboardSettingsRouteRouteImport } from './../../routes/(dashboard)/dashboard/settings/route'
 import { Route as dashboardDashboardConnectRouteRouteImport } from './../../routes/(dashboard)/dashboard/connect/route'
 import { Route as dashboardDashboardCalendarsRouteRouteImport } from './../../routes/(dashboard)/dashboard/calendars/route'
+import { Route as dashboardDashboardAccountsRouteRouteImport } from './../../routes/(dashboard)/dashboard/accounts/route'
 import { Route as dashboardDashboardSettingsIndexRouteImport } from './../../routes/(dashboard)/dashboard/settings/index'
 import { Route as dashboardDashboardIntegrationsIndexRouteImport } from './../../routes/(dashboard)/dashboard/integrations/index'
 import { Route as dashboardDashboardEventsIndexRouteImport } from './../../routes/(dashboard)/dashboard/events/index'
@@ -41,7 +42,9 @@ import { Route as oauthDashboardConnectCaldavRouteImport } from './../../routes/
 import { Route as oauthDashboardConnectAppleRouteImport } from './../../routes/(oauth)/dashboard/connect/apple'
 import { Route as dashboardDashboardSettingsPasskeysRouteImport } from './../../routes/(dashboard)/dashboard/settings/passkeys'
 import { Route as dashboardDashboardSettingsChangePasswordRouteImport } from './../../routes/(dashboard)/dashboard/settings/change-password'
-import { Route as dashboardDashboardCalendarsCalendarIdRouteImport } from './../../routes/(dashboard)/dashboard/calendars/$calendarId'
+import { Route as dashboardDashboardCalendarsProfileIdRouteImport } from './../../routes/(dashboard)/dashboard/calendars/$profileId'
+import { Route as dashboardDashboardAccountsAccountIdIndexRouteImport } from './../../routes/(dashboard)/dashboard/accounts/$accountId.index'
+import { Route as dashboardDashboardAccountsAccountIdCalendarIdRouteImport } from './../../routes/(dashboard)/dashboard/accounts/$accountId.$calendarId'
 
 const oauthRouteRoute = oauthRouteRouteImport.update({
   id: '/(oauth)',
@@ -126,6 +129,12 @@ const dashboardDashboardCalendarsRouteRoute =
   dashboardDashboardCalendarsRouteRouteImport.update({
     id: '/dashboard/calendars',
     path: '/dashboard/calendars',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
+const dashboardDashboardAccountsRouteRoute =
+  dashboardDashboardAccountsRouteRouteImport.update({
+    id: '/dashboard/accounts',
+    path: '/dashboard/accounts',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
 const dashboardDashboardSettingsIndexRoute =
@@ -218,11 +227,23 @@ const dashboardDashboardSettingsChangePasswordRoute =
     path: '/change-password',
     getParentRoute: () => dashboardDashboardSettingsRouteRoute,
   } as any)
-const dashboardDashboardCalendarsCalendarIdRoute =
-  dashboardDashboardCalendarsCalendarIdRouteImport.update({
-    id: '/$calendarId',
-    path: '/$calendarId',
+const dashboardDashboardCalendarsProfileIdRoute =
+  dashboardDashboardCalendarsProfileIdRouteImport.update({
+    id: '/$profileId',
+    path: '/$profileId',
     getParentRoute: () => dashboardDashboardCalendarsRouteRoute,
+  } as any)
+const dashboardDashboardAccountsAccountIdIndexRoute =
+  dashboardDashboardAccountsAccountIdIndexRouteImport.update({
+    id: '/$accountId/',
+    path: '/$accountId/',
+    getParentRoute: () => dashboardDashboardAccountsRouteRoute,
+  } as any)
+const dashboardDashboardAccountsAccountIdCalendarIdRoute =
+  dashboardDashboardAccountsAccountIdCalendarIdRouteImport.update({
+    id: '/$accountId/$calendarId',
+    path: '/$accountId/$calendarId',
+    getParentRoute: () => dashboardDashboardAccountsRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -232,13 +253,14 @@ export interface FileRoutesByFullPath {
   '/register': typeof authRegisterRoute
   '/verify-email': typeof authVerifyEmailRoute
   '/': typeof marketingIndexRoute
+  '/dashboard/accounts': typeof dashboardDashboardAccountsRouteRouteWithChildren
   '/dashboard/calendars': typeof dashboardDashboardCalendarsRouteRouteWithChildren
   '/dashboard/connect': typeof oauthDashboardConnectRouteRouteWithChildren
   '/dashboard/settings': typeof dashboardDashboardSettingsRouteRouteWithChildren
   '/auth/google': typeof oauthAuthGoogleRoute
   '/auth/outlook': typeof oauthAuthOutlookRoute
   '/dashboard/': typeof dashboardDashboardIndexRoute
-  '/dashboard/calendars/$calendarId': typeof dashboardDashboardCalendarsCalendarIdRoute
+  '/dashboard/calendars/$profileId': typeof dashboardDashboardCalendarsProfileIdRoute
   '/dashboard/settings/change-password': typeof dashboardDashboardSettingsChangePasswordRoute
   '/dashboard/settings/passkeys': typeof dashboardDashboardSettingsPasskeysRoute
   '/dashboard/connect/apple': typeof oauthDashboardConnectAppleRoute
@@ -254,6 +276,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/events/': typeof dashboardDashboardEventsIndexRoute
   '/dashboard/integrations/': typeof dashboardDashboardIntegrationsIndexRoute
   '/dashboard/settings/': typeof dashboardDashboardSettingsIndexRoute
+  '/dashboard/accounts/$accountId/$calendarId': typeof dashboardDashboardAccountsAccountIdCalendarIdRoute
+  '/dashboard/accounts/$accountId/': typeof dashboardDashboardAccountsAccountIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof oauthAuthRouteRouteWithChildren
@@ -262,10 +286,11 @@ export interface FileRoutesByTo {
   '/register': typeof authRegisterRoute
   '/verify-email': typeof authVerifyEmailRoute
   '/': typeof marketingIndexRoute
+  '/dashboard/accounts': typeof dashboardDashboardAccountsRouteRouteWithChildren
   '/dashboard/connect': typeof dashboardDashboardConnectIndexRoute
   '/auth/google': typeof oauthAuthGoogleRoute
   '/auth/outlook': typeof oauthAuthOutlookRoute
-  '/dashboard/calendars/$calendarId': typeof dashboardDashboardCalendarsCalendarIdRoute
+  '/dashboard/calendars/$profileId': typeof dashboardDashboardCalendarsProfileIdRoute
   '/dashboard/settings/change-password': typeof dashboardDashboardSettingsChangePasswordRoute
   '/dashboard/settings/passkeys': typeof dashboardDashboardSettingsPasskeysRoute
   '/dashboard/connect/apple': typeof oauthDashboardConnectAppleRoute
@@ -280,6 +305,8 @@ export interface FileRoutesByTo {
   '/dashboard/events': typeof dashboardDashboardEventsIndexRoute
   '/dashboard/integrations': typeof dashboardDashboardIntegrationsIndexRoute
   '/dashboard/settings': typeof dashboardDashboardSettingsIndexRoute
+  '/dashboard/accounts/$accountId/$calendarId': typeof dashboardDashboardAccountsAccountIdCalendarIdRoute
+  '/dashboard/accounts/$accountId': typeof dashboardDashboardAccountsAccountIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -293,6 +320,7 @@ export interface FileRoutesById {
   '/(auth)/register': typeof authRegisterRoute
   '/(auth)/verify-email': typeof authVerifyEmailRoute
   '/(marketing)/': typeof marketingIndexRoute
+  '/(dashboard)/dashboard/accounts': typeof dashboardDashboardAccountsRouteRouteWithChildren
   '/(dashboard)/dashboard/calendars': typeof dashboardDashboardCalendarsRouteRouteWithChildren
   '/(dashboard)/dashboard/connect': typeof dashboardDashboardConnectRouteRouteWithChildren
   '/(dashboard)/dashboard/settings': typeof dashboardDashboardSettingsRouteRouteWithChildren
@@ -300,7 +328,7 @@ export interface FileRoutesById {
   '/(oauth)/auth/google': typeof oauthAuthGoogleRoute
   '/(oauth)/auth/outlook': typeof oauthAuthOutlookRoute
   '/(dashboard)/dashboard/': typeof dashboardDashboardIndexRoute
-  '/(dashboard)/dashboard/calendars/$calendarId': typeof dashboardDashboardCalendarsCalendarIdRoute
+  '/(dashboard)/dashboard/calendars/$profileId': typeof dashboardDashboardCalendarsProfileIdRoute
   '/(dashboard)/dashboard/settings/change-password': typeof dashboardDashboardSettingsChangePasswordRoute
   '/(dashboard)/dashboard/settings/passkeys': typeof dashboardDashboardSettingsPasskeysRoute
   '/(oauth)/dashboard/connect/apple': typeof oauthDashboardConnectAppleRoute
@@ -316,6 +344,8 @@ export interface FileRoutesById {
   '/(dashboard)/dashboard/events/': typeof dashboardDashboardEventsIndexRoute
   '/(dashboard)/dashboard/integrations/': typeof dashboardDashboardIntegrationsIndexRoute
   '/(dashboard)/dashboard/settings/': typeof dashboardDashboardSettingsIndexRoute
+  '/(dashboard)/dashboard/accounts/$accountId/$calendarId': typeof dashboardDashboardAccountsAccountIdCalendarIdRoute
+  '/(dashboard)/dashboard/accounts/$accountId/': typeof dashboardDashboardAccountsAccountIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -326,13 +356,14 @@ export interface FileRouteTypes {
     | '/register'
     | '/verify-email'
     | '/'
+    | '/dashboard/accounts'
     | '/dashboard/calendars'
     | '/dashboard/connect'
     | '/dashboard/settings'
     | '/auth/google'
     | '/auth/outlook'
     | '/dashboard/'
-    | '/dashboard/calendars/$calendarId'
+    | '/dashboard/calendars/$profileId'
     | '/dashboard/settings/change-password'
     | '/dashboard/settings/passkeys'
     | '/dashboard/connect/apple'
@@ -348,6 +379,8 @@ export interface FileRouteTypes {
     | '/dashboard/events/'
     | '/dashboard/integrations/'
     | '/dashboard/settings/'
+    | '/dashboard/accounts/$accountId/$calendarId'
+    | '/dashboard/accounts/$accountId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -356,10 +389,11 @@ export interface FileRouteTypes {
     | '/register'
     | '/verify-email'
     | '/'
+    | '/dashboard/accounts'
     | '/dashboard/connect'
     | '/auth/google'
     | '/auth/outlook'
-    | '/dashboard/calendars/$calendarId'
+    | '/dashboard/calendars/$profileId'
     | '/dashboard/settings/change-password'
     | '/dashboard/settings/passkeys'
     | '/dashboard/connect/apple'
@@ -374,6 +408,8 @@ export interface FileRouteTypes {
     | '/dashboard/events'
     | '/dashboard/integrations'
     | '/dashboard/settings'
+    | '/dashboard/accounts/$accountId/$calendarId'
+    | '/dashboard/accounts/$accountId'
   id:
     | '__root__'
     | '/(auth)'
@@ -386,6 +422,7 @@ export interface FileRouteTypes {
     | '/(auth)/register'
     | '/(auth)/verify-email'
     | '/(marketing)/'
+    | '/(dashboard)/dashboard/accounts'
     | '/(dashboard)/dashboard/calendars'
     | '/(dashboard)/dashboard/connect'
     | '/(dashboard)/dashboard/settings'
@@ -393,7 +430,7 @@ export interface FileRouteTypes {
     | '/(oauth)/auth/google'
     | '/(oauth)/auth/outlook'
     | '/(dashboard)/dashboard/'
-    | '/(dashboard)/dashboard/calendars/$calendarId'
+    | '/(dashboard)/dashboard/calendars/$profileId'
     | '/(dashboard)/dashboard/settings/change-password'
     | '/(dashboard)/dashboard/settings/passkeys'
     | '/(oauth)/dashboard/connect/apple'
@@ -409,6 +446,8 @@ export interface FileRouteTypes {
     | '/(dashboard)/dashboard/events/'
     | '/(dashboard)/dashboard/integrations/'
     | '/(dashboard)/dashboard/settings/'
+    | '/(dashboard)/dashboard/accounts/$accountId/$calendarId'
+    | '/(dashboard)/dashboard/accounts/$accountId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -539,6 +578,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardDashboardCalendarsRouteRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
+    '/(dashboard)/dashboard/accounts': {
+      id: '/(dashboard)/dashboard/accounts'
+      path: '/dashboard/accounts'
+      fullPath: '/dashboard/accounts'
+      preLoaderRoute: typeof dashboardDashboardAccountsRouteRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
     '/(dashboard)/dashboard/settings/': {
       id: '/(dashboard)/dashboard/settings/'
       path: '/'
@@ -644,12 +690,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardDashboardSettingsChangePasswordRouteImport
       parentRoute: typeof dashboardDashboardSettingsRouteRoute
     }
-    '/(dashboard)/dashboard/calendars/$calendarId': {
-      id: '/(dashboard)/dashboard/calendars/$calendarId'
-      path: '/$calendarId'
-      fullPath: '/dashboard/calendars/$calendarId'
-      preLoaderRoute: typeof dashboardDashboardCalendarsCalendarIdRouteImport
+    '/(dashboard)/dashboard/calendars/$profileId': {
+      id: '/(dashboard)/dashboard/calendars/$profileId'
+      path: '/$profileId'
+      fullPath: '/dashboard/calendars/$profileId'
+      preLoaderRoute: typeof dashboardDashboardCalendarsProfileIdRouteImport
       parentRoute: typeof dashboardDashboardCalendarsRouteRoute
+    }
+    '/(dashboard)/dashboard/accounts/$accountId/': {
+      id: '/(dashboard)/dashboard/accounts/$accountId/'
+      path: '/$accountId'
+      fullPath: '/dashboard/accounts/$accountId/'
+      preLoaderRoute: typeof dashboardDashboardAccountsAccountIdIndexRouteImport
+      parentRoute: typeof dashboardDashboardAccountsRouteRoute
+    }
+    '/(dashboard)/dashboard/accounts/$accountId/$calendarId': {
+      id: '/(dashboard)/dashboard/accounts/$accountId/$calendarId'
+      path: '/$accountId/$calendarId'
+      fullPath: '/dashboard/accounts/$accountId/$calendarId'
+      preLoaderRoute: typeof dashboardDashboardAccountsAccountIdCalendarIdRouteImport
+      parentRoute: typeof dashboardDashboardAccountsRouteRoute
     }
   }
 }
@@ -670,15 +730,33 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
   authRouteRouteChildren,
 )
 
+interface dashboardDashboardAccountsRouteRouteChildren {
+  dashboardDashboardAccountsAccountIdCalendarIdRoute: typeof dashboardDashboardAccountsAccountIdCalendarIdRoute
+  dashboardDashboardAccountsAccountIdIndexRoute: typeof dashboardDashboardAccountsAccountIdIndexRoute
+}
+
+const dashboardDashboardAccountsRouteRouteChildren: dashboardDashboardAccountsRouteRouteChildren =
+  {
+    dashboardDashboardAccountsAccountIdCalendarIdRoute:
+      dashboardDashboardAccountsAccountIdCalendarIdRoute,
+    dashboardDashboardAccountsAccountIdIndexRoute:
+      dashboardDashboardAccountsAccountIdIndexRoute,
+  }
+
+const dashboardDashboardAccountsRouteRouteWithChildren =
+  dashboardDashboardAccountsRouteRoute._addFileChildren(
+    dashboardDashboardAccountsRouteRouteChildren,
+  )
+
 interface dashboardDashboardCalendarsRouteRouteChildren {
-  dashboardDashboardCalendarsCalendarIdRoute: typeof dashboardDashboardCalendarsCalendarIdRoute
+  dashboardDashboardCalendarsProfileIdRoute: typeof dashboardDashboardCalendarsProfileIdRoute
   dashboardDashboardCalendarsIndexRoute: typeof dashboardDashboardCalendarsIndexRoute
 }
 
 const dashboardDashboardCalendarsRouteRouteChildren: dashboardDashboardCalendarsRouteRouteChildren =
   {
-    dashboardDashboardCalendarsCalendarIdRoute:
-      dashboardDashboardCalendarsCalendarIdRoute,
+    dashboardDashboardCalendarsProfileIdRoute:
+      dashboardDashboardCalendarsProfileIdRoute,
     dashboardDashboardCalendarsIndexRoute:
       dashboardDashboardCalendarsIndexRoute,
   }
@@ -723,6 +801,7 @@ const dashboardDashboardSettingsRouteRouteWithChildren =
   )
 
 interface dashboardRouteRouteChildren {
+  dashboardDashboardAccountsRouteRoute: typeof dashboardDashboardAccountsRouteRouteWithChildren
   dashboardDashboardCalendarsRouteRoute: typeof dashboardDashboardCalendarsRouteRouteWithChildren
   dashboardDashboardConnectRouteRoute: typeof dashboardDashboardConnectRouteRouteWithChildren
   dashboardDashboardSettingsRouteRoute: typeof dashboardDashboardSettingsRouteRouteWithChildren
@@ -732,6 +811,8 @@ interface dashboardRouteRouteChildren {
 }
 
 const dashboardRouteRouteChildren: dashboardRouteRouteChildren = {
+  dashboardDashboardAccountsRouteRoute:
+    dashboardDashboardAccountsRouteRouteWithChildren,
   dashboardDashboardCalendarsRouteRoute:
     dashboardDashboardCalendarsRouteRouteWithChildren,
   dashboardDashboardConnectRouteRoute:

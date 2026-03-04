@@ -3,6 +3,7 @@ import {
   calendarsTable,
   eventStatesTable,
   oauthCredentialsTable,
+  sourceDestinationMappingsTable,
   userSubscriptionsTable,
 } from "@keeper.sh/database/schema";
 import { getStartOfToday } from "@keeper.sh/date-utils";
@@ -49,7 +50,10 @@ const getOAuthAccountsByPlan = async (
       and(
         eq(calendarAccountsTable.provider, provider),
         eq(calendarAccountsTable.needsReauthentication, false),
-        inArray(calendarsTable.role, ["destination", "both"]),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     );
 
@@ -101,7 +105,10 @@ const getOAuthAccountsForUser = async (
         eq(calendarAccountsTable.provider, provider),
         eq(calendarsTable.userId, userId),
         eq(calendarAccountsTable.needsReauthentication, false),
-        inArray(calendarsTable.role, ["destination", "both"]),
+        inArray(calendarsTable.id,
+          database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+            .from(sourceDestinationMappingsTable)
+        ),
       ),
     );
 

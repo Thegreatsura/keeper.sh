@@ -1,7 +1,7 @@
 import type { MaybePromise } from "bun";
 import { WideEvent } from "@keeper.sh/log";
 import { ErrorResponse } from "./responses";
-import { calendarsTable } from "@keeper.sh/database/schema";
+import { calendarsTable, sourceDestinationMappingsTable } from "@keeper.sh/database/schema";
 import { user as userTable } from "@keeper.sh/database/auth-schema";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { auth, database, premiumService } from "../context";
@@ -69,7 +69,10 @@ const fetchUserCounts = async (
       .where(
         and(
           eq(calendarsTable.userId, userId),
-          inArray(calendarsTable.role, ["source", "both"]),
+          inArray(calendarsTable.id,
+            database.selectDistinct({ id: sourceDestinationMappingsTable.sourceCalendarId })
+              .from(sourceDestinationMappingsTable)
+          ),
         ),
       );
     const [destinations] = await database
@@ -78,7 +81,10 @@ const fetchUserCounts = async (
       .where(
         and(
           eq(calendarsTable.userId, userId),
-          inArray(calendarsTable.role, ["destination", "both"]),
+          inArray(calendarsTable.id,
+            database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+              .from(sourceDestinationMappingsTable)
+          ),
         ),
       );
     return {
