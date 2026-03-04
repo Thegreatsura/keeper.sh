@@ -267,6 +267,20 @@
       "when": 1772591956950,
       "tag": "0037_thankful_machine_man",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1772604096971,
+      "tag": "0038_military_radioactive_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1772606278747,
+      "tag": "0039_fat_mad_thinker",
+      "breakpoints": true
     }
   ]
 }

@@ -99,8 +99,8 @@ const calendarsTable = pgTable(
     excludeWorkingLocation: boolean().notNull().default(false),
     externalCalendarId: text(),
     id: uuid().notNull().primaryKey().defaultRandom(),
+    capabilities: text().array().notNull().default(["pull"]),
     name: text().notNull(),
-    role: text().notNull(),
     syncToken: text(),
     updatedAt: timestamp()
       .notNull()
@@ -114,7 +114,7 @@ const calendarsTable = pgTable(
   (table) => [
     index("calendars_user_idx").on(table.userId),
     index("calendars_account_idx").on(table.accountId),
-    index("calendars_role_idx").on(table.role),
+    index("calendars_capabilities_idx").on(table.capabilities),
     index("calendars_type_idx").on(table.calendarType),
   ],
 );
@@ -217,6 +217,27 @@ const eventMappingsTable = pgTable(
   ],
 );
 
+// --- Sync profiles ---
+
+const syncProfilesTable = pgTable(
+  "sync_profiles",
+  {
+    createdAt: timestamp().notNull().defaultNow(),
+    id: uuid().notNull().primaryKey().defaultRandom(),
+    name: text().notNull(),
+    updatedAt: timestamp()
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    index("sync_profiles_user_idx").on(table.userId),
+  ],
+);
+
 // --- Source-destination calendar mappings ---
 
 const sourceDestinationMappingsTable = pgTable(
@@ -227,6 +248,9 @@ const sourceDestinationMappingsTable = pgTable(
       .notNull()
       .references(() => calendarsTable.id, { onDelete: "cascade" }),
     id: uuid().notNull().primaryKey().defaultRandom(),
+    profileId: uuid()
+      .notNull()
+      .references(() => syncProfilesTable.id, { onDelete: "cascade" }),
     sourceCalendarId: uuid()
       .notNull()
       .references(() => calendarsTable.id, { onDelete: "cascade" }),
@@ -235,9 +259,11 @@ const sourceDestinationMappingsTable = pgTable(
     uniqueIndex("source_destination_mapping_idx").on(
       table.sourceCalendarId,
       table.destinationCalendarId,
+      table.profileId,
     ),
     index("source_destination_mappings_source_idx").on(table.sourceCalendarId),
     index("source_destination_mappings_destination_idx").on(table.destinationCalendarId),
+    index("source_destination_mappings_profile_idx").on(table.profileId),
   ],
 );
 
@@ -250,6 +276,7 @@ export {
   eventStatesTable,
   oauthCredentialsTable,
   sourceDestinationMappingsTable,
+  syncProfilesTable,
   syncStatusTable,
   userSubscriptionsTable,
 };
