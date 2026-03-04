@@ -1,13 +1,44 @@
-import { useState, type SubmitEvent } from "react";
-import { Upload } from "lucide-react";
+import { useState, type ChangeEvent, type SubmitEvent } from "react";
+import { LoaderCircle, Upload } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { getFormData } from "../../lib/forms";
 import { BackButton } from "../ui/back-button";
 import { Button, ButtonText } from "../ui/button";
 import { Divider } from "../ui/divider";
 import { Input } from "../ui/input";
+import { Text } from "../ui/text";
 
 export function ICSFeedForm() {
-  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
+  const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    const formData = getFormData(event);
+    const url = formData.get("feed-url");
+
+    if (!url || typeof url !== "string") return;
+
+    setSubmitting(true);
+    setError(null);
+
+    const response = await fetch("/api/ics", {
+      body: JSON.stringify({ name: "iCal Feed", url }),
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setError(body?.error ?? "Failed to subscribe to feed");
+      setSubmitting(false);
+      return;
+    }
+
+    navigate({ to: "/dashboard/calendars" });
   };
 
   return (
@@ -17,14 +48,17 @@ export function ICSFeedForm() {
         name="feed-url"
         type="url"
         placeholder="Calendar Feed URL"
+        disabled={submitting}
       />
       <Divider />
       <div className="flex items-stretch gap-2">
         <BackButton variant="border" size="standard" className="self-stretch justify-center px-3.5" />
-        <Button type="submit" className="grow justify-center">
-          <ButtonText>Subscribe</ButtonText>
+        <Button type="submit" className="grow justify-center" disabled={submitting}>
+          {submitting && <LoaderCircle size={16} className="animate-spin" />}
+          <ButtonText>{submitting ? "Subscribing..." : "Subscribe"}</ButtonText>
         </Button>
       </div>
+      {error && <Text size="sm" tone="danger" align="center">{error}</Text>}
     </form>
   );
 }
@@ -36,7 +70,7 @@ export function ICSFileForm() {
     event.preventDefault();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     setFileName(file?.name ?? null);
   };

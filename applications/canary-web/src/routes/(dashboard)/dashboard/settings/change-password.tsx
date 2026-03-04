@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { getFormData } from "../../../../lib/forms";
 import { ArrowLeft } from "lucide-react";
 import { LinkButton, Button, ButtonIcon, ButtonText } from "../../../../components/ui/button";
 import { Divider } from "../../../../components/ui/divider";
@@ -16,10 +17,10 @@ function RouteComponent() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
-    const formData = new FormData(event.currentTarget);
+    const formData = getFormData(event);
     const current = formData.get("current");
     const newPassword = formData.get("new");
     const confirm = formData.get("confirm");

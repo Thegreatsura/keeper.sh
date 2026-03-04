@@ -7,6 +7,7 @@ import {
   validateState,
 } from "../../../../utils/destinations";
 import { createOAuthSourceCredential } from "../../../../utils/oauth-source-credentials";
+import { storeCallbackState } from "../../../../utils/oauth-callback-state";
 import { baseUrl } from "../../../../context";
 
 const MS_PER_SECOND = 1000;
@@ -63,11 +64,8 @@ const GET = withWideEvent(async ({ request, params }) => {
       refreshToken: tokens.refresh_token,
     });
 
-    const successUrl = buildRedirectUrl(successBaseUrl, {
-      provider,
-      source: "connected",
-      sourceCredentialId: credentialId,
-    });
+    const token = await storeCallbackState({ credentialId, provider });
+    const successUrl = buildRedirectUrl(successBaseUrl, { token });
 
     return Response.redirect(successUrl.toString());
   } catch (error) {

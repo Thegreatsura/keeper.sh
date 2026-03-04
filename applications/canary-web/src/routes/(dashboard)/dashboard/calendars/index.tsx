@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import useSWR from "swr";
-import { ArrowDown, Calendar, AlertTriangle, CalendarPlus, CalendarArrowDown } from "lucide-react";
+import { ArrowDown, Calendar, Link as LinkIcon, AlertTriangle, CalendarPlus, CalendarArrowDown } from "lucide-react";
 import { BackButton } from "../../../../components/ui/back-button";
 import {
   NavigationMenu,
@@ -9,7 +9,7 @@ import {
   NavigationMenuItemLabel,
   NavigationMenuItemTrailing,
 } from "../../../../components/ui/navigation-menu";
-import { Text } from "../../../../components/ui/text";
+import { providerIcons } from "../../../../lib/providers";
 
 export const Route = createFileRoute("/(dashboard)/dashboard/calendars/")({
   component: RouteComponent,
@@ -31,21 +31,17 @@ interface Destination {
   needsReauthentication: boolean;
 }
 
-const providerIcons: Record<string, string> = {
-  google: "/integrations/icon-google.svg",
-  outlook: "/integrations/icon-outlook.svg",
-  icloud: "/integrations/icon-icloud.svg",
-  fastmail: "/integrations/icon-fastmail.svg",
-  "microsoft-365": "/integrations/icon-microsoft-365.svg",
-};
-
 const fetcher = async <T,>(url: string): Promise<T> => {
   const response = await fetch(url, { credentials: "include" });
   if (!response.ok) throw new Error("Failed to fetch");
   return response.json();
 };
 
-function ProviderIcon({ provider }: { provider?: string }) {
+function ProviderIcon({ provider, type }: { provider?: string; type: string }) {
+  if (type === "ics") {
+    return <LinkIcon size={15} />;
+  }
+
   const iconPath = provider ? providerIcons[provider] : undefined;
 
   if (!iconPath) {
@@ -75,14 +71,12 @@ function SourceList({ sources }: { sources: Source[] }) {
   return (
     <NavigationMenu>
       {sources.map((source) => (
-        <NavigationMenuItem key={source.id}>
+        <NavigationMenuItem key={source.id} to={`/dashboard/calendars/${source.id}`}>
           <NavigationMenuItemIcon>
-            <ProviderIcon provider={source.provider ?? source.type} />
+            <ProviderIcon provider={source.provider ?? source.type} type={source.type} />
             <NavigationMenuItemLabel>{source.name}</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
-          <NavigationMenuItemTrailing>
-            {source.email && <Text size="sm" tone="muted">{source.email}</Text>}
-          </NavigationMenuItemTrailing>
+          <NavigationMenuItemTrailing />
         </NavigationMenuItem>
       ))}
       <NavigationMenuItem to="/dashboard/connect/source">
@@ -102,7 +96,7 @@ function DestinationList({ destinations }: { destinations: Destination[] }) {
       {destinations.map((destination) => (
         <NavigationMenuItem key={destination.id}>
           <NavigationMenuItemIcon>
-            <ProviderIcon provider={destination.provider} />
+            <ProviderIcon provider={destination.provider} type={destination.provider} />
             <NavigationMenuItemLabel>
               {destination.email ?? destination.provider}
             </NavigationMenuItemLabel>

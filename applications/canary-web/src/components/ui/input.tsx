@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef } from "react";
+import type { ComponentPropsWithoutRef, Ref } from "react";
 import { tv, type VariantProps } from "tailwind-variants";
 
 const input = tv({
@@ -15,7 +15,7 @@ const input = tv({
 });
 
 type InputProps = ComponentPropsWithoutRef<"input"> & VariantProps<typeof input> & {
-  ref?: React.Ref<HTMLInputElement>;
+  ref?: Ref<HTMLInputElement>;
 };
 
 export function Input({ tone, className, ref, ...props }: InputProps) {

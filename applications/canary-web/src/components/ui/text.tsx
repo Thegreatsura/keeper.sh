@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { CSSProperties, PropsWithChildren } from "react";
 import { tv } from "tailwind-variants/lite";
 
 const text = tv({
@@ -32,8 +32,9 @@ type TextProps = PropsWithChildren<{
   tone?: "muted" | "inverse" | "inverseMuted" | "default" | "danger";
   align?: "center" | "left";
   className?: string;
+  style?: CSSProperties;
 }>;
 
-export function Text({ children, size, tone, align, className }: TextProps) {
-  return <p className={text({ size, tone, align, className })}>{children}</p>;
+export function Text({ children, size, tone, align, className, style }: TextProps) {
+  return <p className={text({ size, tone, align, className })} style={style}>{children}</p>;
 }

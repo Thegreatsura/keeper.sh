@@ -1,4 +1,5 @@
-import type { ReactNode, FormEvent } from "react";
+import type { ReactNode, SubmitEvent } from "react";
+import { useLocation } from "@tanstack/react-router";
 import { ArrowLeftRight, Check } from "lucide-react";
 import KeeperLogo from "../../assets/keeper.svg?react";
 import { authClient } from "../../lib/auth-client";
@@ -31,7 +32,7 @@ const PROVIDER_SOCIAL_MAP: Partial<Record<Provider, string>> = {
 
 interface PreambleLayoutProps {
   provider: Provider;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: SubmitEvent<HTMLFormElement>) => void;
   children?: ReactNode;
 }
 
@@ -78,7 +79,7 @@ interface AuthOAuthPreambleProps {
 }
 
 export function AuthOAuthPreamble({ provider }: AuthOAuthPreambleProps) {
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const socialProvider = PROVIDER_SOCIAL_MAP[provider];
     if (!socialProvider) return;
@@ -99,8 +100,11 @@ interface LinkOAuthPreambleProps {
 }
 
 export function LinkOAuthPreamble({ provider }: LinkOAuthPreambleProps) {
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const location = useLocation();
+
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    sessionStorage.setItem("oauth:returnTo", location.pathname);
     window.location.href = `/api/sources/authorize?provider=${provider}`;
   };
 

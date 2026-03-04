@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import useSWR from "swr";
 import { Calendar, Check, LoaderCircle } from "lucide-react";
 import { BackButton } from "../../../../components/ui/back-button";
@@ -15,11 +15,14 @@ import { Heading2 } from "../../../../components/ui/heading";
 import { Text } from "../../../../components/ui/text";
 
 interface SearchParams {
-  source?: string;
-  sourceCredentialId?: string;
-  provider?: string;
+  token?: string;
   destination?: string;
   error?: string;
+}
+
+interface CallbackState {
+  credentialId: string;
+  provider: string;
 }
 
 interface CalendarOption {
@@ -28,15 +31,53 @@ interface CalendarOption {
   primary?: boolean;
 }
 
+const fetchCallbackState = async (token: string): Promise<CallbackState> => {
+  const response = await fetch(`/api/sources/callback-state?token=${token}`, {
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Invalid token");
+  return response.json();
+};
+
 export const Route = createFileRoute("/(dashboard)/dashboard/integrations/")({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): SearchParams => ({
-    source: search.source as string | undefined,
-    sourceCredentialId: search.sourceCredentialId as string | undefined,
-    provider: search.provider as string | undefined,
+    token: search.token as string | undefined,
     destination: search.destination as string | undefined,
     error: search.error as string | undefined,
   }),
+  beforeLoad: ({ search }) => {
+    if (search.destination === "connected") {
+      throw redirect({ to: "/dashboard/calendars" });
+    }
+    if (search.token) {
+      const returnTo = sessionStorage.getItem(`oauth:${search.token}`);
+      if (returnTo) {
+        throw redirect({ to: returnTo });
+      }
+    }
+    if (!search.token && !search.error) {
+      throw redirect({ to: "/dashboard" });
+    }
+  },
+  loaderDeps: ({ search }) => ({ token: search.token }),
+  loader: async ({ deps }) => {
+    const token = deps.token;
+
+    if (!token) return { callbackState: null };
+
+    try {
+      const callbackState = await fetchCallbackState(token);
+      const returnTo = sessionStorage.getItem("oauth:returnTo");
+      if (returnTo) {
+        sessionStorage.setItem(`oauth:${token}`, returnTo);
+        sessionStorage.removeItem("oauth:returnTo");
+      }
+      return { callbackState };
+    } catch {
+      throw redirect({ to: "/dashboard/calendars" });
+    }
+  },
 });
 
 const fetcher = async <T,>(url: string): Promise<T> => {
@@ -46,28 +87,22 @@ const fetcher = async <T,>(url: string): Promise<T> => {
 };
 
 function RouteComponent() {
-  const { source, sourceCredentialId, provider, destination, error } = Route.useSearch();
-  const navigate = useNavigate();
-
-  if (destination === "connected") {
-    navigate({ to: "/dashboard/calendars" });
-    return null;
-  }
+  const { error } = Route.useSearch();
+  const { callbackState } = Route.useLoaderData();
 
   if (error) {
     return <ErrorView message={error} />;
   }
 
-  if (source === "connected" && sourceCredentialId && provider) {
+  if (callbackState) {
     return (
       <CalendarPicker
-        provider={provider}
-        credentialId={sourceCredentialId}
+        provider={callbackState.provider}
+        credentialId={callbackState.credentialId}
       />
     );
   }
 
-  navigate({ to: "/dashboard" });
   return null;
 }
 
@@ -83,7 +118,12 @@ function ErrorView({ message }: { message: string }) {
   );
 }
 
-function CalendarPicker({ provider, credentialId }: { provider: string; credentialId: string }) {
+interface CalendarPickerProps {
+  provider: string;
+  credentialId: string;
+}
+
+function CalendarPicker({ provider, credentialId }: CalendarPickerProps) {
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);

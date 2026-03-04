@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { createContext, use, useCallback, useEffect, useRef, useState } from "react";
+import { createContext, use, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Heading3 } from "./heading";
 import { Text } from "./text";
@@ -22,13 +22,10 @@ interface ModalProps extends PropsWithChildren {
 export function Modal({ children, open: controlledOpen, onOpenChange }: ModalProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = controlledOpen ?? uncontrolledOpen;
-  const setOpen = useCallback(
-    (value: boolean) => {
-      onOpenChange?.(value);
-      if (controlledOpen === undefined) setUncontrolledOpen(value);
-    },
-    [controlledOpen, onOpenChange],
-  );
+  const setOpen = (value: boolean) => {
+    onOpenChange?.(value);
+    if (controlledOpen === undefined) setUncontrolledOpen(value);
+  };
 
   return (
     <ModalContext value={{ open, setOpen }}>
@@ -73,7 +70,7 @@ export function ModalContent({ children }: PropsWithChildren) {
     >
       <div
         ref={contentRef}
-        className="flex flex-col gap-3 bg-background-elevated border border-border-elevated rounded-2xl shadow-xs p-4 max-w-sm w-full"
+        className="flex flex-col gap-3 bg-background-elevated border border-border-elevated rounded-2xl shadow-xs p-4 max-w-sm w-full overflow-hidden"
       >
         {children}
       </div>
@@ -83,7 +80,7 @@ export function ModalContent({ children }: PropsWithChildren) {
 }
 
 export function ModalTitle({ children }: PropsWithChildren) {
-  return <Heading3>{children}</Heading3>;
+  return <Heading3 className="truncate">{children}</Heading3>;
 }
 
 export function ModalDescription({ children }: PropsWithChildren) {

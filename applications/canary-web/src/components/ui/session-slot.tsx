@@ -1,11 +1,11 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { tv } from "tailwind-variants";
 import { useSession } from "../../hooks/use-session";
 import { FadeIn } from "./fade-in";
 
 interface SessionSlotProps {
-  authenticated: React.ReactNode;
-  unauthenticated: React.ReactNode;
+  authenticated: ReactNode;
+  unauthenticated: ReactNode;
 }
 
 const slotLayer = tv({

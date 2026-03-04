@@ -47,7 +47,7 @@ const navigationMenuItem = tv({
 });
 
 const navigationMenuItemIcon = tv({
-  base: "shrink-0",
+  base: "min-w-0",
   variants: {
     variant: {
       default: "text-foreground-muted",
@@ -205,7 +205,7 @@ export function NavigationMenuItemIcon({ children }: PropsWithChildren) {
   const variant = use(MenuVariantContext);
 
   return (
-    <div className={cn("flex items-center gap-2", navigationMenuItemIcon({ variant }))()}>
+    <div className={cn("flex items-center gap-2 [&>:not(p)]:shrink-0", navigationMenuItemIcon({ variant }))()}>
       {children}
     </div>
   );
@@ -214,7 +214,7 @@ export function NavigationMenuItemIcon({ children }: PropsWithChildren) {
 export function NavigationMenuItemLabel({ children }: PropsWithChildren) {
   const variant = use(MenuVariantContext);
 
-  return <Text size="sm" tone={LABEL_TONE[variant ?? "default"]} align="left">{children}</Text>;
+  return <Text size="sm" tone={LABEL_TONE[variant ?? "default"]} align="left" className="truncate">{children}</Text>;
 }
 
 export function NavigationMenuItemTrailing({ children }: PropsWithChildren) {

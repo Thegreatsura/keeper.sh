@@ -1,5 +1,6 @@
-import { useRef, type FormEvent, type ChangeEvent, type Ref } from "react";
+import { useRef, type ChangeEvent, type Ref, type SubmitEvent } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { getFormData } from "../../lib/forms";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { motion, AnimatePresence, type Variants } from "motion/react";
 import { ArrowLeft, LoaderCircle } from "lucide-react";
@@ -97,7 +98,7 @@ function EmailForm({ submitLabel, action }: { submitLabel: string; action: "sign
   const setError = useSetAtom(authFormErrorAtom);
   const passwordRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const email = store.get(authFormEmailAtom);
 
@@ -108,7 +109,7 @@ function EmailForm({ submitLabel, action }: { submitLabel: string; action: "sign
       return;
     }
 
-    const formData = new FormData(event.currentTarget);
+    const formData = getFormData(event);
     const password = formData.get("password");
     if (!password || typeof password !== "string") return;
 

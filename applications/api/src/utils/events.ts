@@ -7,6 +7,7 @@ const EMPTY_SOURCES_COUNT = 0;
 
 interface SourceMetadata {
   name: string;
+  provider: string | null;
   url: string | null;
 }
 
@@ -16,6 +17,7 @@ interface EnrichedEvent {
   endTime: Date;
   calendarId: string;
   sourceName: string | undefined;
+  sourceProvider: string | null | undefined;
   sourceUrl: string | null | undefined;
 }
 
@@ -30,6 +32,7 @@ const getEventsInRange = async (userId: string, url: URL): Promise<EnrichedEvent
     .select({
       id: calendarSourcesTable.id,
       name: calendarSourcesTable.name,
+      provider: calendarSourcesTable.provider,
       url: calendarSourcesTable.url,
     })
     .from(calendarSourcesTable)
@@ -41,7 +44,7 @@ const getEventsInRange = async (userId: string, url: URL): Promise<EnrichedEvent
 
   const sourceIds = sources.map((source) => source.id);
   const sourceMap = new Map<string, SourceMetadata>(
-    sources.map((source) => [source.id, { name: source.name, url: source.url }]),
+    sources.map((source) => [source.id, { name: source.name, provider: source.provider, url: source.url }]),
   );
 
   const events = await database
@@ -83,6 +86,7 @@ const enrichEventsWithSources = (
       endTime: event.endTime,
       id: event.id,
       sourceName: source?.name,
+      sourceProvider: source?.provider,
       sourceUrl: source?.url,
       startTime: event.startTime,
     };

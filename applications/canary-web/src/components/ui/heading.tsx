@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { tv } from "tailwind-variants/lite";
+import { tv } from "tailwind-variants";
 
 const heading = tv({
   base: "font-serif font-medium leading-tight -tracking-[0.075em] text-foreground",
