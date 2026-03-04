@@ -9,7 +9,7 @@ import { formatTime, formatTimeUntil, isEventPast, formatDayHeader } from "../..
 import { useEvents, type CalendarEvent } from "../../../../hooks/use-events";
 
 export const Route = createFileRoute("/(dashboard)/dashboard/events/")({
-  component: RouteComponent,
+  component: EventsPage,
 });
 
 interface DayGroup {
@@ -37,12 +37,8 @@ const groupEventsByDay = (events: CalendarEvent[]): DayGroup[] => {
 
   for (const event of events) {
     const key = event.startTime.toDateString();
-    const existing = groups.get(key);
-    if (existing) {
-      existing.push(event);
-    } else {
-      groups.set(key, [event]);
-    }
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(event);
   }
 
   return [...groups.entries()].map(([key, dayEvents]) => ({
@@ -51,7 +47,7 @@ const groupEventsByDay = (events: CalendarEvent[]): DayGroup[] => {
   }));
 };
 
-function RouteComponent() {
+function EventsPage() {
   return (
     <div className="flex flex-col gap-3">
       <BackButton />
@@ -164,6 +160,11 @@ const DaySection = memo(function DaySection({ label, events }: DaySectionProps) 
   );
 }, areDaySectionPropsEqual);
 
+function resolveEventRowClassName(past: boolean): string {
+  if (past) return "flex items-center justify-between gap-2 py-1.5 line-through";
+  return "flex items-center justify-between gap-2 py-1.5";
+}
+
 const EventRow = memo(function EventRow({ event }: EventRowProps) {
   const past = isEventPast(event.endTime);
   const startTime = formatTime(event.startTime);
@@ -171,7 +172,7 @@ const EventRow = memo(function EventRow({ event }: EventRowProps) {
   const timeUntil = formatTimeUntil(event.startTime);
 
   return (
-    <div className={`flex items-center justify-between gap-2 py-1.5 ${past ? "line-through" : ""}`}>
+    <div className={resolveEventRowClassName(past)}>
       <div className="flex items-center gap-1 min-w-0">
         <Text size="sm" tone="muted" className="truncate">
           {event.calendarName}

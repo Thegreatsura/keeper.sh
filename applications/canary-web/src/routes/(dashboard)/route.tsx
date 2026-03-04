@@ -6,10 +6,10 @@ export const Route = createFileRoute("/(dashboard)")({
     const { data } = await authClient.getSession();
     if (!data?.session) throw redirect({ to: "/login" });
   },
-  component: RouteComponent,
+  component: DashboardLayout,
 });
 
-function RouteComponent() {
+function DashboardLayout() {
   return (
     <div className="flex flex-col items-center min-h-dvh px-4 pb-12 pt-4 xs:pt-[min(6rem,25vh)]">
       <div className="flex flex-col gap-3 w-full max-w-sm">

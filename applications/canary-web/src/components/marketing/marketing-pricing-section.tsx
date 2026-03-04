@@ -116,6 +116,16 @@ const pricingFeatureValueDisplay = tv({
   },
 });
 
+function resolvePricingTone(highlighted: boolean): "inverse" | "default" {
+  if (highlighted) return "inverse";
+  return "default";
+}
+
+function resolvePricingCopyTone(highlighted: boolean): "inverseMuted" | "muted" {
+  if (highlighted) return "inverseMuted";
+  return "muted";
+}
+
 export function MarketingPricingPlanCard({
   highlighted = false,
   name,
@@ -124,8 +134,8 @@ export function MarketingPricingPlanCard({
   description,
   ctaLabel,
 }: MarketingPricingPlanCardProps) {
-  const tone = highlighted ? "inverse" : "default";
-  const copyTone = highlighted ? "inverseMuted" : "muted";
+  const tone = resolvePricingTone(highlighted);
+  const copyTone = resolvePricingCopyTone(highlighted);
 
   return (
     <MarketingPricingCard tone={tone}>
@@ -172,6 +182,11 @@ export function MarketingPricingFeatureValue({ children }: PropsWithChildren) {
   return <div className="flex justify-center py-4 tabular-nums">{children}</div>;
 }
 
+function resolveFeatureTone(muted: boolean | undefined): "muted" | "default" {
+  if (muted) return "muted";
+  return "default";
+}
+
 export function MarketingPricingFeatureDisplay({
   value,
   muted = false,
@@ -179,7 +194,7 @@ export function MarketingPricingFeatureDisplay({
   value: MarketingPricingFeatureValueKind;
   muted?: boolean;
 }) {
-  const tone = muted ? "muted" : "default";
+  const tone = resolveFeatureTone(muted);
   const className = pricingFeatureValueDisplay({ tone });
 
   if (value === "check") {
@@ -195,7 +210,7 @@ export function MarketingPricingFeatureDisplay({
   }
 
   return (
-    <Text size="sm" tone={muted ? "muted" : "default"} align="center">
+    <Text size="sm" tone={resolveFeatureTone(muted)} align="center">
       {value}
     </Text>
   );

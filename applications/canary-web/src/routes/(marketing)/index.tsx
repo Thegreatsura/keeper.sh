@@ -132,10 +132,10 @@ const PRICING_FEATURES: PricingFeature[] = [
 ]
 
 export const Route = createFileRoute('/(marketing)/')({
-  component: RouteComponent,
+  component: MarketingPage,
 })
 
-function RouteComponent() {
+function MarketingPage() {
   const setEmphasized = useSetAtom(calendarEmphasizedAtom)
 
   return (

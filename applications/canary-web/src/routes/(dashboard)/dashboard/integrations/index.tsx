@@ -8,7 +8,7 @@ interface SearchParams {
 }
 
 export const Route = createFileRoute("/(dashboard)/dashboard/integrations/")({
-  component: RouteComponent,
+  component: OAuthCallbackErrorPage,
   validateSearch: (search: Record<string, unknown>): SearchParams => ({
     error: search.error as string | undefined,
   }),
@@ -19,20 +19,16 @@ export const Route = createFileRoute("/(dashboard)/dashboard/integrations/")({
   },
 });
 
-function RouteComponent() {
+function OAuthCallbackErrorPage() {
   const { error } = Route.useSearch();
 
-  if (error) {
-    return (
-      <div className="flex flex-col gap-3">
-        <BackButton />
-        <div className="flex flex-col gap-1 py-2">
-          <Heading2 as="span" className="text-center">Connection failed</Heading2>
-          <Text size="sm" tone="muted" align="center">{error}</Text>
-        </div>
+  return (
+    <div className="flex flex-col gap-3">
+      <BackButton />
+      <div className="flex flex-col gap-1 py-2">
+        <Heading2 as="span" className="text-center">Connection failed</Heading2>
+        <Text size="sm" tone="muted" align="center">{error}</Text>
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }

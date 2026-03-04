@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AuthOAuthPreamble } from "../../../components/auth/oauth-preamble";
 
 export const Route = createFileRoute("/(oauth)/auth/google")({
-  component: RouteComponent,
+  component: GoogleAuthPage,
 });
 
-function RouteComponent() {
+function GoogleAuthPage() {
   return <AuthOAuthPreamble provider="google" />;
 }

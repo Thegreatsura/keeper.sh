@@ -32,28 +32,33 @@ export const formatTimeUntil = (date: Date): string => {
 export const isEventPast = (endTime: Date): boolean =>
   endTime.getTime() < Date.now();
 
+const resolvePeriod = (hours: number): string => {
+  if (hours >= 12) return "PM";
+  return "AM";
+};
+
 export const formatTime = (date: Date): string => {
   const hours = date.getHours();
   const minutes = date.getMinutes();
-  const period = hours >= 12 ? "PM" : "AM";
+  const period = resolvePeriod(hours);
   const displayHours = hours % 12 || 12;
 
   return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
 };
 
-export const formatTimeRange = (start: Date, end: Date): string => {
-  const startStr = formatTime(start);
-  const endStr = formatTime(end);
+export const formatDate = (date: string | Date): string =>
+  new Date(date).toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
-  const startPeriod = start.getHours() >= 12 ? "PM" : "AM";
-  const endPeriod = end.getHours() >= 12 ? "PM" : "AM";
-
-  if (startPeriod === endPeriod) {
-    return `${startStr.replace(` ${startPeriod}`, "")} – ${endStr}`;
-  }
-
-  return `${startStr} – ${endStr}`;
-};
+export const formatDateShort = (date: string | Date): string =>
+  new Date(date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
 export const formatDayHeader = (date: Date): string => {
   const now = new Date();

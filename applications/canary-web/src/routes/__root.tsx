@@ -45,12 +45,17 @@ function NotFound() {
   );
 }
 
+function resolveErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
 function ErrorFallback({ error }: ErrorComponentProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-dvh px-2 gap-3">
       <Heading2>Something went wrong</Heading2>
       <Text size="sm" tone="muted">
-        {error instanceof Error ? error.message : "An unexpected error occurred."}
+        {resolveErrorMessage(error, "An unexpected error occurred.")}
       </Text>
       <LinkButton to="/" variant="border" size="compact">
         <ButtonText>Go home</ButtonText>

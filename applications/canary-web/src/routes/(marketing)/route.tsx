@@ -9,10 +9,10 @@ import { SessionSlot } from '../../components/ui/session-slot';
 import { HeartIcon } from 'lucide-react';
 
 export const Route = createFileRoute('/(marketing)')({
-  component: RouteComponent,
+  component: MarketingLayout,
 })
 
-function RouteComponent() {
+function MarketingLayout() {
   return (
     <>
       <MarketingHeader>

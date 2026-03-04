@@ -1,4 +1,4 @@
-import { atom, useAtomValue, useSetAtom } from "jotai";
+import { useState } from "react";
 import { tv } from "tailwind-variants/lite";
 import { Text } from "../ui/text";
 
@@ -8,6 +8,7 @@ interface EventBlock {
   dayOffset: number;
 }
 
+// TODO: Replace with real event data from API
 const MOCK_EVENTS: EventBlock[] = [
   { startHour: 10, endHour: 11.5, dayOffset: -7 },
   { startHour: 14, endHour: 15, dayOffset: -6 },
@@ -55,100 +56,137 @@ const graphBar = tv({
     period: {
       past: "bg-background-hover border border-border-elevated",
       today: "bg-emerald-400 border-transparent",
-      future: "bg-emerald-400 border-emerald-500 bg-[repeating-linear-gradient(-45deg,transparent_0_4px,var(--color-illustration-stripe)_4px_8px)]",
+      future:
+        "bg-emerald-400 border-emerald-500 bg-[repeating-linear-gradient(-45deg,transparent_0_4px,var(--color-illustration-stripe)_4px_8px)]",
     },
   },
 });
 
 type Period = "past" | "today" | "future";
 
+/** Determine whether a day offset relative to today is past, today, or future. */
 const resolvePeriod = (dayOffset: number): Period => {
   if (dayOffset < 0) return "past";
   if (dayOffset === 0) return "today";
   return "future";
 };
 
-const pluralize = (count: number, singular: string) =>
-  count === 1 ? `${count} ${singular}` : `${count} ${singular}s`;
-
-const buildDays = (events: EventBlock[]) => {
+/** Count events per day slot, returning an array indexed by slot position. */
+const countEventsByDay = (events: EventBlock[]): number[] => {
   const counts = new Array<number>(TOTAL_DAYS).fill(0);
   for (const event of events) {
-    const index = event.dayOffset + DAYS_BEFORE;
-    if (index >= 0 && index < TOTAL_DAYS) counts[index]++;
+    const slotIndex = event.dayOffset + DAYS_BEFORE;
+    if (slotIndex >= 0 && slotIndex < TOTAL_DAYS) counts[slotIndex]++;
   }
+  return counts;
+};
 
-  const max = Math.max(...counts, 1);
+interface DayData {
+  count: number;
+  dayOffset: number;
+  heightPercent: number;
+  fullLabel: string;
+  period: Period;
+}
 
-  return counts.map((count, index) => {
-    const dayOffset = index - DAYS_BEFORE;
-    const date = new Date();
-    date.setDate(date.getDate() + dayOffset);
+/** Format a date offset from today into a human-readable label. */
+const formatDayLabel = (dayOffset: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + dayOffset);
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+};
 
-    const fullLabel = date.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "short",
-      day: "numeric",
-    });
+function resolveBarHeight(count: number, maxCount: number): number {
+  if (count === 0) return MIN_BAR_PERCENT;
+  return (count / maxCount) * 100;
+}
 
-    const period = resolvePeriod(dayOffset);
+/** Transform raw event counts into display-ready day data with normalized bar heights. */
+const normalizeDayData = (counts: number[]): DayData[] => {
+  const maxCount = Math.max(...counts, 1);
 
+  return counts.map((count, slotIndex) => {
+    const dayOffset = slotIndex - DAYS_BEFORE;
     return {
       count,
       dayOffset,
-      heightPercent: count === 0 ? MIN_BAR_PERCENT : (count / max) * 100,
-      label: String(dayOffset),
-      fullLabel,
-      period,
+      heightPercent: resolveBarHeight(count, maxCount),
+      fullLabel: formatDayLabel(dayOffset),
+      period: resolvePeriod(dayOffset),
     };
   });
 };
 
-const hoverIndexAtom = atom<number | null>(null);
+const buildDays = (events: EventBlock[]): DayData[] => {
+  const counts = countEventsByDay(events);
+  return normalizeDayData(counts);
+};
 
-function EventGraphSummary({ days }: { days: ReturnType<typeof buildDays> }) {
-  const hoverIndex = useAtomValue(hoverIndexAtom);
+const DAYS = buildDays(MOCK_EVENTS);
+
+function resolveActiveDay(hoverIndex: number | null, days: DayData[], today: DayData): DayData {
+  if (hoverIndex !== null) return days[hoverIndex];
+  return today;
+}
+
+function resolveEventCountLabel(count: number): string {
+  if (count === 1) return "1 event";
+  return `${count} events`;
+}
+
+interface EventGraphSummaryProps {
+  days: DayData[];
+  hoverIndex: number | null;
+}
+
+function EventGraphSummary({ days, hoverIndex }: EventGraphSummaryProps) {
   const today = days[DAYS_BEFORE];
-  const activeDay = hoverIndex !== null ? days[hoverIndex] : today;
+  const activeDay = resolveActiveDay(hoverIndex, days, today);
+  const eventCountLabel = resolveEventCountLabel(activeDay.count);
 
   return (
-    <>
-      <div className="flex items-center justify-between">
-        <Text size="sm" tone="muted" className="tabular-nums text-right">
-          {pluralize(activeDay.count, "event")}
-        </Text>
-        <Text size="sm" tone="muted" className="tabular-nums text-right">
-          {activeDay.fullLabel}
-        </Text>
-      </div>
-    </>
+    <div className="flex items-center justify-between">
+      <Text size="sm" tone="muted" className="tabular-nums text-right">
+        {eventCountLabel}
+      </Text>
+      <Text size="sm" tone="muted" className="tabular-nums text-right">
+        {activeDay.fullLabel}
+      </Text>
+    </div>
   );
 }
 
 export function EventGraph() {
-  const days = buildDays(MOCK_EVENTS);
-  const setHoverIndex = useSetAtom(hoverIndexAtom);
+  const days = DAYS;
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   return (
     <div className="flex flex-col gap-6">
-      <EventGraphSummary days={days} />
+      <EventGraphSummary days={days} hoverIndex={hoverIndex} />
 
       <div
         className="flex gap-0.5 [&:hover>*]:opacity-50 [&>*:hover]:opacity-100"
         onPointerLeave={() => setHoverIndex(null)}
       >
-        {days.map((day, index) => (
+        {days.map((day, dayIndex) => (
           <div
             key={day.dayOffset}
             className="flex-1 flex flex-col gap-2"
-            onPointerEnter={() => setHoverIndex(index)}
+            onPointerEnter={() => setHoverIndex(dayIndex)}
           >
             <div
               className="flex items-end"
               style={{ height: GRAPH_HEIGHT }}
             >
               <div
-                className={graphBar({ period: day.period, className: "w-full" })}
+                className={graphBar({
+                  period: day.period,
+                  className: "w-full",
+                })}
                 style={{ height: `${day.heightPercent}%` }}
               />
             </div>
@@ -158,7 +196,7 @@ export function EventGraph() {
               align="center"
               className="font-mono leading-none select-none"
             >
-              {day.label}
+              {day.dayOffset}
             </Text>
           </div>
         ))}

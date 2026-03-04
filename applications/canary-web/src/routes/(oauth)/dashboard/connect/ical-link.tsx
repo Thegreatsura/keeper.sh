@@ -8,12 +8,12 @@ import { ICSFeedForm } from "../../../../components/auth/ics-connect-form";
 export const Route = createFileRoute(
   "/(oauth)/dashboard/connect/ical-link",
 )({
-  component: RouteComponent,
+  component: ConnectICalLinkPage,
 });
 
-function RouteComponent() {
+function ConnectICalLinkPage() {
   return (
-    <div className="flex flex-col gap-3 w-full max-w-xs self-center">
+    <>
       <ProviderIconPair>
         <Link size={28} className="text-foreground-muted" />
       </ProviderIconPair>
@@ -22,6 +22,6 @@ function RouteComponent() {
         Subscribe to a read-only calendar feed from any ICS-compatible source, supported by most calendar providers.
       </Text>
       <ICSFeedForm />
-    </div>
+    </>
   );
 }

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AuthForm, type AuthScreenCopy } from "../../components/auth/auth-form";
 
 export const Route = createFileRoute("/(auth)/register")({
-  component: RouteComponent,
+  component: RegisterPage,
 });
 
 const copy: AuthScreenCopy = {
@@ -16,6 +16,6 @@ const copy: AuthScreenCopy = {
   action: "signUp",
 };
 
-function RouteComponent() {
+function RegisterPage() {
   return <AuthForm copy={copy} />;
 }

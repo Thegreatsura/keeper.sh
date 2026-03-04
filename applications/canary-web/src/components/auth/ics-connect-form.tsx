@@ -2,7 +2,6 @@ import { useState, type ChangeEvent, type SubmitEvent } from "react";
 import { LoaderCircle, Upload } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useSWRConfig } from "swr";
-import { getFormData } from "../../lib/forms";
 import { apiFetch } from "../../lib/fetcher";
 import { invalidateAccountsAndSources } from "../../lib/swr";
 import { BackButton } from "../ui/back-button";
@@ -10,6 +9,11 @@ import { Button, ButtonText } from "../ui/button";
 import { Divider } from "../ui/divider";
 import { Input } from "../ui/input";
 import { Text } from "../ui/text";
+
+function resolveSubmitLabel(submitting: boolean): string {
+  if (submitting) return "Subscribing...";
+  return "Subscribe";
+}
 
 export function ICSFeedForm() {
   const navigate = useNavigate();
@@ -20,7 +24,7 @@ export function ICSFeedForm() {
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const formData = getFormData(event);
+    const formData = new FormData(event.currentTarget);
     const url = formData.get("feed-url");
 
     if (!url || typeof url !== "string") return;
@@ -58,7 +62,7 @@ export function ICSFeedForm() {
         <BackButton variant="border" size="standard" className="self-stretch justify-center px-3.5" />
         <Button type="submit" className="grow justify-center" disabled={submitting}>
           {submitting && <LoaderCircle size={16} className="animate-spin" />}
-          <ButtonText>{submitting ? "Subscribing..." : "Subscribe"}</ButtonText>
+          <ButtonText>{resolveSubmitLabel(submitting)}</ButtonText>
         </Button>
       </div>
       {error && <Text size="sm" tone="danger" align="center">{error}</Text>}
@@ -66,6 +70,7 @@ export function ICSFeedForm() {
   );
 }
 
+// TODO: Implement file upload submission
 export function ICSFileForm() {
   const [fileName, setFileName] = useState<string | null>(null);
 

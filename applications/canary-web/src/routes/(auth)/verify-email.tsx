@@ -7,10 +7,10 @@ import { Heading2 } from "../../components/ui/heading";
 import { Text } from "../../components/ui/text";
 
 export const Route = createFileRoute("/(auth)/verify-email")({
-  component: RouteComponent,
+  component: VerifyEmailPage,
 });
 
-function RouteComponent() {
+function VerifyEmailPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "sent">("idle");
   const [error, setError] = useState<string | null>(null);
 

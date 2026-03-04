@@ -22,10 +22,10 @@ import { Text } from "../../../components/ui/text";
 import { getAccountLabel } from "../../../utils/accounts";
 
 export const Route = createFileRoute("/(dashboard)/dashboard/")({
-  component: RouteComponent,
+  component: DashboardPage,
 });
 
-function RouteComponent() {
+function DashboardPage() {
   const navigate = useNavigate();
   const handleLogout = async () => {
     await signOut();

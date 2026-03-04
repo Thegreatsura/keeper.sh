@@ -1,6 +1,5 @@
 import { useRef, type ChangeEvent, type Ref, type SubmitEvent } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { getFormData } from "../../lib/forms";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { motion, AnimatePresence, type Variants } from "motion/react";
 import { ArrowLeft, LoaderCircle } from "lucide-react";
@@ -17,6 +16,21 @@ import { Divider } from "../ui/divider";
 import { Heading2 } from "../ui/heading";
 import { Input } from "../ui/input";
 import { Text } from "../ui/text";
+
+function resolveErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
+function resolveAuthenticator(action: "signIn" | "signUp") {
+  if (action === "signIn") return signInWithEmail;
+  return signUpWithEmail;
+}
+
+function resolveInputTone(active: boolean | undefined): "error" | "neutral" {
+  if (active) return "error";
+  return "neutral";
+}
 
 export type AuthScreenCopy = {
   heading: string;
@@ -89,6 +103,11 @@ function SocialAuthButtons({ oauthActionLabel }: { oauthActionLabel: string }) {
   );
 }
 
+function renderBackButton(step: "email" | "password", onBack: () => void) {
+  if (step === "password") return <StepBackButton onBack={onBack} />;
+  return <BackButton />;
+}
+
 function EmailForm({ submitLabel, action }: { submitLabel: string; action: "signIn" | "signUp" }) {
   const navigate = useNavigate();
   const store = useStore();
@@ -109,31 +128,34 @@ function EmailForm({ submitLabel, action }: { submitLabel: string; action: "sign
       return;
     }
 
-    const formData = getFormData(event);
+    const formData = new FormData(event.currentTarget);
     const password = formData.get("password");
     if (!password || typeof password !== "string") return;
 
     setStatus("loading");
+
+    const authenticate = resolveAuthenticator(action);
+
     try {
-      if (action === "signIn") {
-        await signInWithEmail(email, password);
-      } else {
-        await signUpWithEmail(email, password);
-      }
-      setStatus("idle");
-      if (action === "signUp") {
-        sessionStorage.setItem("pendingVerificationEmail", email);
-        navigate({ to: "/verify-email" });
-      } else {
-        navigate({ to: "/dashboard" });
-      }
+      await authenticate(email, password);
     } catch (error) {
       setStatus("idle");
       setError({
-        message: error instanceof Error ? error.message : "Something went wrong. Please try again.",
+        message: resolveErrorMessage(error, "Something went wrong. Please try again."),
         active: true,
       });
+      return;
     }
+
+    setStatus("idle");
+
+    if (action === "signUp") {
+      sessionStorage.setItem("pendingVerificationEmail", email);
+      navigate({ to: "/verify-email" });
+      return;
+    }
+
+    navigate({ to: "/dashboard" });
   };
 
   const handleBack = () => {
@@ -160,15 +182,16 @@ function EmailForm({ submitLabel, action }: { submitLabel: string; action: "sign
         </AnimatePresence>
       </div>
       <div className="flex items-stretch">
-        {step === "password" ? (
-          <StepBackButton onBack={handleBack} />
-        ) : (
-          <BackButton />
-        )}
+        {renderBackButton(step, handleBack)}
         <SubmitButton>{submitLabel}</SubmitButton>
       </div>
     </form>
   );
+}
+
+function resolveAuthErrorAnimation(active: boolean | undefined) {
+  if (active) return { height: "auto" as const, opacity: 1, filter: "blur(0px)" };
+  return { height: 0 as const, opacity: 0, filter: "blur(4px)" };
 }
 
 function AuthError() {
@@ -179,11 +202,7 @@ function AuthError() {
     <motion.div
       className="overflow-hidden"
       initial={false}
-      animate={{
-        height: active ? "auto" : 0,
-        opacity: active ? 1 : 0,
-        filter: active ? "blur(0px)" : "blur(4px)",
-      }}
+      animate={resolveAuthErrorAnimation(active)}
       transition={{ duration: 0.2 }}
     >
       <p className="text-sm tracking-tight text-destructive text-center">
@@ -215,7 +234,7 @@ function EmailInput({ disabled }: { disabled?: boolean }) {
       disabled={disabled || status === "loading"}
       type="email"
       placeholder="johndoe+keeper@example.com"
-      tone={error?.active ? "error" : "neutral"}
+      tone={resolveInputTone(error?.active)}
       onChange={handleChange}
     />
   );
@@ -240,13 +259,13 @@ function PasswordInput({ ref }: { ref?: Ref<HTMLInputElement> }) {
       disabled={status === "loading"}
       type="password"
       placeholder="Password"
-      tone={error?.active ? "error" : "neutral"}
+      tone={resolveInputTone(error?.active)}
       onChange={handleChange}
     />
   );
 }
 
-function BackButton() {
+function AnimatedBackWrapper({ children }: { children: React.ReactNode }) {
   const status = useAtomValue(authFormStatusAtom);
 
   return (
@@ -260,39 +279,34 @@ function BackButton() {
           exit="hidden"
           transition={{ width: { duration: 0.24 }, opacity: { duration: 0.12 } }}
         >
-          <LinkButton to="/" variant="border" className="self-stretch justify-center mr-2">
-            <ButtonIcon>
-              <ArrowLeft size={16} />
-            </ButtonIcon>
-          </LinkButton>
+          {children}
         </motion.div>
       )}
     </AnimatePresence>
   );
 }
 
-function StepBackButton({ onBack }: { onBack: () => void }) {
-  const status = useAtomValue(authFormStatusAtom);
-
+function BackButton() {
   return (
-    <AnimatePresence initial={false}>
-      {status !== "loading" && (
-        <motion.div
-          className="flex items-stretch"
-          variants={backButtonVariants}
-          initial="hidden"
-          animate="visible"
-          exit="hidden"
-          transition={{ width: { duration: 0.24 }, opacity: { duration: 0.12 } }}
-        >
-          <Button type="button" variant="border" className="self-stretch justify-center mr-2" onClick={onBack}>
-            <ButtonIcon>
-              <ArrowLeft size={16} />
-            </ButtonIcon>
-          </Button>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <AnimatedBackWrapper>
+      <LinkButton to="/" variant="border" className="self-stretch justify-center mr-2">
+        <ButtonIcon>
+          <ArrowLeft size={16} />
+        </ButtonIcon>
+      </LinkButton>
+    </AnimatedBackWrapper>
+  );
+}
+
+function StepBackButton({ onBack }: { onBack: () => void }) {
+  return (
+    <AnimatedBackWrapper>
+      <Button type="button" variant="border" className="self-stretch justify-center mr-2" onClick={onBack}>
+        <ButtonIcon>
+          <ArrowLeft size={16} />
+        </ButtonIcon>
+      </Button>
+    </AnimatedBackWrapper>
   );
 }
 

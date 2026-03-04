@@ -20,11 +20,8 @@ export function BackButton({
   const navigate = useNavigate();
 
   const handleBack = () => {
-    if (canGoBack) {
-      router.history.back();
-    } else {
-      navigate({ to: fallback });
-    }
+    if (canGoBack) return router.history.back();
+    navigate({ to: fallback });
   };
 
   return (

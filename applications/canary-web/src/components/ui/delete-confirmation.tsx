@@ -17,6 +17,11 @@ interface DeleteConfirmationProps {
   onConfirm: () => void;
 }
 
+function resolveDeleteLabel(deleting: boolean): string {
+  if (deleting) return "Deleting...";
+  return "Delete";
+}
+
 export function DeleteConfirmation({
   title,
   description,
@@ -33,7 +38,7 @@ export function DeleteConfirmation({
         <ModalFooter>
           <Button variant="destructive" className="w-full justify-center" onClick={onConfirm} disabled={deleting}>
             {deleting && <LoaderCircle size={16} className="animate-spin" />}
-            <ButtonText>{deleting ? "Deleting..." : "Delete"}</ButtonText>
+            <ButtonText>{resolveDeleteLabel(deleting)}</ButtonText>
           </Button>
           <Button variant="elevated" className="w-full justify-center" onClick={() => onOpenChange(false)}>
             <ButtonText>Cancel</ButtonText>

@@ -12,6 +12,26 @@ import { invalidateAccountsAndSources } from "../../lib/swr";
 
 type CalDAVProvider = "fastmail" | "icloud" | "caldav";
 
+function resolveErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
+function resolveUsernameInputType(provider: CalDAVProvider): string {
+  if (provider === "caldav") return "text";
+  return "email";
+}
+
+function resolvePasswordPlaceholder(provider: CalDAVProvider): string {
+  if (provider === "caldav") return "CalDAV Server Password";
+  return "App-Specific Password";
+}
+
+function resolveSubmitLabel(loading: boolean): string {
+  if (loading) return "Connecting...";
+  return "Connect";
+}
+
 const SERVER_URLS: Record<CalDAVProvider, string> = {
   fastmail: "https://caldav.fastmail.com/",
   icloud: "https://caldav.icloud.com/",
@@ -48,15 +68,16 @@ export function CalDAVConnectForm({ provider }: CalDAVConnectFormProps) {
     setLoading(true);
     setError(null);
 
-    const discoverResponse = await apiFetch("/api/sources/caldav/discover", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ serverUrl, username, password }),
-    }).catch(() => null);
-
-    if (!discoverResponse) {
+    let discoverResponse: Response;
+    try {
+      discoverResponse = await apiFetch("/api/sources/caldav/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serverUrl, username, password }),
+      });
+    } catch (err) {
       setLoading(false);
-      setError("Failed to discover calendars");
+      setError(resolveErrorMessage(err, "Failed to discover calendars"));
       return;
     }
 
@@ -109,7 +130,7 @@ export function CalDAVConnectForm({ provider }: CalDAVConnectFormProps) {
         <Input
           value={username}
           onChange={(event) => setUsername(event.target.value)}
-          type={provider === "caldav" ? "text" : "email"}
+          type={resolveUsernameInputType(provider)}
           placeholder={EMAIL_PLACEHOLDERS[provider]}
           required
         />
@@ -117,7 +138,7 @@ export function CalDAVConnectForm({ provider }: CalDAVConnectFormProps) {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           type="password"
-          placeholder={provider === "caldav" ? "CalDAV Server Password" : "App-Specific Password"}
+          placeholder={resolvePasswordPlaceholder(provider)}
           required
         />
       </div>
@@ -127,7 +148,7 @@ export function CalDAVConnectForm({ provider }: CalDAVConnectFormProps) {
         <BackButton variant="border" size="standard" className="self-stretch justify-center px-3.5" />
         <Button type="submit" className="grow justify-center" disabled={loading}>
           {loading && <LoaderCircle size={16} className="animate-spin" />}
-          <ButtonText>{loading ? "Connecting..." : "Connect"}</ButtonText>
+          <ButtonText>{resolveSubmitLabel(loading)}</ButtonText>
         </Button>
       </div>
     </form>

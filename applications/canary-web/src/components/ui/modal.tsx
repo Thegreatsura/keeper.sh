@@ -50,8 +50,8 @@ export function ModalContent({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (!open) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
@@ -62,8 +62,8 @@ export function ModalContent({ children }: PropsWithChildren) {
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 px-6"
-      onClick={(e) => {
-        if (contentRef.current && !contentRef.current.contains(e.target as Node)) {
+      onClick={(event) => {
+        if (contentRef.current && !contentRef.current.contains(event.target as Node)) {
           setOpen(false);
         }
       }}

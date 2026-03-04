@@ -10,10 +10,10 @@ import {
 } from "../../../../components/ui/navigation-menu";
 
 export const Route = createFileRoute("/(dashboard)/dashboard/connect/")({
-  component: RouteComponent,
+  component: ConnectPage,
 });
 
-function RouteComponent() {
+function ConnectPage() {
   return (
     <div className="flex flex-col gap-1.5">
       <BackButton />

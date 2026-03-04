@@ -8,12 +8,12 @@ import { ICSFileForm } from "../../../../components/auth/ics-connect-form";
 export const Route = createFileRoute(
   "/(oauth)/dashboard/connect/ics-file",
 )({
-  component: RouteComponent,
+  component: ConnectICSFilePage,
 });
 
-function RouteComponent() {
+function ConnectICSFilePage() {
   return (
-    <div className="flex flex-col gap-3 w-full max-w-xs self-center">
+    <>
       <ProviderIconPair>
         <Calendar size={28} className="text-foreground-muted" />
       </ProviderIconPair>
@@ -22,6 +22,6 @@ function RouteComponent() {
         Upload a one-time snapshot of your calendar. Future changes to the original calendar won&apos;t be reflected.
       </Text>
       <ICSFileForm />
-    </div>
+    </>
   );
 }

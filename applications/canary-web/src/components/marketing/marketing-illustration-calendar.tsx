@@ -28,8 +28,10 @@ interface MarketingIllustrationCalendarCardProps {
 }
 
 const toMotionTarget = ({ rotate, x, y }: Skew) => ({ rotate, x, y });
-const getAnimatedSkew = (skew: SkewTuple, emphasized: boolean) =>
-  toMotionTarget(emphasized ? skew[2] : skew[1]);
+const getAnimatedSkew = (skew: SkewTuple, emphasized: boolean) => {
+  if (emphasized) return toMotionTarget(skew[2]);
+  return toMotionTarget(skew[1]);
+};
 const transformTemplate = ({
   x,
   y,

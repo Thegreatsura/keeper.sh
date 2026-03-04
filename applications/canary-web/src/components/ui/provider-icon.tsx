@@ -7,12 +7,17 @@ interface ProviderIconProps {
   size?: number;
 }
 
+function resolveIconPath(provider: string | undefined): string | undefined {
+  if (provider) return providerIcons[provider];
+  return undefined;
+}
+
 function ProviderIcon({ provider, calendarType, size = 15 }: ProviderIconProps) {
   if (calendarType === "ical" || provider === "ics") {
     return <LinkIcon size={size} />;
   }
 
-  const iconPath = provider ? providerIcons[provider] : undefined;
+  const iconPath = resolveIconPath(provider);
 
   if (!iconPath) {
     return <Calendar size={size} />;

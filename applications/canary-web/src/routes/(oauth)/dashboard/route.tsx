@@ -1,9 +1,9 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/(oauth)/dashboard")({
-  component: RouteComponent,
+  component: OAuthDashboardLayout,
 });
 
-function RouteComponent() {
+function OAuthDashboardLayout() {
   return <Outlet />;
 }

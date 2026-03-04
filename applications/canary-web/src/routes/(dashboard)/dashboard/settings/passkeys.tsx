@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, KeyRound, Plus } from "lucide-react";
-import useSWR from "swr";
-import { LinkButton, Button, ButtonIcon, ButtonText } from "../../../../components/ui/button";
-import { authClient } from "../../../../lib/auth-client";
+import { KeyRound, Plus } from "lucide-react";
+import { Button, ButtonText } from "../../../../components/ui/button";
+import { BackButton } from "../../../../components/ui/back-button";
+import { usePasskeys, addPasskey, deletePasskey } from "../../../../hooks/use-passkeys";
+import type { Passkey } from "../../../../hooks/use-passkeys";
+import { formatDateShort } from "../../../../lib/time";
 import {
   Modal,
   ModalContent,
@@ -24,57 +26,56 @@ import { Text } from "../../../../components/ui/text";
 export const Route = createFileRoute(
   "/(dashboard)/dashboard/settings/passkeys",
 )({
-  component: RouteComponent,
+  component: PasskeysPage,
 });
 
-interface Passkey {
-  id: string;
-  name?: string | null;
-  createdAt: Date;
+function resolveErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  return fallback;
 }
 
-const fetchPasskeys = async (): Promise<Passkey[]> => {
-  const { data } = await authClient.passkey.listUserPasskeys();
-  return data ?? [];
-};
-
-function RouteComponent() {
-  const { data: passkeys = [], error, mutate } = useSWR("auth/passkeys", fetchPasskeys);
+function PasskeysPage() {
+  const { data: passkeys = [], error, mutate } = usePasskeys();
   const [deleteTarget, setDeleteTarget] = useState<Passkey | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const targetId = deleteTarget.id;
     setDeleteTarget(null);
-    await mutate(
-      async (current) => {
-        await authClient.passkey.deletePasskey({ id: targetId });
-        return current?.filter((p) => p.id !== targetId) ?? [];
-      },
-      {
-        optimisticData: passkeys.filter((p) => p.id !== targetId),
-        rollbackOnError: true,
-        revalidate: false,
-      },
-    );
+    setMutationError(null);
+    try {
+      await mutate(
+        async (current) => {
+          await deletePasskey(targetId);
+          return current?.filter((entry) => entry.id !== targetId) ?? [];
+        },
+        {
+          optimisticData: passkeys.filter((entry) => entry.id !== targetId),
+          rollbackOnError: true,
+          revalidate: false,
+        },
+      );
+    } catch (err) {
+      setMutationError(resolveErrorMessage(err, "Failed to delete passkey."));
+    }
   };
 
   const handleAdd = async () => {
-    await authClient.passkey.addPasskey();
-    await mutate();
+    setMutationError(null);
+    try {
+      await addPasskey();
+      await mutate();
+    } catch (err) {
+      setMutationError(resolveErrorMessage(err, "Failed to add passkey."));
+    }
   };
-
-  const formatDate = (date: Date) =>
-    new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   return (
     <div className="flex flex-col gap-1.5">
-      <LinkButton to="/dashboard/settings" variant="elevated" size="compact" className="aspect-square">
-        <ButtonIcon>
-          <ArrowLeft size={16} />
-        </ButtonIcon>
-      </LinkButton>
+      <BackButton fallback="/dashboard/settings" />
       {error && <ErrorState message="Failed to load passkeys." onRetry={() => mutate()} />}
+      {mutationError && <Text size="sm" tone="danger">{mutationError}</Text>}
       <NavigationMenu>
         {passkeys.map((passkey) => (
           <NavigationMenuItem key={passkey.id} onClick={() => setDeleteTarget(passkey)}>
@@ -83,7 +84,7 @@ function RouteComponent() {
               <NavigationMenuItemLabel>{passkey.name ?? "Passkey"}</NavigationMenuItemLabel>
             </NavigationMenuItemIcon>
             <NavigationMenuItemTrailing>
-              <Text size="sm" tone="muted">{formatDate(passkey.createdAt)}</Text>
+              <Text size="sm" tone="muted">{formatDateShort(passkey.createdAt)}</Text>
             </NavigationMenuItemTrailing>
           </NavigationMenuItem>
         ))}

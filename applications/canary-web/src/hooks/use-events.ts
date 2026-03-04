@@ -70,7 +70,7 @@ export function useEvents() {
     { revalidateFirstPage: false },
   );
 
-  const events = data ? deduplicateEvents(data.flat()) : [];
+  const events = resolveEvents(data);
   const hasMore = !data || (data[data.length - 1]?.length ?? 0) > 0;
 
   const loadMore = () => {
@@ -83,3 +83,8 @@ export function useEvents() {
 const deduplicateEvents = (events: CalendarEvent[]): CalendarEvent[] => [
   ...new Map(events.map((event) => [event.id, event])).values(),
 ];
+
+function resolveEvents(data: CalendarEvent[][] | undefined): CalendarEvent[] {
+  if (data) return deduplicateEvents(data.flat());
+  return [];
+}

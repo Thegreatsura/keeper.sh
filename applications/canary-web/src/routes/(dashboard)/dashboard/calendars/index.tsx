@@ -1,30 +1,99 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import useSWR from "swr";
+import type { KeyedMutator } from "swr";
 import { ArrowDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { BackButton } from "../../../../components/ui/back-button";
 import { RouteShell } from "../../../../components/ui/route-shell";
-import { Button, ButtonText } from "../../../../components/ui/button";
-import { ProviderIcon } from "../../../../components/ui/provider-icon";
+import { Button } from "../../../../components/ui/button";
 import { Text } from "../../../../components/ui/text";
 import { apiFetch } from "../../../../lib/fetcher";
+import { canPull, canPush } from "../../../../utils/calendars";
+import { useProfileCalendarActions, useProfileMutatorFromList } from "../../../../hooks/use-profile-calendars";
+import { CalendarCheckboxList } from "../../../../components/dashboard/calendar-checkbox-list";
 import type { SyncProfile, CalendarEntry } from "../../../../types/api";
 import {
   NavigationMenu,
-  NavigationMenuCheckboxItem,
   NavigationMenuEditableItem,
-  NavigationMenuEmptyItem,
-  NavigationMenuItemIcon,
-  NavigationMenuItemLabel,
   NavigationMenuItem,
+  NavigationMenuItemIcon,
 } from "../../../../components/ui/navigation-menu";
 import { DeleteConfirmation } from "../../../../components/ui/delete-confirmation";
 
 export const Route = createFileRoute("/(dashboard)/dashboard/calendars/")({
-  component: RouteComponent,
+  component: CalendarsPage,
 });
 
-function RouteComponent() {
+function resolveCurrentProfile(isNewSlot: boolean, profiles: SyncProfile[], currentIndex: number): SyncProfile | null {
+  if (isNewSlot) return null;
+  return profiles[currentIndex];
+}
+
+function resolveProfileName(isNewSlot: boolean, newProfileName: string, profile: SyncProfile | null): string {
+  if (isNewSlot) return newProfileName;
+  return profile?.name ?? "";
+}
+
+function resolveEditableItemKey(isNewSlot: boolean, profile: SyncProfile | null): string {
+  if (isNewSlot) return "__new__";
+  return profile?.id ?? "";
+}
+
+function resolveDeleteHandler(profileCount: number, openDelete: () => void): (() => void) | undefined {
+  if (profileCount > 1) return openDelete;
+  return undefined;
+}
+
+function replaceProfileById(profiles: SyncProfile[], targetId: string, patch: Partial<SyncProfile>): SyncProfile[] {
+  return profiles.map((entry) => {
+    if (entry.id === targetId) return { ...entry, ...patch };
+    return entry;
+  });
+}
+
+interface RenderProfileContentArgs {
+  isNewSlot: boolean;
+  profile: SyncProfile | null;
+  profiles: SyncProfile[];
+  newProfileName: string;
+  calendars: CalendarEntry[];
+  mutateProfiles: KeyedMutator<SyncProfile[]>;
+  onDelete: (() => void) | undefined;
+}
+
+function renderProfileContent({
+  isNewSlot,
+  profile,
+  profiles,
+  newProfileName,
+  calendars,
+  mutateProfiles,
+  onDelete,
+}: RenderProfileContentArgs) {
+  if (isNewSlot) {
+    return (
+      <NewProfileSlot
+        name={newProfileName}
+        calendars={calendars}
+        onProfileCreated={() => mutateProfiles()}
+      />
+    );
+  }
+  if (profile) {
+    return (
+      <ProfileDetail
+        profile={profile}
+        profiles={profiles}
+        calendars={calendars}
+        mutateProfiles={mutateProfiles}
+        onDelete={onDelete}
+      />
+    );
+  }
+  return null;
+}
+
+function CalendarsPage() {
   const { data: profiles, isLoading, error, mutate: mutateProfiles } = useSWR<SyncProfile[]>(
     "/api/profiles",
   );
@@ -39,13 +108,39 @@ function RouteComponent() {
   }
 
   const isNewSlot = currentIndex >= profiles.length;
-  const profile = isNewSlot ? null : profiles[currentIndex];
+  const profile = resolveCurrentProfile(isNewSlot, profiles, currentIndex);
   const totalSlots = profiles.length + 1;
 
   const canGoLeft = currentIndex > 0;
   const canGoRight = currentIndex < totalSlots - 1;
 
-  const profileName = isNewSlot ? newProfileName : profile?.name ?? "";
+  const profileName = resolveProfileName(isNewSlot, newProfileName, profile);
+
+  const handleConfirmDelete = async () => {
+    if (!profile) return;
+    setDeleting(true);
+    const remaining = profiles.filter((entry) => entry.id !== profile.id);
+    try {
+      await mutateProfiles(
+        async () => {
+          await apiFetch(`/api/profiles/${profile.id}`, { method: "DELETE" });
+          return remaining;
+        },
+        {
+          optimisticData: remaining,
+          rollbackOnError: true,
+          revalidate: false,
+        },
+      );
+      const newLength = remaining.length;
+      if (currentIndex >= newLength) {
+        setCurrentIndex(Math.max(0, newLength - 1));
+      }
+      setDeleteOpen(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleNameCommit = async (name: string) => {
     if (isNewSlot) {
@@ -64,7 +159,7 @@ function RouteComponent() {
       return;
     }
     if (!profile) return;
-    const updated = profiles.map((p) => (p.id === profile.id ? { ...p, name } : p));
+    const updated = replaceProfileById(profiles, profile.id, { name });
     await mutateProfiles(
       async () => {
         await apiFetch(`/api/profiles/${profile.id}`, {
@@ -109,26 +204,20 @@ function RouteComponent() {
       </div>
       <NavigationMenu className="flex-1 min-w-0">
         <NavigationMenuEditableItem
-          key={isNewSlot ? "__new__" : profile?.id}
+          key={resolveEditableItemKey(isNewSlot, profile)}
           value={profileName}
           onCommit={handleNameCommit}
         />
       </NavigationMenu>
-      {isNewSlot ? (
-        <NewProfileSlot
-          name={newProfileName}
-          calendars={calendars ?? []}
-          onProfileCreated={() => mutateProfiles()}
-        />
-      ) : profile ? (
-        <ProfileDetail
-          profile={profile}
-          profiles={profiles}
-          calendars={calendars ?? []}
-          mutateProfiles={mutateProfiles}
-          onDelete={profiles.length > 1 ? () => setDeleteOpen(true) : undefined}
-        />
-      ) : null}
+      {renderProfileContent({
+        isNewSlot,
+        profile,
+        profiles,
+        newProfileName,
+        calendars: calendars ?? [],
+        mutateProfiles,
+        onDelete: resolveDeleteHandler(profiles.length, () => setDeleteOpen(true)),
+      })}
       {profile && (
         <DeleteConfirmation
           title="Delete sync profile?"
@@ -136,30 +225,7 @@ function RouteComponent() {
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
           deleting={deleting}
-          onConfirm={async () => {
-            setDeleting(true);
-            const remaining = profiles.filter((p) => p.id !== profile.id);
-            try {
-              await mutateProfiles(
-                async () => {
-                  await apiFetch(`/api/profiles/${profile.id}`, { method: "DELETE" });
-                  return remaining;
-                },
-                {
-                  optimisticData: remaining,
-                  rollbackOnError: true,
-                  revalidate: false,
-                },
-              );
-              const newLength = remaining.length;
-              if (currentIndex >= newLength) {
-                setCurrentIndex(Math.max(0, newLength - 1));
-              }
-              setDeleteOpen(false);
-            } finally {
-              setDeleting(false);
-            }
-          }}
+          onConfirm={handleConfirmDelete}
         />
       )}
     </div>
@@ -178,10 +244,10 @@ function NewProfileSlot({ name, calendars, onProfileCreated }: NewProfileSlotPro
   const profileIdRef = useRef<string | null>(null);
   const creatingRef = useRef<Promise<string> | null>(null);
   const nameRef = useRef(name);
-  nameRef.current = name;
+  useEffect(() => { nameRef.current = name; });
 
-  const pullCalendars = calendars.filter((calendar) => calendar.capabilities.includes("pull"));
-  const pushCalendars = calendars.filter((calendar) => calendar.capabilities.includes("push"));
+  const pullCalendars = calendars.filter(canPull);
+  const pushCalendars = calendars.filter(canPush);
 
   const ensureProfile = async (): Promise<string> => {
     if (profileIdRef.current) return profileIdRef.current;
@@ -202,82 +268,60 @@ function NewProfileSlot({ name, calendars, onProfileCreated }: NewProfileSlotPro
   };
 
   const toggleSource = async (calendarId: string, checked: boolean) => {
+    const prev = new Set(sources);
     const next = new Set(sources);
-    if (checked) {
-      next.add(calendarId);
-    } else {
-      next.delete(calendarId);
-    }
+    if (checked) { next.add(calendarId); } else { next.delete(calendarId); }
     setSources(next);
 
-    const profileId = await ensureProfile();
-    await apiFetch(`/api/profiles/${profileId}/sources`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ calendarIds: [...next] }),
-    });
-    onProfileCreated();
+    try {
+      const profileId = await ensureProfile();
+      await apiFetch(`/api/profiles/${profileId}/sources`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ calendarIds: [...next] }),
+      });
+      onProfileCreated();
+    } catch {
+      setSources(prev);
+    }
   };
 
   const toggleDestination = async (calendarId: string, checked: boolean) => {
+    const prev = new Set(destinations);
     const next = new Set(destinations);
-    if (checked) {
-      next.add(calendarId);
-    } else {
-      next.delete(calendarId);
-    }
+    if (checked) { next.add(calendarId); } else { next.delete(calendarId); }
     setDestinations(next);
 
-    const profileId = await ensureProfile();
-    await apiFetch(`/api/profiles/${profileId}/destinations`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ calendarIds: [...next] }),
-    });
-    onProfileCreated();
+    try {
+      const profileId = await ensureProfile();
+      await apiFetch(`/api/profiles/${profileId}/destinations`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ calendarIds: [...next] }),
+      });
+      onProfileCreated();
+    } catch {
+      setDestinations(prev);
+    }
   };
 
   return (
     <>
-      <NavigationMenu>
-        {pullCalendars.length === 0 ? (
-          <NavigationMenuEmptyItem>No source calendars</NavigationMenuEmptyItem>
-        ) : (
-          pullCalendars.map((calendar) => (
-            <NavigationMenuCheckboxItem
-              key={calendar.id}
-              checked={sources.has(calendar.id)}
-              onCheckedChange={(checked) => toggleSource(calendar.id, checked)}
-            >
-              <NavigationMenuItemIcon>
-                <ProviderIcon provider={calendar.provider ?? calendar.calendarType} calendarType={calendar.calendarType} />
-                <NavigationMenuItemLabel>{calendar.name}</NavigationMenuItemLabel>
-              </NavigationMenuItemIcon>
-            </NavigationMenuCheckboxItem>
-          ))
-        )}
-      </NavigationMenu>
+      <CalendarCheckboxList
+        calendars={pullCalendars}
+        selectedIds={sources}
+        onToggle={toggleSource}
+        emptyLabel="No source calendars"
+      />
       <div className="self-center py-2">
         <ArrowDown size={16} className="text-foreground-muted" />
       </div>
-      <NavigationMenu>
-        {pushCalendars.length === 0 ? (
-          <NavigationMenuEmptyItem>No destination calendars</NavigationMenuEmptyItem>
-        ) : (
-          pushCalendars.map((calendar) => (
-            <NavigationMenuCheckboxItem
-              key={calendar.id}
-              checked={destinations.has(calendar.id)}
-              onCheckedChange={(checked) => toggleDestination(calendar.id, checked)}
-            >
-              <NavigationMenuItemIcon>
-                <ProviderIcon provider={calendar.provider ?? calendar.calendarType} calendarType={calendar.calendarType} />
-                <NavigationMenuItemLabel>{calendar.name}</NavigationMenuItemLabel>
-              </NavigationMenuItemIcon>
-            </NavigationMenuCheckboxItem>
-          ))
-        )}
-      </NavigationMenu>
+      <CalendarCheckboxList
+        calendars={pushCalendars}
+        selectedIds={destinations}
+        onToggle={toggleDestination}
+        emptyLabel="No destination calendars"
+      />
     </>
   );
 }
@@ -286,112 +330,37 @@ interface ProfileDetailProps {
   profile: SyncProfile;
   profiles: SyncProfile[];
   calendars: CalendarEntry[];
-  mutateProfiles: (
-    data?: SyncProfile[] | Promise<SyncProfile[] | undefined> | ((current?: SyncProfile[]) => Promise<SyncProfile[] | undefined>),
-    opts?: { optimisticData?: SyncProfile[]; rollbackOnError?: boolean; revalidate?: boolean },
-  ) => Promise<SyncProfile[] | undefined>;
+  mutateProfiles: KeyedMutator<SyncProfile[]>;
   onDelete?: () => void;
 }
 
 function ProfileDetail({ profile, profiles, calendars, mutateProfiles, onDelete }: ProfileDetailProps) {
-  const pullCalendars = calendars.filter((calendar) => calendar.capabilities.includes("pull"));
-  const pushCalendars = calendars.filter((calendar) => calendar.capabilities.includes("push"));
+  const pullCalendars = calendars.filter(canPull);
+  const pushCalendars = calendars.filter(canPush);
 
   const sourceSet = new Set(profile.sources);
   const destinationSet = new Set(profile.destinations);
 
-  const replaceProfile = (updated: SyncProfile) =>
-    profiles.map((p) => (p.id === profile.id ? updated : p));
-
-  const updateProfile = async (
-    updatedProfile: SyncProfile,
-    apiCall: () => Promise<void>,
-  ) => {
-    const updated = replaceProfile(updatedProfile);
-    await mutateProfiles(
-      async () => {
-        await apiCall();
-        return updated;
-      },
-      {
-        optimisticData: updated,
-        rollbackOnError: true,
-        revalidate: false,
-      },
-    );
-  };
-
-  const toggleSource = async (calendarId: string, checked: boolean) => {
-    const updatedSources = checked
-      ? [...profile.sources, calendarId]
-      : profile.sources.filter((id) => id !== calendarId);
-
-    await updateProfile(
-      { ...profile, sources: updatedSources },
-      () => apiFetch(`/api/profiles/${profile.id}/sources`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ calendarIds: updatedSources }),
-      }).then(() => {}),
-    );
-  };
-
-  const toggleDestination = async (calendarId: string, checked: boolean) => {
-    const updatedDestinations = checked
-      ? [...profile.destinations, calendarId]
-      : profile.destinations.filter((id) => id !== calendarId);
-
-    await updateProfile(
-      { ...profile, destinations: updatedDestinations },
-      () => apiFetch(`/api/profiles/${profile.id}/destinations`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ calendarIds: updatedDestinations }),
-      }).then(() => {}),
-    );
-  };
+  const mutateProfile = useProfileMutatorFromList(profile, profiles, mutateProfiles);
+  const { toggleSource, toggleDestination } = useProfileCalendarActions(profile.id, profile, mutateProfile);
 
   return (
     <>
-      <NavigationMenu>
-        {pullCalendars.length === 0 ? (
-          <NavigationMenuEmptyItem>No source calendars</NavigationMenuEmptyItem>
-        ) : (
-          pullCalendars.map((calendar) => (
-            <NavigationMenuCheckboxItem
-              key={calendar.id}
-              checked={sourceSet.has(calendar.id)}
-              onCheckedChange={(checked) => toggleSource(calendar.id, checked)}
-            >
-              <NavigationMenuItemIcon>
-                <ProviderIcon provider={calendar.provider ?? calendar.calendarType} calendarType={calendar.calendarType} />
-                <NavigationMenuItemLabel>{calendar.name}</NavigationMenuItemLabel>
-              </NavigationMenuItemIcon>
-            </NavigationMenuCheckboxItem>
-          ))
-        )}
-      </NavigationMenu>
+      <CalendarCheckboxList
+        calendars={pullCalendars}
+        selectedIds={sourceSet}
+        onToggle={toggleSource}
+        emptyLabel="No source calendars"
+      />
       <div className="self-center py-2">
         <ArrowDown size={16} className="text-foreground-muted" />
       </div>
-      <NavigationMenu>
-        {pushCalendars.length === 0 ? (
-          <NavigationMenuEmptyItem>No destination calendars</NavigationMenuEmptyItem>
-        ) : (
-          pushCalendars.map((calendar) => (
-            <NavigationMenuCheckboxItem
-              key={calendar.id}
-              checked={destinationSet.has(calendar.id)}
-              onCheckedChange={(checked) => toggleDestination(calendar.id, checked)}
-            >
-              <NavigationMenuItemIcon>
-                <ProviderIcon provider={calendar.provider ?? calendar.calendarType} calendarType={calendar.calendarType} />
-                <NavigationMenuItemLabel>{calendar.name}</NavigationMenuItemLabel>
-              </NavigationMenuItemIcon>
-            </NavigationMenuCheckboxItem>
-          ))
-        )}
-      </NavigationMenu>
+      <CalendarCheckboxList
+        calendars={pushCalendars}
+        selectedIds={destinationSet}
+        onToggle={toggleDestination}
+        emptyLabel="No destination calendars"
+      />
       {onDelete && (
         <NavigationMenu>
           <NavigationMenuItem onClick={onDelete}>
@@ -404,4 +373,3 @@ function ProfileDetail({ profile, profiles, calendars, mutateProfiles, onDelete 
     </>
   );
 }
-
