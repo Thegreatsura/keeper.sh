@@ -116,34 +116,36 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <BackButton />
-      <div className="flex items-center gap-1">
-        <Button
-          variant="elevated"
-          size="compact"
-          className="aspect-square"
-          onClick={() => setCurrentIndex(currentIndex - 1)}
-          disabled={!canGoLeft}
-        >
-          <ChevronLeft size={16} />
-        </Button>
-        <NavigationMenu className="flex-1 min-w-0">
-          <NavigationMenuEditableItem
-            key={isNewSlot ? "__new__" : profile?.id}
-            value={profileName}
-            onCommit={handleNameCommit}
-          />
-        </NavigationMenu>
-        <Button
-          variant="elevated"
-          size="compact"
-          className="aspect-square"
-          onClick={() => setCurrentIndex(currentIndex + 1)}
-          disabled={!canGoRight}
-        >
-          <ChevronRight size={16} />
-        </Button>
+      <div className="flex justify-between">
+        <BackButton />
+        <div className="flex justify-end gap-1">
+          <Button
+            variant="elevated"
+            size="compact"
+            className="aspect-square"
+            onClick={() => setCurrentIndex(currentIndex - 1)}
+            disabled={!canGoLeft}
+          >
+            <ChevronLeft size={16} />
+          </Button>
+          <Button
+            variant="elevated"
+            size="compact"
+            className="aspect-square"
+            onClick={() => setCurrentIndex(currentIndex + 1)}
+            disabled={!canGoRight}
+          >
+            <ChevronRight size={16} />
+          </Button>
+        </div>
       </div>
+      <NavigationMenu className="flex-1 min-w-0">
+        <NavigationMenuEditableItem
+          key={isNewSlot ? "__new__" : profile?.id}
+          value={profileName}
+          onCommit={handleNameCommit}
+        />
+      </NavigationMenu>
       {isNewSlot ? (
         <NewProfileSlot
           name={newProfileName}
