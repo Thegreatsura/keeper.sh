@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import useSWR, { preload } from "swr";
+import { AnimatePresence, motion } from "motion/react";
 import { Calendar, CalendarPlus, CalendarSync, CalendarDays, Settings, Sparkles, LogOut, LoaderCircle } from "lucide-react";
 import { ErrorState } from "../../../components/ui/error-state";
 import { signOut } from "../../../lib/auth";
@@ -33,11 +35,13 @@ function DashboardPage() {
     navigate({ to: "/login" });
   };
 
-  const { data: accountsData } = useSWR<CalendarAccount[]>("/api/accounts");
+  const { data: accountsData, isLoading: accountsLoading } = useSWR<CalendarAccount[]>("/api/accounts");
   const accounts = accountsData ?? [];
+  const [accountsWasLoading] = useState(accountsLoading);
 
   const { data: calendarsData, isLoading: calendarsLoading, error, mutate: mutateCalendars } = useSWR<CalendarSource[]>("/api/sources");
   const calendars = calendarsData ?? [];
+  const [calendarsWasLoading] = useState(calendarsLoading);
 
   const { data: eventCountData } = useSWR<{ count: number }>("/api/events/count");
   const eventCount = eventCountData?.count;
@@ -55,7 +59,7 @@ function DashboardPage() {
                 </NavigationMenuItemIcon>
                 <NavigationMenuItemLabel>Calendar Accounts</NavigationMenuItemLabel>
                 <NavigationMenuItemTrailing>
-                  <ProviderIconStack providers={accounts} />
+                  <ProviderIconStack providers={accounts} animate={accountsWasLoading} />
                 </NavigationMenuItemTrailing>
               </>
             }
@@ -90,7 +94,7 @@ function DashboardPage() {
                 </NavigationMenuItemIcon>
                 <NavigationMenuItemLabel>Calendars</NavigationMenuItemLabel>
                 <NavigationMenuItemTrailing>
-                  <ProviderIconStack providers={calendars} />
+                  <ProviderIconStack providers={calendars} animate={calendarsWasLoading} />
                 </NavigationMenuItemTrailing>
               </>
             }
@@ -122,26 +126,33 @@ function DashboardPage() {
               </NavigationMenuItem>
             ))}
           </NavigationMenuPopover>
-          {calendars.length > 0 && (
-            <>
-              <NavigationMenuItem to="/dashboard/events">
-                <NavigationMenuItemIcon>
-                  <CalendarDays size={15} />
-                </NavigationMenuItemIcon>
-                <NavigationMenuItemLabel>View Events</NavigationMenuItemLabel>
-                <NavigationMenuItemTrailing>
-                  {eventCount != null && <Text size="sm" tone="muted">{pluralize(eventCount, "event")}</Text>}
-                </NavigationMenuItemTrailing>
-              </NavigationMenuItem>
-              <NavigationMenuItem to="/dashboard/calendars">
-                <NavigationMenuItemIcon>
-                  <CalendarSync size={15} />
-                </NavigationMenuItemIcon>
-                <NavigationMenuItemLabel>Sync Settings</NavigationMenuItemLabel>
-                <NavigationMenuItemTrailing />
-              </NavigationMenuItem>
-            </>
-          )}
+          <AnimatePresence>
+            {calendars.length > 0 && (
+              <motion.div
+                className="overflow-hidden"
+                initial={calendarsWasLoading ? { height: 0, opacity: 0, filter: "blur(4px)" } : false}
+                animate={{ height: "fit-content", opacity: 1, filter: "blur(0)" }}
+                exit={{ height: 0, opacity: 0, filter: "blur(4px)" }}
+              >
+                <NavigationMenuItem to="/dashboard/events">
+                  <NavigationMenuItemIcon>
+                    <CalendarDays size={15} />
+                  </NavigationMenuItemIcon>
+                  <NavigationMenuItemLabel>View Events</NavigationMenuItemLabel>
+                  <NavigationMenuItemTrailing>
+                    {eventCount != null && <Text size="sm" tone="muted">{pluralize(eventCount, "event")}</Text>}
+                  </NavigationMenuItemTrailing>
+                </NavigationMenuItem>
+                <NavigationMenuItem to="/dashboard/calendars">
+                  <NavigationMenuItemIcon>
+                    <CalendarSync size={15} />
+                  </NavigationMenuItemIcon>
+                  <NavigationMenuItemLabel>Sync Settings</NavigationMenuItemLabel>
+                  <NavigationMenuItemTrailing />
+                </NavigationMenuItem>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </NavigationMenu>
         <NavigationMenu variant="highlight">
           <NavigationMenuItem to="/dashboard/upgrade">
