@@ -61,12 +61,15 @@ function DashboardPage() {
       <div className="flex flex-col gap-1.5">
         <NavigationMenu>
           <NavigationMenuPopover
+            disabled={accounts.length === 0}
             trigger={
               <>
                 <NavigationMenuItemIcon>
                   <User size={15} />
                 </NavigationMenuItemIcon>
-                <NavigationMenuItemLabel>Calendar Sources</NavigationMenuItemLabel>
+                <NavigationMenuItemLabel>
+                  {accounts.length > 0 ? "Calendar Sources" : "No Calendar Sources"}
+                </NavigationMenuItemLabel>
                 <NavigationMenuItemTrailing>
                   <ProviderIconStack providers={accounts} />
                 </NavigationMenuItemTrailing>
@@ -96,12 +99,15 @@ function DashboardPage() {
         </NavigationMenu>
         <NavigationMenu>
           <NavigationMenuPopover
+            disabled={calendars.length === 0 && !calendarsLoading}
             trigger={
               <>
                 <NavigationMenuItemIcon>
                   <Calendar size={15} />
                 </NavigationMenuItemIcon>
-                <NavigationMenuItemLabel>Calendars</NavigationMenuItemLabel>
+                <NavigationMenuItemLabel>
+                  {calendars.length > 0 ? "Calendars" : "No Calendars"}
+                </NavigationMenuItemLabel>
                 <NavigationMenuItemTrailing>
                   <ProviderIconStack providers={calendars} />
                 </NavigationMenuItemTrailing>

@@ -40,7 +40,6 @@ import { Route as oauthDashboardConnectGoogleRouteImport } from './../../routes/
 import { Route as oauthDashboardConnectFastmailRouteImport } from './../../routes/(oauth)/dashboard/connect/fastmail'
 import { Route as oauthDashboardConnectCaldavRouteImport } from './../../routes/(oauth)/dashboard/connect/caldav'
 import { Route as oauthDashboardConnectAppleRouteImport } from './../../routes/(oauth)/dashboard/connect/apple'
-import { Route as dashboardDashboardSyncProfilesProfileIdRouteImport } from './../../routes/(dashboard)/dashboard/sync-profiles/$profileId'
 import { Route as dashboardDashboardSettingsPasskeysRouteImport } from './../../routes/(dashboard)/dashboard/settings/passkeys'
 import { Route as dashboardDashboardSettingsChangePasswordRouteImport } from './../../routes/(dashboard)/dashboard/settings/change-password'
 import { Route as dashboardDashboardAccountsAccountIdIndexRouteImport } from './../../routes/(dashboard)/dashboard/accounts/$accountId.index'
@@ -215,12 +214,6 @@ const oauthDashboardConnectAppleRoute =
     path: '/apple',
     getParentRoute: () => oauthDashboardConnectRouteRoute,
   } as any)
-const dashboardDashboardSyncProfilesProfileIdRoute =
-  dashboardDashboardSyncProfilesProfileIdRouteImport.update({
-    id: '/$profileId',
-    path: '/$profileId',
-    getParentRoute: () => dashboardDashboardSyncProfilesRouteRoute,
-  } as any)
 const dashboardDashboardSettingsPasskeysRoute =
   dashboardDashboardSettingsPasskeysRouteImport.update({
     id: '/passkeys',
@@ -262,7 +255,6 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof dashboardDashboardIndexRoute
   '/dashboard/settings/change-password': typeof dashboardDashboardSettingsChangePasswordRoute
   '/dashboard/settings/passkeys': typeof dashboardDashboardSettingsPasskeysRoute
-  '/dashboard/sync-profiles/$profileId': typeof dashboardDashboardSyncProfilesProfileIdRoute
   '/dashboard/connect/apple': typeof oauthDashboardConnectAppleRoute
   '/dashboard/connect/caldav': typeof oauthDashboardConnectCaldavRoute
   '/dashboard/connect/fastmail': typeof oauthDashboardConnectFastmailRoute
@@ -292,7 +284,6 @@ export interface FileRoutesByTo {
   '/auth/outlook': typeof oauthAuthOutlookRoute
   '/dashboard/settings/change-password': typeof dashboardDashboardSettingsChangePasswordRoute
   '/dashboard/settings/passkeys': typeof dashboardDashboardSettingsPasskeysRoute
-  '/dashboard/sync-profiles/$profileId': typeof dashboardDashboardSyncProfilesProfileIdRoute
   '/dashboard/connect/apple': typeof oauthDashboardConnectAppleRoute
   '/dashboard/connect/caldav': typeof oauthDashboardConnectCaldavRoute
   '/dashboard/connect/fastmail': typeof oauthDashboardConnectFastmailRoute
@@ -330,7 +321,6 @@ export interface FileRoutesById {
   '/(dashboard)/dashboard/': typeof dashboardDashboardIndexRoute
   '/(dashboard)/dashboard/settings/change-password': typeof dashboardDashboardSettingsChangePasswordRoute
   '/(dashboard)/dashboard/settings/passkeys': typeof dashboardDashboardSettingsPasskeysRoute
-  '/(dashboard)/dashboard/sync-profiles/$profileId': typeof dashboardDashboardSyncProfilesProfileIdRoute
   '/(oauth)/dashboard/connect/apple': typeof oauthDashboardConnectAppleRoute
   '/(oauth)/dashboard/connect/caldav': typeof oauthDashboardConnectCaldavRoute
   '/(oauth)/dashboard/connect/fastmail': typeof oauthDashboardConnectFastmailRoute
@@ -365,7 +355,6 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/dashboard/settings/change-password'
     | '/dashboard/settings/passkeys'
-    | '/dashboard/sync-profiles/$profileId'
     | '/dashboard/connect/apple'
     | '/dashboard/connect/caldav'
     | '/dashboard/connect/fastmail'
@@ -395,7 +384,6 @@ export interface FileRouteTypes {
     | '/auth/outlook'
     | '/dashboard/settings/change-password'
     | '/dashboard/settings/passkeys'
-    | '/dashboard/sync-profiles/$profileId'
     | '/dashboard/connect/apple'
     | '/dashboard/connect/caldav'
     | '/dashboard/connect/fastmail'
@@ -432,7 +420,6 @@ export interface FileRouteTypes {
     | '/(dashboard)/dashboard/'
     | '/(dashboard)/dashboard/settings/change-password'
     | '/(dashboard)/dashboard/settings/passkeys'
-    | '/(dashboard)/dashboard/sync-profiles/$profileId'
     | '/(oauth)/dashboard/connect/apple'
     | '/(oauth)/dashboard/connect/caldav'
     | '/(oauth)/dashboard/connect/fastmail'
@@ -676,13 +663,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof oauthDashboardConnectAppleRouteImport
       parentRoute: typeof oauthDashboardConnectRouteRoute
     }
-    '/(dashboard)/dashboard/sync-profiles/$profileId': {
-      id: '/(dashboard)/dashboard/sync-profiles/$profileId'
-      path: '/$profileId'
-      fullPath: '/dashboard/sync-profiles/$profileId'
-      preLoaderRoute: typeof dashboardDashboardSyncProfilesProfileIdRouteImport
-      parentRoute: typeof dashboardDashboardSyncProfilesRouteRoute
-    }
     '/(dashboard)/dashboard/settings/passkeys': {
       id: '/(dashboard)/dashboard/settings/passkeys'
       path: '/passkeys'
@@ -783,14 +763,11 @@ const dashboardDashboardSettingsRouteRouteWithChildren =
   )
 
 interface dashboardDashboardSyncProfilesRouteRouteChildren {
-  dashboardDashboardSyncProfilesProfileIdRoute: typeof dashboardDashboardSyncProfilesProfileIdRoute
   dashboardDashboardSyncProfilesIndexRoute: typeof dashboardDashboardSyncProfilesIndexRoute
 }
 
 const dashboardDashboardSyncProfilesRouteRouteChildren: dashboardDashboardSyncProfilesRouteRouteChildren =
   {
-    dashboardDashboardSyncProfilesProfileIdRoute:
-      dashboardDashboardSyncProfilesProfileIdRoute,
     dashboardDashboardSyncProfilesIndexRoute:
       dashboardDashboardSyncProfilesIndexRoute,
   }

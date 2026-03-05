@@ -64,19 +64,16 @@ function EventsContent() {
   if (error) return <ErrorState message="Failed to load events." />;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col">
-        <DashboardHeading1>Events</DashboardHeading1>
-        <Text size="sm">View all of the events across all of your calendars.</Text>
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col">
+          <DashboardHeading1>Events</DashboardHeading1>
+          <Text size="sm">View all of the events across all of your calendars.</Text>
+        </div>
+        {dayGroups.map((group) => (
+          <DaySection key={group.label} label={group.label} events={group.events} />
+        ))}
       </div>
-      {dayGroups.map((group) => (
-        <DaySection key={group.label} label={group.label} events={group.events} />
-      ))}
-      {!hasMore && dayGroups.length === 0 && (
-        <Text size="sm" tone="muted" align="center">
-          No upcoming events.
-        </Text>
-      )}
       {hasMore && (
         <LoadMoreSentinel
           isValidating={isValidating}
@@ -131,7 +128,7 @@ const areDaySectionPropsEqual = (prev: DaySectionProps, next: DaySectionProps): 
 
 const DaySection = memo(function DaySection({ label, events }: DaySectionProps) {
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col">
       <DashboardHeading2>{label}</DashboardHeading2>
       <div className="flex flex-col">
         {events.map((event) => (

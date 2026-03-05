@@ -22,6 +22,7 @@ html {
   --ui-foreground-inverse: var(--ui-background);
   --ui-interactive-border: var(--color-neutral-300);
   --ui-foreground-muted: var(--color-neutral-500);
+  --ui-foreground-disabled: var(--color-neutral-300);
   --ui-foreground-hover: color-mix(
     in srgb,
     var(--ui-foreground),
@@ -77,6 +78,7 @@ html {
   --color-foreground-inverse: var(--ui-foreground-inverse);
   --color-interactive-border: var(--ui-interactive-border);
   --color-foreground-muted: var(--ui-foreground-muted);
+  --color-foreground-disabled: var(--ui-foreground-disabled);
   --color-foreground-hover: var(--ui-foreground-hover);
   --color-illustration-stripe: var(--ui-illustration-stripe);
   --color-foreground-inverse-muted: var(--ui-foreground-inverse-muted);
@@ -119,6 +121,7 @@ html {
     --ui-foreground-inverse: var(--ui-background);
     --ui-interactive-border: var(--color-neutral-800);
     --ui-foreground-muted: var(--color-neutral-400);
+    --ui-foreground-disabled: var(--color-neutral-600);
     --ui-foreground-hover: color-mix(
       in srgb,
       var(--ui-foreground),

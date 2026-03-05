@@ -11,6 +11,7 @@ const text = tv({
     },
     tone: {
       muted: "text-foreground-muted",
+      disabled: "text-foreground-disabled",
       inverse: "text-foreground-inverse",
       inverseMuted: "text-foreground-inverse-muted",
       default: "text-foreground",
@@ -30,7 +31,7 @@ const text = tv({
 
 type TextProps = PropsWithChildren<{
   size?: "base" | "sm" | "xs";
-  tone?: "muted" | "inverse" | "inverseMuted" | "default" | "danger";
+  tone?: "muted" | "disabled" | "inverse" | "inverseMuted" | "default" | "danger";
   align?: "center" | "left";
   className?: string;
   style?: CSSProperties;

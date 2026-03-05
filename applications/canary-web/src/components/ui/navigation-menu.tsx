@@ -3,7 +3,7 @@ import { createContext, use, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useSetAtom } from "jotai";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Check, Pencil } from "lucide-react";
+import { ArrowRight, Check, ChevronsUpDown, Pencil } from "lucide-react";
 import { popoverOverlayAtom } from "../../state/popover-overlay";
 import { tv, type VariantProps } from "tailwind-variants";
 import { cn } from "tailwind-variants/lite";
@@ -52,6 +52,9 @@ const navigationMenuItemIconStyle = tv({
     variant: {
       default: "text-foreground-muted",
       highlight: "text-foreground-inverse",
+    },
+    disabled: {
+      true: "text-foreground-disabled",
     },
   },
   defaultVariants: {
@@ -141,9 +144,15 @@ const LABEL_TONE: Record<NonNullable<MenuVariant>, "muted" | "inverse"> = {
   highlight: "inverse",
 };
 
+const DISABLED_LABEL_TONE: Record<NonNullable<MenuVariant>, "disabled" | "inverseMuted"> = {
+  default: "disabled",
+  highlight: "inverseMuted",
+};
+
 const MenuVariantContext = createContext<MenuVariant>("default");
 const ItemIsLinkContext = createContext(false);
 const InsidePopoverContext = createContext(false);
+const ItemDisabledContext = createContext(false);
 
 type NavigationMenuProps = PropsWithChildren<
   VariantProps<typeof navigationMenuStyle> & { className?: string }
@@ -218,9 +227,10 @@ export function NavigationMenuItem({ to, onClick, onMouseEnter, className, child
 
 export function NavigationMenuItemIcon({ children }: PropsWithChildren) {
   const variant = use(MenuVariantContext);
+  const disabled = use(ItemDisabledContext);
 
   return (
-    <div className={navigationMenuItemIconStyle({ variant })}>
+    <div className={navigationMenuItemIconStyle({ variant, disabled })}>
       {children}
     </div>
   );
@@ -228,8 +238,10 @@ export function NavigationMenuItemIcon({ children }: PropsWithChildren) {
 
 export function NavigationMenuItemLabel({ children, className }: NavigationMenuItemLabelProps) {
   const variant = use(MenuVariantContext);
+  const disabled = use(ItemDisabledContext);
+  const toneMap = disabled ? DISABLED_LABEL_TONE : LABEL_TONE;
 
-  return <Text size="sm" tone={LABEL_TONE[variant ?? "default"]} align="left" className={cn("min-w-0 truncate", className)()}>{children}</Text>;
+  return <Text size="sm" tone={toneMap[variant ?? "default"]} align="left" className={cn("min-w-0 truncate", className)()}>{children}</Text>;
 }
 
 export function NavigationMenuEmptyItem({ children }: PropsWithChildren) {
@@ -319,18 +331,19 @@ export function NavigationMenuToggleItem({
 type PopoverContextValue = {
   expanded: boolean;
   toggle: () => void;
+  close: () => void;
   triggerContent: ReactNode;
 };
 
 const PopoverContext = createContext<PopoverContextValue | null>(null);
 
-function usePopover() {
+export function usePopover() {
   const ctx = use(PopoverContext);
   if (!ctx) throw new Error("NavigationMenuPopover subcomponents must be used within NavigationMenuPopover");
   return ctx;
 }
 
-export function NavigationMenuPopover({ trigger, children }: { trigger: ReactNode; children: ReactNode }) {
+export function NavigationMenuPopover({ trigger, children, disabled }: { trigger: ReactNode; children: ReactNode; disabled?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [present, setPresent] = useState(false);
   const [openedAt, setOpenedAt] = useState("");
@@ -343,6 +356,11 @@ export function NavigationMenuPopover({ trigger, children }: { trigger: ReactNod
     setExpanded(false);
     setOverlay(false);
   }
+
+  const close = () => {
+    setExpanded(false);
+    setOverlay(false);
+  };
 
   const open = () => {
     setExpanded(true);
@@ -358,11 +376,6 @@ export function NavigationMenuPopover({ trigger, children }: { trigger: ReactNod
 
   useEffect(() => {
     if (!expanded) return;
-
-    const close = () => {
-      setExpanded(false);
-      setOverlay(false);
-    };
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
@@ -384,15 +397,19 @@ export function NavigationMenuPopover({ trigger, children }: { trigger: ReactNod
   }, [expanded, setOverlay]);
 
   return (
-    <PopoverContext value={{ expanded, toggle, triggerContent: trigger }}>
+    <PopoverContext value={{ expanded, toggle, close, triggerContent: trigger }}>
       <li ref={containerRef} className={cn("relative grid grid-cols-1 grid-rows-1 *:row-start-1 *:col-start-1", present ? "z-20" : "z-0")()}>
-        <button
-          type="button"
-          onClick={toggle}
-          className={navigationMenuItemStyle({ variant, interactive: true, className: "relative z-10" })}
-        >
-          {trigger}
-        </button>
+        <ItemDisabledContext value={!!disabled}>
+          <button
+            type="button"
+            onClick={disabled ? undefined : toggle}
+            disabled={disabled}
+            className={navigationMenuItemStyle({ variant, interactive: !disabled, className: "relative z-10" })}
+          >
+            {trigger}
+            <ChevronsUpDown size={15} className={navigationMenuItemIconStyle({ variant, disabled, className: "ml-auto shrink-0" })} />
+          </button>
+        </ItemDisabledContext>
         <AnimatePresence onExitComplete={() => setPresent(false)}>
           {expanded && (
             <NavigationMenuPopoverPanel>
@@ -431,6 +448,7 @@ function NavigationMenuPopoverPanel({ children }: PropsWithChildren) {
         >
           <div className={navigationMenuItemStyle({ variant, interactive: false })}>
             {triggerContent}
+            <ChevronsUpDown size={15} className={navigationMenuItemIconStyle({ variant, className: "ml-auto shrink-0" })} />
           </div>
         </motion.div>
         <motion.div
