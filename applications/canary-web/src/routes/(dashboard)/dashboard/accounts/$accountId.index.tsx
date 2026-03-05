@@ -44,10 +44,10 @@ function renderCalendarList(calendars: CalendarSource[], accountId: string) {
     >
       <NavigationMenuItemIcon>
         <Calendar size={15} />
-        <NavigationMenuItemLabel>
-          {calendar.name}
-        </NavigationMenuItemLabel>
       </NavigationMenuItemIcon>
+      <NavigationMenuItemLabel>
+        {calendar.name}
+      </NavigationMenuItemLabel>
       <NavigationMenuItemTrailing />
     </NavigationMenuItem>
   ));
@@ -109,9 +109,7 @@ function AccountDetailPage() {
       </NavigationMenu>
       <NavigationMenu>
         <NavigationMenuItem onClick={() => setDeleteOpen(true)}>
-          <NavigationMenuItemIcon>
-            <Text size="sm" tone="danger">Delete Account</Text>
-          </NavigationMenuItemIcon>
+          <Text size="sm" tone="danger">Delete Account</Text>
         </NavigationMenuItem>
       </NavigationMenu>
       {deleteError && <Text size="sm" tone="danger">{deleteError}</Text>}

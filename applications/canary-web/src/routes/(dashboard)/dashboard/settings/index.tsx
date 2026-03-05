@@ -66,8 +66,8 @@ function SettingsPage() {
         <NavigationMenuItem>
           <NavigationMenuItemIcon>
             <Mail size={15} />
-            <NavigationMenuItemLabel>Email</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
+          <NavigationMenuItemLabel>Email</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing>
             <Text size="sm" tone="muted">{email}</Text>
           </NavigationMenuItemTrailing>
@@ -77,15 +77,15 @@ function SettingsPage() {
         <NavigationMenuItem to="/dashboard/settings/change-password">
           <NavigationMenuItemIcon>
             <Lock size={15} />
-            <NavigationMenuItemLabel>Change Password</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
+          <NavigationMenuItemLabel>Change Password</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
         <NavigationMenuItem to="/dashboard/settings/passkeys">
           <NavigationMenuItemIcon>
             <KeyRound size={15} />
-            <NavigationMenuItemLabel>Passkeys</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
+          <NavigationMenuItemLabel>Passkeys</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing>
             <Text size="sm" tone="muted">
               {passkeys.length} {pluralizePasskeys(passkeys.length)}
@@ -97,8 +97,8 @@ function SettingsPage() {
         <NavigationMenuItem onClick={() => setDeleteOpen(true)}>
           <NavigationMenuItemIcon>
             <Trash2 size={15} className="text-destructive" />
-            <Text size="sm" tone="danger">Delete Account</Text>
           </NavigationMenuItemIcon>
+          <Text size="sm" tone="danger">Delete Account</Text>
         </NavigationMenuItem>
       </NavigationMenu>
       <Modal open={deleteOpen} onOpenChange={setDeleteOpen}>

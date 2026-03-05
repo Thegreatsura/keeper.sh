@@ -81,8 +81,8 @@ function PasskeysPage() {
           <NavigationMenuItem key={passkey.id} onClick={() => setDeleteTarget(passkey)}>
             <NavigationMenuItemIcon>
               <KeyRound size={15} />
-              <NavigationMenuItemLabel>{passkey.name ?? "Passkey"}</NavigationMenuItemLabel>
             </NavigationMenuItemIcon>
+            <NavigationMenuItemLabel>{passkey.name ?? "Passkey"}</NavigationMenuItemLabel>
             <NavigationMenuItemTrailing>
               <Text size="sm" tone="muted">{formatDateShort(passkey.createdAt)}</Text>
             </NavigationMenuItemTrailing>
@@ -91,8 +91,8 @@ function PasskeysPage() {
         <NavigationMenuItem onClick={handleAdd}>
           <NavigationMenuItemIcon>
             <Plus size={15} />
-            <NavigationMenuItemLabel>Add Passkey</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
+          <NavigationMenuItemLabel>Add Passkey</NavigationMenuItemLabel>
         </NavigationMenuItem>
       </NavigationMenu>
       <Modal open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>

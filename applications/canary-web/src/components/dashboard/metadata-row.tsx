@@ -25,7 +25,9 @@ export function MetadataRow({ label, value, truncate = false, to }: MetadataRowP
   return (
     <NavigationMenuItem to={to}>
       <Text size="sm" tone="muted" className="shrink-0">{label}</Text>
-      {renderValue(value, truncate)}
+      <div className="ml-auto overflow-hidden">
+        {renderValue(value, truncate)}
+      </div>
     </NavigationMenuItem>
   );
 }

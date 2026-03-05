@@ -36,8 +36,8 @@ function renderCalendarItems(
           provider={getCalendarProvider(calendar)}
           calendarType={calendar.calendarType}
         />
-        <NavigationMenuItemLabel>{calendar.name}</NavigationMenuItemLabel>
       </NavigationMenuItemIcon>
+      <NavigationMenuItemLabel>{calendar.name}</NavigationMenuItemLabel>
     </NavigationMenuCheckboxItem>
   ));
 }

@@ -25,7 +25,7 @@ const navigationMenuStyle = tv({
 type MenuVariant = VariantProps<typeof navigationMenuStyle>["variant"];
 
 const navigationMenuItemStyle = tv({
-  base: "rounded-xl flex items-center justify-between gap-3 p-3 w-full",
+  base: "rounded-xl flex items-center gap-3 p-3 w-full",
   variants: {
     variant: {
       default: "",
@@ -47,7 +47,7 @@ const navigationMenuItemStyle = tv({
 });
 
 const navigationMenuItemIconStyle = tv({
-  base: "min-w-0",
+  base: "shrink-0",
   variants: {
     variant: {
       default: "text-foreground-muted",
@@ -165,6 +165,14 @@ type NavigationMenuItemProps = PropsWithChildren<{
   className?: string;
 }>;
 
+type NavigationMenuItemLabelProps = PropsWithChildren<{
+  className?: string;
+}>
+
+type NavigationMenuItemTrailingProps = PropsWithChildren<{
+  className?: string;
+}>
+
 export function NavigationMenuItem({ to, onClick, onMouseEnter, className, children }: NavigationMenuItemProps) {
   const variant = use(MenuVariantContext);
   const interactive = !!(to || onClick);
@@ -209,16 +217,16 @@ export function NavigationMenuItemIcon({ children }: PropsWithChildren) {
   const variant = use(MenuVariantContext);
 
   return (
-    <div className={cn("flex items-center gap-2 min-w-0 [&>:not(p)]:shrink-0", navigationMenuItemIconStyle({ variant }))()}>
+    <div className={navigationMenuItemIconStyle({ variant })}>
       {children}
     </div>
   );
 }
 
-export function NavigationMenuItemLabel({ children }: PropsWithChildren) {
+export function NavigationMenuItemLabel({ children, className }: NavigationMenuItemLabelProps) {
   const variant = use(MenuVariantContext);
 
-  return <Text size="sm" tone={LABEL_TONE[variant ?? "default"]} align="left" className="truncate">{children}</Text>;
+  return <Text size="sm" tone={LABEL_TONE[variant ?? "default"]} align="left" className={cn("min-w-0 truncate", className)()}>{children}</Text>;
 }
 
 export function NavigationMenuEmptyItem({ children }: PropsWithChildren) {
@@ -233,15 +241,17 @@ export function NavigationMenuEmptyItem({ children }: PropsWithChildren) {
   );
 }
 
-export function NavigationMenuItemTrailing({ children }: PropsWithChildren) {
+export function NavigationMenuItemTrailing({ children, className }: NavigationMenuItemTrailingProps) {
   const isLink = use(ItemIsLinkContext);
   const variant = use(MenuVariantContext);
 
   return (
-    <div className="flex items-center gap-2 shrink-0">
-      {children}
-      {isLink && <ArrowRight className={cn("shrink-0", navigationMenuItemIconStyle({ variant }))()} size={15} />}
-    </div>
+    <>
+      <div className={cn("flex grow items-center gap-1 justify-end", className)()}>
+        {children}
+        {isLink && <ArrowRight className={cn("shrink-0", navigationMenuItemIconStyle({ variant }))()} size={15} />}
+      </div>
+    </>
   );
 }
 
@@ -269,7 +279,7 @@ export function NavigationMenuCheckboxItem({
         className={navigationMenuItemStyle({ variant, className })}
       >
         {children}
-        <div className={navigationMenuCheckbox({ variant, checked })}>
+        <div className={navigationMenuCheckbox({ variant, checked, className: "ml-auto" })}>
           {checked && <Check size={12} className={navigationMenuCheckboxIcon({ variant })} />}
         </div>
       </button>
@@ -381,11 +391,14 @@ function NavigationMenuPopoverPanel({ children }: PropsWithChildren) {
       className="absolute grid place-items-center -inset-0.75 pointer-events-none z-20"
       initial={{ opacity: 1 }}
     >
-      <div
+      <motion.div
         className={navigationMenuStyle({
           variant,
-          className: "shadow-xl w-full overflow-hidden pointer-events-auto"
+          className: "w-full overflow-hidden pointer-events-auto"
         })}
+        initial={{ boxShadow: "0 0 0 0 rgba(0,0,0,0)" }}
+        animate={{ boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)" }}
+        exit={{ boxShadow: "0 0 0 0 rgba(0,0,0,0)" }}
       >
         <motion.div
           className="flex flex-col justify-end"
@@ -398,13 +411,16 @@ function NavigationMenuPopoverPanel({ children }: PropsWithChildren) {
           </div>
         </motion.div>
         <motion.div
+          className="overflow-hidden"
           initial={{ height: 0, filter: "blur(0)", opacity: 0 }}
           animate={{ height: "fit-content", filter: "blur(0)", opacity: 1 }}
           exit={{ height: 0, filter: "blur(4px)", opacity: 0 }}
         >
-          {children}
+          <div className="overflow-y-auto" style={{ maxHeight: "16rem" }}>
+            {children}
+          </div>
         </motion.div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
@@ -460,7 +476,7 @@ export function NavigationMenuEditableItem({
             onBlur={commit}
             onKeyDown={handleKeyDown}
             autoFocus
-            className="text-sm tracking-tight text-foreground-muted bg-transparent w-full cursor-text outline-none"
+            className="flex-1 min-w-0 text-sm tracking-tight text-foreground-muted bg-transparent cursor-text outline-none"
           />
         </div>
       </li>
@@ -474,10 +490,8 @@ export function NavigationMenuEditableItem({
         onClick={() => setEditing(true)}
         className={navigationMenuItemStyle({ variant, interactive: true, className })}
       >
-        <NavigationMenuItemIcon>
-          <NavigationMenuItemLabel>{value}</NavigationMenuItemLabel>
-        </NavigationMenuItemIcon>
-        <Pencil size={14} className={navigationMenuItemIconStyle({ variant })} />
+        <NavigationMenuItemLabel>{value}</NavigationMenuItemLabel>
+        <Pencil size={14} className={navigationMenuItemIconStyle({ variant, className: "ml-auto" })} />
       </button>
     </li>
   );

@@ -16,7 +16,6 @@ import {
   NavigationMenu,
   NavigationMenuEditableItem,
   NavigationMenuItem,
-  NavigationMenuItemIcon,
 } from "../../../../components/ui/navigation-menu";
 import { DeleteConfirmation } from "../../../../components/ui/delete-confirmation";
 
@@ -358,9 +357,7 @@ function ProfileDetail({ profile, profiles, calendars, mutateProfiles, onDelete 
       {onDelete && (
         <NavigationMenu>
           <NavigationMenuItem onClick={onDelete}>
-            <NavigationMenuItemIcon>
-              <Text size="sm" tone="danger">Delete Profile</Text>
-            </NavigationMenuItemIcon>
+            <Text size="sm" tone="danger">Delete Profile</Text>
           </NavigationMenuItem>
         </NavigationMenu>
       )}

@@ -21,36 +21,36 @@ function ConnectPage() {
         <NavigationMenuItem to="/dashboard/connect/google">
           <NavigationMenuItemIcon>
             <img src="/integrations/icon-google.svg" alt="" width={15} height={15} />
-            <NavigationMenuItemLabel>Connect Google Calendar</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
+          <NavigationMenuItemLabel>Connect Google Calendar</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
         <NavigationMenuItem to="/dashboard/connect/outlook">
           <NavigationMenuItemIcon>
             <img src="/integrations/icon-outlook.svg" alt="" width={15} height={15} />
-            <NavigationMenuItemLabel>Connect Outlook</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
+          <NavigationMenuItemLabel>Connect Outlook</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
         <NavigationMenuItem to="/dashboard/connect/apple">
           <NavigationMenuItemIcon>
             <img src="/integrations/icon-icloud.svg" alt="" width={15} height={15} />
-            <NavigationMenuItemLabel>Connect iCloud</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
+          <NavigationMenuItemLabel>Connect iCloud</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
         <NavigationMenuItem to="/dashboard/connect/microsoft">
           <NavigationMenuItemIcon>
             <img src="/integrations/icon-microsoft-365.svg" alt="" width={15} height={15} />
-            <NavigationMenuItemLabel>Connect Microsoft 365</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
+          <NavigationMenuItemLabel>Connect Microsoft 365</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
         <NavigationMenuItem to="/dashboard/connect/fastmail">
           <NavigationMenuItemIcon>
             <img src="/integrations/icon-fastmail.svg" alt="" width={15} height={15} />
-            <NavigationMenuItemLabel>Connect Fastmail</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
+          <NavigationMenuItemLabel>Connect Fastmail</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
       </NavigationMenu>
@@ -58,8 +58,8 @@ function ConnectPage() {
         <NavigationMenuItem to="/dashboard/connect/caldav">
           <NavigationMenuItemIcon>
             <Calendar size={15} />
-            <NavigationMenuItemLabel>Connect CalDAV Server</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
+          <NavigationMenuItemLabel>Connect CalDAV Server</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
       </NavigationMenu>
@@ -67,15 +67,15 @@ function ConnectPage() {
         <NavigationMenuItem to="/dashboard/connect/ical-link">
           <NavigationMenuItemIcon>
             <Link size={15} />
-            <NavigationMenuItemLabel>Subscribe to ICS Calendar Feed</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
+          <NavigationMenuItemLabel>Subscribe to ICS Calendar Feed</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
         <NavigationMenuItem to="/dashboard/connect/ics-file">
           <NavigationMenuItemIcon>
             <Upload size={15} />
-            <NavigationMenuItemLabel>Upload ICS Snapshot File</NavigationMenuItemLabel>
           </NavigationMenuItemIcon>
+          <NavigationMenuItemLabel>Upload ICS Snapshot File</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing />
         </NavigationMenuItem>
       </NavigationMenu>

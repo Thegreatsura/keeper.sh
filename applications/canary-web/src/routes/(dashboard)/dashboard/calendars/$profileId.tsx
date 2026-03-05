@@ -15,7 +15,6 @@ import {
   NavigationMenu,
   NavigationMenuEditableItem,
   NavigationMenuItem,
-  NavigationMenuItemIcon,
 } from "../../../../components/ui/navigation-menu";
 import { DeleteConfirmation } from "../../../../components/ui/delete-confirmation";
 
@@ -94,9 +93,7 @@ function ProfileDetailPage() {
       />
       <NavigationMenu>
         <NavigationMenuItem onClick={() => setDeleteOpen(true)}>
-          <NavigationMenuItemIcon>
-            <Text size="sm" tone="danger">Delete Profile</Text>
-          </NavigationMenuItemIcon>
+          <Text size="sm" tone="danger">Delete Profile</Text>
         </NavigationMenuItem>
       </NavigationMenu>
       {deleteError && <Text size="sm" tone="danger">{deleteError}</Text>}
