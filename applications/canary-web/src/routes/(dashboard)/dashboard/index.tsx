@@ -19,6 +19,7 @@ import {
 import { Text } from "../../../components/ui/text";
 import { ProviderIconStack } from "../../../components/ui/provider-icon-stack";
 import { getAccountLabel } from "../../../utils/accounts";
+import { pluralize } from "../../../lib/pluralize";
 import { User } from "lucide-react";
 
 export const Route = createFileRoute("/(dashboard)/dashboard/")({
@@ -129,7 +130,7 @@ function DashboardPage() {
                 </NavigationMenuItemIcon>
                 <NavigationMenuItemLabel>View Events</NavigationMenuItemLabel>
                 <NavigationMenuItemTrailing>
-                  {eventCount != null && <Text size="sm" tone="muted">{eventCount.toLocaleString()}</Text>}
+                  {eventCount != null && <Text size="sm" tone="muted">{pluralize(eventCount, "event")}</Text>}
                 </NavigationMenuItemTrailing>
               </NavigationMenuItem>
               <NavigationMenuItem to="/dashboard/calendars">

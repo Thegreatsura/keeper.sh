@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { tv } from "tailwind-variants/lite";
 import { eventGraphHoverIndexAtom } from "../../state/event-graph-hover";
 import { fetcher } from "../../lib/fetcher";
+import { pluralize } from "../../lib/pluralize";
 import { Text } from "../ui/text";
 
 interface ApiEvent {
@@ -73,7 +74,6 @@ interface DayData {
   period: Period;
 }
 
-/** Format a date offset from today into a human-readable label. */
 const formatDayLabel = (dayOffset: number): string => {
   const date = new Date();
   date.setDate(date.getDate() + dayOffset);
@@ -116,8 +116,7 @@ function resolveActiveDay(hoverIndex: number | null, days: DayData[], today: Day
 }
 
 function resolveEventCountLabel(count: number): string {
-  if (count === 1) return "1 event";
-  return `${count} events`;
+  return pluralize(count, "event");
 }
 
 interface EventGraphSummaryProps {

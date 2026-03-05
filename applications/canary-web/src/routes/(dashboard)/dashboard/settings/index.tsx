@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { KeyRound, Lock, Mail, Trash2 } from "lucide-react";
+import { pluralize } from "../../../../lib/pluralize";
 import { Button, ButtonText } from "../../../../components/ui/button";
 import { BackButton } from "../../../../components/ui/back-button";
 import { useSession } from "../../../../hooks/use-session";
@@ -32,10 +33,6 @@ function resolveErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function pluralizePasskeys(count: number): string {
-  if (count === 1) return "passkey";
-  return "passkeys";
-}
 
 function SettingsPage() {
   const { user } = useSession();
@@ -88,7 +85,7 @@ function SettingsPage() {
           <NavigationMenuItemLabel>Passkeys</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing>
             <Text size="sm" tone="muted">
-              {passkeys.length} {pluralizePasskeys(passkeys.length)}
+              {pluralize(passkeys.length, "passkey", "passkeys")}
             </Text>
           </NavigationMenuItemTrailing>
         </NavigationMenuItem>
