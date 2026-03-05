@@ -161,7 +161,7 @@ export function EventGraph() {
   const setHoverIndex = useSetAtom(eventGraphHoverIndexAtom);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-4">
       <EventGraphSummary days={days} />
 
       <div

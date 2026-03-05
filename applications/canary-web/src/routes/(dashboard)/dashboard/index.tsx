@@ -33,7 +33,7 @@ function DashboardPage() {
   const calendars = calendarsData ?? [];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col">
       <EventGraph />
       <div className="flex flex-col gap-1.5">
         <NavigationMenu>
@@ -118,7 +118,9 @@ function DashboardPage() {
           </NavigationMenuItem>
         </NavigationMenu>
       </div>
-      <KeeperLogo className="size-8 text-border-elevated self-center" />
+      <div className="pt-8 flex justify-center">
+        <KeeperLogo className="size-8 text-border-elevated self-center" />
+      </div>
     </div>
   );
 }
