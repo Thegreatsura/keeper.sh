@@ -38,6 +38,9 @@ function DashboardPage() {
   const { data: calendarsData, isLoading: calendarsLoading, error, mutate: mutateCalendars } = useSWR<CalendarSource[]>("/api/sources");
   const calendars = calendarsData ?? [];
 
+  const { data: eventCountData } = useSWR<{ count: number }>("/api/events/count");
+  const eventCount = eventCountData?.count;
+
   return (
     <div className="flex flex-col">
       <EventGraph />
@@ -119,23 +122,25 @@ function DashboardPage() {
             ))}
           </NavigationMenuPopover>
           {calendars.length > 0 && (
-            <NavigationMenuItem to="/dashboard/calendars">
-              <NavigationMenuItemIcon>
-                <CalendarSync size={15} />
-              </NavigationMenuItemIcon>
-              <NavigationMenuItemLabel>Sync Settings</NavigationMenuItemLabel>
-              <NavigationMenuItemTrailing />
-            </NavigationMenuItem>
+            <>
+              <NavigationMenuItem to="/dashboard/events">
+                <NavigationMenuItemIcon>
+                  <CalendarDays size={15} />
+                </NavigationMenuItemIcon>
+                <NavigationMenuItemLabel>View Events</NavigationMenuItemLabel>
+                <NavigationMenuItemTrailing>
+                  {eventCount != null && <Text size="sm" tone="muted">{eventCount.toLocaleString()}</Text>}
+                </NavigationMenuItemTrailing>
+              </NavigationMenuItem>
+              <NavigationMenuItem to="/dashboard/calendars">
+                <NavigationMenuItemIcon>
+                  <CalendarSync size={15} />
+                </NavigationMenuItemIcon>
+                <NavigationMenuItemLabel>Sync Settings</NavigationMenuItemLabel>
+                <NavigationMenuItemTrailing />
+              </NavigationMenuItem>
+            </>
           )}
-        </NavigationMenu>
-        <NavigationMenu>
-          <NavigationMenuItem to="/dashboard/events">
-            <NavigationMenuItemIcon>
-              <CalendarDays size={15} />
-            </NavigationMenuItemIcon>
-            <NavigationMenuItemLabel>View Events</NavigationMenuItemLabel>
-            <NavigationMenuItemTrailing />
-          </NavigationMenuItem>
         </NavigationMenu>
         <NavigationMenu variant="highlight">
           <NavigationMenuItem to="/dashboard/upgrade">

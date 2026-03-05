@@ -1,5 +1,5 @@
 import { calendarAccountsTable, calendarsTable, eventStatesTable } from "@keeper.sh/database/schema";
-import { and, arrayContains, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, arrayContains, asc, count, eq, gte, inArray, lte } from "drizzle-orm";
 import { normalizeDateRange, parseDateRangeParams } from "./date-range";
 import { database } from "../context";
 
@@ -98,4 +98,29 @@ const enrichEventsWithSources = (
     };
   });
 
-export { getEventsInRange };
+const getEventCount = async (userId: string): Promise<number> => {
+  const sources = await database
+    .select({ id: calendarsTable.id })
+    .from(calendarsTable)
+    .where(
+      and(
+        eq(calendarsTable.userId, userId),
+        arrayContains(calendarsTable.capabilities, ["pull"]),
+      ),
+    );
+
+  if (sources.length === EMPTY_SOURCES_COUNT) {
+    return 0;
+  }
+
+  const calendarIds = sources.map((source) => source.id);
+
+  const [result] = await database
+    .select({ count: count() })
+    .from(eventStatesTable)
+    .where(inArray(eventStatesTable.calendarId, calendarIds));
+
+  return result?.count ?? 0;
+};
+
+export { getEventsInRange, getEventCount };
