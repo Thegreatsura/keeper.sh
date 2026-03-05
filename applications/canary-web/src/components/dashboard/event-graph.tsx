@@ -1,55 +1,21 @@
+import { useMemo } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
+import useSWR from "swr";
 import { tv } from "tailwind-variants/lite";
 import { eventGraphHoverIndexAtom } from "../../state/event-graph-hover";
+import { fetcher } from "../../lib/fetcher";
 import { Text } from "../ui/text";
 
-interface EventBlock {
-  startHour: number;
-  endHour: number;
-  dayOffset: number;
+interface ApiEvent {
+  id: string;
+  startTime: string;
 }
-
-// TODO: Replace with real event data from API
-const MOCK_EVENTS: EventBlock[] = [
-  { startHour: 10, endHour: 11.5, dayOffset: -7 },
-  { startHour: 14, endHour: 15, dayOffset: -6 },
-  { startHour: 9, endHour: 10, dayOffset: -6 },
-  { startHour: 11, endHour: 13, dayOffset: -5 },
-  { startHour: 15, endHour: 17, dayOffset: -5 },
-  { startHour: 9, endHour: 10.5, dayOffset: -4 },
-  { startHour: 13, endHour: 14.5, dayOffset: -4 },
-  { startHour: 15, endHour: 16, dayOffset: -4 },
-  { startHour: 10, endHour: 12, dayOffset: -3 },
-  { startHour: 8, endHour: 9, dayOffset: -2 },
-  { startHour: 11, endHour: 13, dayOffset: -2 },
-  { startHour: 14, endHour: 15.5, dayOffset: -2 },
-  { startHour: 9, endHour: 11, dayOffset: -1 },
-  { startHour: 14, endHour: 16, dayOffset: -1 },
-  { startHour: 9, endHour: 10.5, dayOffset: 0 },
-  { startHour: 13, endHour: 14, dayOffset: 0 },
-  { startHour: 15, endHour: 16.5, dayOffset: 0 },
-  { startHour: 10, endHour: 12, dayOffset: 1 },
-  { startHour: 14, endHour: 15, dayOffset: 1 },
-  { startHour: 8, endHour: 9.5, dayOffset: 2 },
-  { startHour: 11, endHour: 13, dayOffset: 2 },
-  { startHour: 15, endHour: 17, dayOffset: 2 },
-  { startHour: 16, endHour: 17.5, dayOffset: 2 },
-  { startHour: 9, endHour: 10, dayOffset: 3 },
-  { startHour: 10, endHour: 11.5, dayOffset: 4 },
-  { startHour: 13, endHour: 14.5, dayOffset: 4 },
-  { startHour: 15, endHour: 16, dayOffset: 4 },
-  { startHour: 9, endHour: 11, dayOffset: 5 },
-  { startHour: 14, endHour: 16, dayOffset: 5 },
-  { startHour: 10, endHour: 12.5, dayOffset: 6 },
-  { startHour: 8, endHour: 9, dayOffset: 7 },
-  { startHour: 11, endHour: 13, dayOffset: 7 },
-];
 
 const DAYS_BEFORE = 7;
 const DAYS_AFTER = 7;
 const TOTAL_DAYS = DAYS_BEFORE + 1 + DAYS_AFTER;
 const GRAPH_HEIGHT = 96;
-const MIN_BAR_PERCENT = 5;
+const MIN_BAR_HEIGHT = 20;
 
 const graphBar = tv({
   base: "flex-1 rounded-[0.625rem]",
@@ -71,10 +37,28 @@ const resolvePeriod = (dayOffset: number): Period => {
   return "future";
 };
 
-const countEventsByDay = (events: EventBlock[]): number[] => {
+const MS_PER_DAY = 86_400_000;
+
+const startOfToday = (): Date => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const buildGraphUrl = (): string => {
+  const today = startOfToday();
+  const from = new Date(today.getTime() - DAYS_BEFORE * MS_PER_DAY);
+  const to = new Date(today.getTime() + DAYS_AFTER * MS_PER_DAY + MS_PER_DAY - 1);
+  return `/api/events?from=${from.toISOString()}&to=${to.toISOString()}`;
+};
+
+const countEventsByDay = (events: ApiEvent[]): number[] => {
   const counts = new Array<number>(TOTAL_DAYS).fill(0);
+  const todayStart = startOfToday().getTime();
   for (const event of events) {
-    const slotIndex = event.dayOffset + DAYS_BEFORE;
+    const eventDate = new Date(event.startTime);
+    const dayOffset = Math.floor((eventDate.getTime() - todayStart) / MS_PER_DAY);
+    const slotIndex = dayOffset + DAYS_BEFORE;
     if (slotIndex >= 0 && slotIndex < TOTAL_DAYS) counts[slotIndex]++;
   }
   return counts;
@@ -83,7 +67,7 @@ const countEventsByDay = (events: EventBlock[]): number[] => {
 interface DayData {
   count: number;
   dayOffset: number;
-  heightPercent: number;
+  height: number;
   fullLabel: string;
   period: Period;
 }
@@ -99,9 +83,10 @@ const formatDayLabel = (dayOffset: number): string => {
   });
 };
 
+const GROWTH_SPACE = GRAPH_HEIGHT - MIN_BAR_HEIGHT;
+
 function resolveBarHeight(count: number, maxCount: number): number {
-  if (count === 0) return MIN_BAR_PERCENT;
-  return (count / maxCount) * 100;
+  return MIN_BAR_HEIGHT + (count / maxCount) * GROWTH_SPACE;
 }
 
 const normalizeDayData = (counts: number[]): DayData[] => {
@@ -112,14 +97,14 @@ const normalizeDayData = (counts: number[]): DayData[] => {
     return {
       count,
       dayOffset,
-      heightPercent: resolveBarHeight(count, maxCount),
+      height: resolveBarHeight(count, maxCount),
       fullLabel: formatDayLabel(dayOffset),
       period: resolvePeriod(dayOffset),
     };
   });
 };
 
-const buildDays = (events: EventBlock[]): DayData[] => {
+const buildDays = (events: ApiEvent[]): DayData[] => {
   const counts = countEventsByDay(events);
   return normalizeDayData(counts);
 };
@@ -156,8 +141,11 @@ function EventGraphSummary({ days }: EventGraphSummaryProps) {
   );
 }
 
+const GRAPH_URL = buildGraphUrl();
+
 export function EventGraph() {
-  const days = buildDays(MOCK_EVENTS);
+  const { data: events } = useSWR<ApiEvent[]>(GRAPH_URL, fetcher);
+  const days = useMemo(() => buildDays(events ?? []), [events]);
   const setHoverIndex = useSetAtom(eventGraphHoverIndexAtom);
 
   return (
@@ -183,7 +171,7 @@ export function EventGraph() {
                   period: day.period,
                   className: "w-full",
                 })}
-                style={{ height: `${day.heightPercent}%` }}
+                style={{ height: day.height }}
               />
             </div>
             <Text
