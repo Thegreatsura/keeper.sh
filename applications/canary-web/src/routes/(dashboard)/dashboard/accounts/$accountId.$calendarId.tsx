@@ -19,7 +19,7 @@ import {
 } from "../../../../components/ui/navigation-menu";
 import { DashboardHeading2 } from "../../../../components/ui/dashboard-heading";
 import { Text } from "../../../../components/ui/text";
-import { AnimatedReveal } from "../../../../components/ui/animated-reveal";
+import { TemplateText } from "../../../../components/ui/template-text";
 
 export const Route = createFileRoute(
   "/(dashboard)/dashboard/accounts/$accountId/$calendarId",
@@ -37,26 +37,21 @@ type ExcludeField = keyof Pick<CalendarDetail, "excludeAllDayEvents" | "excludeE
 interface SyncSetting {
   field: ExcludeField;
   label: string;
-  /** When true, toggle ON = field is true (direct). When false, toggle ON = field is false (inverted). */
   matchesField: boolean;
 }
 
-/** Sync settings — available for all pull-capable calendars. */
 const SYNC_SETTINGS: SyncSetting[] = [
-  { field: "excludeEventName", label: "Sync Event Name", matchesField: false },
   { field: "excludeEventDescription", label: "Sync Event Description", matchesField: false },
   { field: "excludeEventLocation", label: "Sync Event Location", matchesField: false },
   { field: "excludeAllDayEvents", label: "Exclude All Day Events", matchesField: true },
 ];
 
-/** Provider-specific sync settings (currently Google Calendar only). */
 const PROVIDER_SYNC_SETTINGS: SyncSetting[] = [
   { field: "excludeFocusTime", label: "Exclude Focus Time Events", matchesField: true },
   { field: "excludeWorkingLocation", label: "Exclude Working Location Events", matchesField: true },
   { field: "excludeOutOfOffice", label: "Exclude Out of Office Events", matchesField: true },
 ];
 
-/** Providers that have additional sync settings. */
 const PROVIDERS_WITH_EXTRA_SETTINGS = new Set(["google"]);
 
 function CalendarDetailPage() {
@@ -131,7 +126,11 @@ function CalendarDetailPage() {
   };
 
   const handleEnableSyncEventName = async () => {
-    await patchCalendar({ excludeEventName: false, customEventName: "" });
+    await patchCalendar({ excludeEventName: false, customEventName: "{{event_name}}" });
+  };
+
+  const handleDisableSyncEventName = async () => {
+    await patchCalendar({ excludeEventName: true, customEventName: "{{calendar_name}}" });
   };
 
   if (error || isLoading || !calendar || !account) {
@@ -190,26 +189,45 @@ function CalendarDetailPage() {
         <>
           <div className="flex flex-col px-0.5 pt-4">
             <DashboardHeading2>Sync Settings</DashboardHeading2>
-            <Text size="sm">Choose which event details and types are synced to destination calendars.</Text>
+            <Text size="sm">Choose which event details and types are synced to destination calendars. Use <Text size="sm" className="text-template inline">{"{{calendar_name}}"}</Text> or <Text size="sm" className="text-template inline">{"{{event_name}}"}</Text> in text fields for dynamic values.</Text>
           </div>
           <NavigationMenu>
-            <AnimatedReveal show={calendar.excludeEventName} skipInitial>
-              <NavigationMenuEditableItem
-                value={calendar.customEventName || calendar.name}
-                onCommit={(customEventName) => patchCalendar({ customEventName })}
-              />
-            </AnimatedReveal>
+            <NavigationMenuEditableItem
+              label="Event Name"
+              value={calendar.customEventName || "{{event_name}}"}
+              disabled={!calendar.excludeEventName}
+              valueContent={
+                <TemplateText
+                  template={calendar.customEventName || "{{event_name}}"}
+                  variables={{ calendar_name: calendar.name, event_name: "Event Name" }}
+                  disabled={!calendar.excludeEventName}
+                />
+              }
+              renderInput={(live) => (
+                <TemplateText
+                  template={live}
+                  variables={{ calendar_name: calendar.name, event_name: "Event Name" }}
+                />
+              )}
+              onCommit={(customEventName) => patchCalendar({ customEventName })}
+            />
+            <NavigationMenuToggleItem
+              checked={!calendar.excludeEventName}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  handleEnableSyncEventName();
+                } else {
+                  handleDisableSyncEventName();
+                }
+              }}
+            >
+              <NavigationMenuItemLabel>Sync Event Name</NavigationMenuItemLabel>
+            </NavigationMenuToggleItem>
             {syncSettings.map((pref) => (
               <NavigationMenuToggleItem
                 key={pref.field}
                 checked={pref.matchesField ? calendar[pref.field] : !calendar[pref.field]}
-                onCheckedChange={(checked) => {
-                  if (pref.field === "excludeEventName" && checked) {
-                    handleEnableSyncEventName();
-                  } else {
-                    handleTogglePreference(pref.field, checked, pref.matchesField);
-                  }
-                }}
+                onCheckedChange={(checked) => handleTogglePreference(pref.field, checked, pref.matchesField)}
               >
                 <NavigationMenuItemLabel>{pref.label}</NavigationMenuItemLabel>
               </NavigationMenuToggleItem>

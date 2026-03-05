@@ -6,7 +6,6 @@ const VISIBLE = { height: "fit-content", opacity: 1, filter: "blur(0)" };
 
 interface AnimatedRevealProps {
   show: boolean;
-  /** When true, skip the initial enter animation (used when data is already cached). */
   skipInitial?: boolean;
   children: ReactNode;
 }

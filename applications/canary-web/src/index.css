@@ -51,6 +51,8 @@ html {
   --ui-destructive-border: var(--color-red-200);
   --ui-destructive-background-hover: var(--color-red-100);
   --ui-ring: var(--color-blue-500);
+  --ui-template: var(--color-purple-600);
+  --ui-template-muted: color-mix(in srgb, var(--ui-template), transparent 50%);
 }
 
 @font-face {
@@ -91,6 +93,8 @@ html {
   --color-destructive-border: var(--ui-destructive-border);
   --color-destructive-background-hover: var(--ui-destructive-background-hover);
   --color-ring: var(--ui-ring);
+  --color-template: var(--ui-template);
+  --color-template-muted: var(--ui-template-muted);
 
   --font-sans: "Geist Sans", system-ui, sans-serif;
   --font-lora: "Lora", Georgia, serif;
@@ -162,5 +166,11 @@ html {
       transparent 80%
     );
     --ui-ring: var(--color-blue-400);
+    --ui-template: var(--color-purple-400);
+    --ui-template-muted: color-mix(
+      in srgb,
+      var(--ui-template),
+      transparent 40%
+    );
   }
 }

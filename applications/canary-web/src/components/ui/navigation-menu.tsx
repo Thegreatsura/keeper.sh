@@ -471,6 +471,9 @@ function NavigationMenuPopoverPanel({ children }: PropsWithChildren) {
 type NavigationMenuEditableItemProps = {
   value: string;
   onCommit: (value: string) => Promise<void> | void;
+  label?: string;
+  valueContent?: ReactNode;
+  renderInput?: (value: string) => ReactNode;
   autoEdit?: boolean;
   disabled?: boolean;
   className?: string;
@@ -479,14 +482,23 @@ type NavigationMenuEditableItemProps = {
 export function NavigationMenuEditableItem({
   value,
   onCommit,
+  label,
+  valueContent,
+  renderInput,
   autoEdit,
   disabled,
   className,
 }: NavigationMenuEditableItemProps) {
   const variant = use(MenuVariantContext);
   const [editing, setEditing] = useState(autoEdit ?? false);
+  const [liveValue, setLiveValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const committingRef = useRef(false);
+
+  const startEditing = () => {
+    setLiveValue(value);
+    setEditing(true);
+  };
 
   const commit = async () => {
     if (committingRef.current) return;
@@ -512,19 +524,39 @@ export function NavigationMenuEditableItem({
   };
 
   if (editing) {
+    const inputClass = cn("min-w-0 text-sm tracking-tight bg-transparent cursor-text outline-none", label ? "flex-1 text-right" : "flex-1");
+
+    const sharedInputProps = {
+      ref: inputRef,
+      type: "text" as const,
+      defaultValue: value,
+      autoComplete: "off",
+      onBlur: commit,
+      onKeyDown: handleKeyDown,
+      autoFocus: true,
+    };
+
     return (
       <li className="rounded-xl has-focus:ring-2 has-focus:ring-ring">
         <div className={navigationMenuItemStyle({ variant, interactive: false, className })}>
-          <input
-            ref={inputRef}
-            type="text"
-            defaultValue={value}
-            autoComplete="off"
-            onBlur={commit}
-            onKeyDown={handleKeyDown}
-            autoFocus
-            className="flex-1 min-w-0 text-sm tracking-tight text-foreground-muted bg-transparent cursor-text outline-none"
-          />
+          {label && <NavigationMenuItemLabel className="shrink-0">{label}</NavigationMenuItemLabel>}
+          {renderInput ? (
+            <div className={cn(inputClass(), "grid items-center")()}>
+              <input
+                {...sharedInputProps}
+                onChange={(e) => setLiveValue(e.target.value)}
+                className={cn("col-start-1 row-start-1 w-full text-sm tracking-tight bg-transparent text-transparent caret-foreground-muted cursor-text outline-none", label && "text-right")()}
+              />
+              <span className={cn("col-start-1 row-start-1 pointer-events-none text-sm tracking-tight truncate whitespace-pre", label && "text-right")()}>
+                {renderInput(liveValue)}
+              </span>
+            </div>
+          ) : (
+            <input
+              {...sharedInputProps}
+              className={cn(inputClass(), "text-foreground-muted")()}
+            />
+          )}
         </div>
       </li>
     );
@@ -535,12 +567,13 @@ export function NavigationMenuEditableItem({
       <ItemDisabledContext value={!!disabled}>
         <button
           type="button"
-          onClick={() => !disabled && setEditing(true)}
+          onClick={() => !disabled && startEditing()}
           disabled={disabled}
           className={navigationMenuItemStyle({ variant, interactive: !disabled, className })}
         >
-          <NavigationMenuItemLabel>{value}</NavigationMenuItemLabel>
-          <Pencil size={14} className={navigationMenuItemIconStyle({ variant, disabled, className: "ml-auto" })} />
+          {label && <NavigationMenuItemLabel className="shrink-0">{label}</NavigationMenuItemLabel>}
+          <Text size="sm" tone={(disabled ? DISABLED_LABEL_TONE : LABEL_TONE)[variant ?? "default"]} className={cn("min-w-0 truncate", label && "flex-1 text-right")()}>{valueContent ?? value}</Text>
+          <Pencil size={14} className={navigationMenuItemIconStyle({ variant, disabled, className: label ? "shrink-0" : "ml-auto" })} />
         </button>
       </ItemDisabledContext>
     </li>
