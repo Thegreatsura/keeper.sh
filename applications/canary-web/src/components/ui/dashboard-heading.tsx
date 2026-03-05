@@ -2,7 +2,7 @@ import type { PropsWithChildren } from "react";
 import { tv } from "tailwind-variants";
 
 const dashboardHeading = tv({
-  base: "font-sans font-medium leading-tight tracking-tight text-foreground",
+  base: "font-sans font-medium leading-tight tracking-tight text-foreground overflow-hidden truncate",
   variants: {
     level: {
       1: "text-2xl",

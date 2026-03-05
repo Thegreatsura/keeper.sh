@@ -102,6 +102,7 @@ const calendarsTable = pgTable(
     excludeFocusTime: boolean().notNull().default(false),
     excludeOutOfOffice: boolean().notNull().default(false),
     excludeWorkingLocation: boolean().notNull().default(false),
+    customEventName: text().notNull().default(""),
     externalCalendarId: text(),
     id: uuid().notNull().primaryKey().defaultRandom(),
     capabilities: text().array().notNull().default(["pull"]),

@@ -28,6 +28,7 @@ export const GET = withWideEvent(
         provider: calendarAccountsTable.provider,
         url: calendarsTable.url,
         calendarUrl: calendarsTable.calendarUrl,
+        customEventName: calendarsTable.customEventName,
         excludeAllDayEvents: calendarsTable.excludeAllDayEvents,
         excludeEventDescription: calendarsTable.excludeEventDescription,
         excludeEventLocation: calendarsTable.excludeEventLocation,
@@ -71,6 +72,7 @@ export const PATCH = withWideEvent(
 
     const body = (await request.json()) as {
       name?: string;
+      customEventName?: string;
       excludeAllDayEvents?: boolean;
       excludeEventDescription?: boolean;
       excludeEventLocation?: boolean;
@@ -92,6 +94,7 @@ export const PATCH = withWideEvent(
 
     const updates: Record<string, string | boolean> = {};
     if (body.name && typeof body.name === "string") updates.name = body.name;
+    if (typeof body.customEventName === "string") updates.customEventName = body.customEventName;
     for (const field of booleanFields) {
       if (typeof body[field] === "boolean") updates[field] = body[field];
     }

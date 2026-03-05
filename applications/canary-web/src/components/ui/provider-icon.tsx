@@ -14,16 +14,16 @@ function resolveIconPath(provider: string | undefined): string | undefined {
 
 function ProviderIcon({ provider, calendarType, size = 15 }: ProviderIconProps) {
   if (calendarType === "ical" || provider === "ics") {
-    return <LinkIcon size={size} />;
+    return <LinkIcon className="shrink-0" size={size} />;
   }
 
   const iconPath = resolveIconPath(provider);
 
   if (!iconPath) {
-    return <Calendar size={size} />;
+    return <Calendar className="shrink-0" size={size} />;
   }
 
-  return <img src={iconPath} alt="" width={size} height={size} />;
+  return <img className="shrink-0" src={iconPath} alt="" width={size} height={size} />;
 }
 
 export { ProviderIcon };

@@ -4,6 +4,8 @@ import { BackButton } from "../../../../components/ui/back-button";
 import { RouteShell } from "../../../../components/ui/route-shell";
 import { MetadataRow } from "../../../../components/dashboard/metadata-row";
 import { CalendarCheckboxList } from "../../../../components/dashboard/calendar-checkbox-list";
+import { ProviderIcon } from "../../../../components/ui/provider-icon";
+import { DashboardHeading1 } from "../../../../components/ui/dashboard-heading";
 import { apiFetch } from "../../../../lib/fetcher";
 import { formatDate } from "../../../../lib/time";
 import { getAccountLabel } from "../../../../utils/accounts";
@@ -17,6 +19,7 @@ import {
 } from "../../../../components/ui/navigation-menu";
 import { DashboardHeading2 } from "../../../../components/ui/dashboard-heading";
 import { Text } from "../../../../components/ui/text";
+import { AnimatedReveal } from "../../../../components/ui/animated-reveal";
 
 export const Route = createFileRoute(
   "/(dashboard)/dashboard/accounts/$accountId/$calendarId",
@@ -40,10 +43,10 @@ interface SyncSetting {
 
 /** Sync settings — available for all pull-capable calendars. */
 const SYNC_SETTINGS: SyncSetting[] = [
-  { field: "excludeAllDayEvents", label: "Exclude All Day Events", matchesField: true },
   { field: "excludeEventName", label: "Sync Event Name", matchesField: false },
   { field: "excludeEventDescription", label: "Sync Event Description", matchesField: false },
   { field: "excludeEventLocation", label: "Sync Event Location", matchesField: false },
+  { field: "excludeAllDayEvents", label: "Exclude All Day Events", matchesField: true },
 ];
 
 /** Provider-specific sync settings (currently Google Calendar only). */
@@ -75,23 +78,7 @@ function CalendarDetailPage() {
   const isLoading = accountLoading || calendarLoading;
   const error = accountError || calendarError;
 
-  const handleRenameCalendar = async (name: string) => {
-    await mutateCalendar(
-      async (current) => {
-        await apiFetch(`/api/sources/${calendarId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
-        });
-        return patchIfPresent(current, { name });
-      },
-      {
-        optimisticData: patchIfPresent(calendar, { name }),
-        rollbackOnError: true,
-        revalidate: false,
-      },
-    );
-  };
+  const handleRenameCalendar = async (name: string) => patchCalendar({ name });
 
   const handleToggleDestination = async (destinationId: string, checked: boolean) => {
     const currentIds = destinationsData?.destinationIds ?? [];
@@ -116,28 +103,35 @@ function CalendarDetailPage() {
     );
   };
 
+  const patchCalendar = async (patch: Partial<CalendarDetail>) => {
+    await mutateCalendar(
+      async (current) => {
+        await apiFetch(`/api/sources/${calendarId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+        return patchIfPresent(current, patch);
+      },
+      {
+        optimisticData: patchIfPresent(calendar, patch),
+        rollbackOnError: true,
+        revalidate: false,
+      },
+    );
+  };
+
   const handleTogglePreference = async (
     excludeField: ExcludeField,
     checked: boolean,
     matchesField: boolean,
   ) => {
     const excludeValue = matchesField ? checked : !checked;
+    await patchCalendar({ [excludeField]: excludeValue });
+  };
 
-    await mutateCalendar(
-      async (current) => {
-        await apiFetch(`/api/sources/${calendarId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ [excludeField]: excludeValue }),
-        });
-        return patchIfPresent(current, { [excludeField]: excludeValue });
-      },
-      {
-        optimisticData: patchIfPresent(calendar, { [excludeField]: excludeValue }),
-        rollbackOnError: true,
-        revalidate: false,
-      },
-    );
+  const handleEnableSyncEventName = async () => {
+    await patchCalendar({ excludeEventName: false, customEventName: "" });
   };
 
   if (error || isLoading || !calendar || !account) {
@@ -145,7 +139,6 @@ function CalendarDetailPage() {
   }
 
   const isPullCapable = canPull(calendar);
-  const isPushCapable = canPush(calendar);
   const hasExtraSettings = PROVIDERS_WITH_EXTRA_SETTINGS.has(calendar.provider);
   const syncSettings = hasExtraSettings
     ? [...SYNC_SETTINGS, ...PROVIDER_SYNC_SETTINGS]
@@ -156,13 +149,16 @@ function CalendarDetailPage() {
 
   const selectedDestinationIds = new Set(destinationsData?.destinationIds ?? []);
 
-  // Source calendars that push to this calendar (from the GET response)
-  const sourceCalendarIds = calendar.sourceIds ?? [];
-  const sourceCalendars = (allCalendars ?? []).filter((c) => sourceCalendarIds.includes(c.id));
-
   return (
     <div className="flex flex-col gap-1.5">
       <BackButton fallback={`/dashboard/accounts/${accountId}`} />
+      <div className="flex flex-col px-0.5 pt-4">
+        <DashboardHeading1>{calendar.name}</DashboardHeading1>
+        <div className="flex items-center gap-1.5 pt-0.5">
+          <ProviderIcon provider={calendar.provider} calendarType={calendar.calendarType} size={14} />
+          <Text className="truncate overflow-hidden" size="sm" tone="muted">{getAccountLabel(account)}</Text>
+        </div>
+      </div>
       <div className="flex flex-col px-0.5 pt-4">
         <DashboardHeading2>Calendar Name</DashboardHeading2>
         <Text size="sm">Click below to rename the calendar within Keeper. This does not affect the calendar outside of the Keeper ecosystem.</Text>
@@ -189,20 +185,6 @@ function CalendarDetailPage() {
         </>
       )}
 
-      {isPushCapable && sourceCalendars.length > 0 && (
-        <>
-          <div className="flex flex-col px-0.5 pt-4">
-            <DashboardHeading2>Event Sources</DashboardHeading2>
-            <Text size="sm">Calendars that push events to this calendar.</Text>
-          </div>
-          <CalendarCheckboxList
-            calendars={sourceCalendars}
-            selectedIds={new Set(sourceCalendarIds)}
-            onToggle={() => {}}
-            emptyLabel="No source calendars"
-          />
-        </>
-      )}
 
       {isPullCapable && (
         <>
@@ -211,11 +193,23 @@ function CalendarDetailPage() {
             <Text size="sm">Choose which event details and types are synced to destination calendars.</Text>
           </div>
           <NavigationMenu>
+            <AnimatedReveal show={calendar.excludeEventName} skipInitial>
+              <NavigationMenuEditableItem
+                value={calendar.customEventName || calendar.name}
+                onCommit={(customEventName) => patchCalendar({ customEventName })}
+              />
+            </AnimatedReveal>
             {syncSettings.map((pref) => (
               <NavigationMenuToggleItem
                 key={pref.field}
                 checked={pref.matchesField ? calendar[pref.field] : !calendar[pref.field]}
-                onCheckedChange={(checked) => handleTogglePreference(pref.field, checked, pref.matchesField)}
+                onCheckedChange={(checked) => {
+                  if (pref.field === "excludeEventName" && checked) {
+                    handleEnableSyncEventName();
+                  } else {
+                    handleTogglePreference(pref.field, checked, pref.matchesField);
+                  }
+                }}
               >
                 <NavigationMenuItemLabel>{pref.label}</NavigationMenuItemLabel>
               </NavigationMenuToggleItem>

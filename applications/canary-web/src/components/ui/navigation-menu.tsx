@@ -472,6 +472,7 @@ type NavigationMenuEditableItemProps = {
   value: string;
   onCommit: (value: string) => Promise<void> | void;
   autoEdit?: boolean;
+  disabled?: boolean;
   className?: string;
 };
 
@@ -479,6 +480,7 @@ export function NavigationMenuEditableItem({
   value,
   onCommit,
   autoEdit,
+  disabled,
   className,
 }: NavigationMenuEditableItemProps) {
   const variant = use(MenuVariantContext);
@@ -530,14 +532,17 @@ export function NavigationMenuEditableItem({
 
   return (
     <li>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        className={navigationMenuItemStyle({ variant, interactive: true, className })}
-      >
-        <NavigationMenuItemLabel>{value}</NavigationMenuItemLabel>
-        <Pencil size={14} className={navigationMenuItemIconStyle({ variant, className: "ml-auto" })} />
-      </button>
+      <ItemDisabledContext value={!!disabled}>
+        <button
+          type="button"
+          onClick={() => !disabled && setEditing(true)}
+          disabled={disabled}
+          className={navigationMenuItemStyle({ variant, interactive: !disabled, className })}
+        >
+          <NavigationMenuItemLabel>{value}</NavigationMenuItemLabel>
+          <Pencil size={14} className={navigationMenuItemIconStyle({ variant, disabled, className: "ml-auto" })} />
+        </button>
+      </ItemDisabledContext>
     </li>
   );
 }

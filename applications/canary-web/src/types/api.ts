@@ -29,6 +29,7 @@ export interface CalendarDetail {
   provider: string;
   url: string | null;
   calendarUrl: string | null;
+  customEventName: string;
   excludeAllDayEvents: boolean;
   excludeEventDescription: boolean;
   excludeEventLocation: boolean;

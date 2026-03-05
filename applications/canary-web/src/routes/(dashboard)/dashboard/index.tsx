@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import useSWR, { preload } from "swr";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatedReveal } from "../../../components/ui/animated-reveal";
 import { Calendar, CalendarPlus, CalendarDays, Settings, Sparkles, LogOut, LoaderCircle } from "lucide-react";
 import { ErrorState } from "../../../components/ui/error-state";
 import { signOut } from "../../../lib/auth";
@@ -23,14 +23,6 @@ import { getAccountLabel } from "../../../utils/accounts";
 import { pluralize } from "../../../lib/pluralize";
 import { useAnimatedSWR } from "../../../hooks/use-animated-swr";
 import { User } from "lucide-react";
-
-const SECTION_HIDDEN = { height: 0, opacity: 0, filter: "blur(4px)" };
-const SECTION_VISIBLE = { height: "fit-content", opacity: 1, filter: "blur(0)" };
-
-function resolveAnimateInitial(shouldAnimate: boolean) {
-  if (shouldAnimate) return SECTION_HIDDEN;
-  return false as const;
-}
 
 export const Route = createFileRoute("/(dashboard)/dashboard/")({
   component: DashboardPage,
@@ -109,26 +101,17 @@ function DashboardPage() {
               </NavigationMenuItem>
             ))}
           </NavigationMenuPopover>
-          <AnimatePresence>
-            {calendars.length > 0 && (
-              <motion.div
-                className="overflow-hidden"
-                initial={resolveAnimateInitial(animateCalendars)}
-                animate={SECTION_VISIBLE}
-                exit={SECTION_HIDDEN}
-              >
-                <NavigationMenuItem to="/dashboard/events">
-                  <NavigationMenuItemIcon>
-                    <CalendarDays size={15} />
-                  </NavigationMenuItemIcon>
-                  <NavigationMenuItemLabel>View Events</NavigationMenuItemLabel>
-                  <NavigationMenuItemTrailing>
-                    {eventCount != null && <Text size="sm" tone="muted">{pluralize(eventCount, "event")}</Text>}
-                  </NavigationMenuItemTrailing>
-                </NavigationMenuItem>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <AnimatedReveal show={calendars.length > 0} skipInitial={!animateCalendars}>
+            <NavigationMenuItem to="/dashboard/events">
+              <NavigationMenuItemIcon>
+                <CalendarDays size={15} />
+              </NavigationMenuItemIcon>
+              <NavigationMenuItemLabel>View Events</NavigationMenuItemLabel>
+              <NavigationMenuItemTrailing>
+                {eventCount != null && <Text size="sm" tone="muted">{pluralize(eventCount, "event")}</Text>}
+              </NavigationMenuItemTrailing>
+            </NavigationMenuItem>
+          </AnimatedReveal>
         </NavigationMenu>
         <NavigationMenu variant="highlight">
           <NavigationMenuItem to="/dashboard/upgrade">
