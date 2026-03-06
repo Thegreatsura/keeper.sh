@@ -1,5 +1,5 @@
 import { useRef, type Ref, type SubmitEvent } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useAtomValue, useSetAtom } from "jotai";
 import { AnimatePresence, LazyMotion, type Variants } from "motion/react";
 import { loadMotionFeatures } from "../../../lib/motion-features";
@@ -15,10 +15,12 @@ import {
 import { signInWithEmail, signUpWithEmail } from "../../../lib/auth";
 import { Button, LinkButton, ButtonText, ButtonIcon } from "../../../components/ui/primitives/button";
 import { Divider } from "../../../components/ui/primitives/divider";
+import { TextLink } from "../../../components/ui/primitives/text-link";
 import { Heading2 } from "../../../components/ui/primitives/heading";
 import { Input } from "../../../components/ui/primitives/input";
 import { Text } from "../../../components/ui/primitives/text";
 import { resolveErrorMessage } from "../../../utils/errors";
+import { AuthSwitchPrompt } from "./auth-switch-prompt";
 
 function resolveAuthenticator(action: "signIn" | "signUp") {
   if (action === "signIn") return signInWithEmail;
@@ -75,12 +77,9 @@ export function AuthForm({ copy }: { copy: AuthScreenCopy }) {
       <EmailForm submitLabel={copy.submitLabel} action={copy.action} />
       <div className="flex flex-col gap-1.5">
         <AuthError />
-        <Text size="sm" tone="muted" align="center">
-          {copy.switchPrompt}{" "}
-          <Link to={copy.switchTo} className="text-foreground underline underline-offset-2 hover:text-foreground-muted transition-colors">
-            {copy.switchCta}
-          </Link>
-        </Text>
+        <AuthSwitchPrompt>
+          {copy.switchPrompt} <TextLink to={copy.switchTo}>{copy.switchCta}</TextLink>
+        </AuthSwitchPrompt>
       </div>
     </>
   );
@@ -104,6 +103,15 @@ function SocialAuthButtons({ oauthActionLabel }: { oauthActionLabel: string }) {
 function FormBackButton({ step, onBack }: { step: "email" | "password"; onBack: () => void }) {
   if (step === "password") return <StepBackButton onBack={onBack} />;
   return <BackButton />;
+}
+
+function ForgotPasswordLink({ action }: { action: "signIn" | "signUp" }) {
+  if (action !== "signIn") return null;
+  return (
+    <div className="flex justify-end">
+      <TextLink to="/forgot-password" size="xs">Forgot password?</TextLink>
+    </div>
+  );
 }
 
 function EmailForm({ submitLabel, action }: { submitLabel: string; action: "signIn" | "signUp" }) {
@@ -183,6 +191,7 @@ function EmailForm({ submitLabel, action }: { submitLabel: string; action: "sign
         <FormBackButton step={step} onBack={handleBack} />
         <SubmitButton>{submitLabel}</SubmitButton>
       </div>
+      <ForgotPasswordLink action={action} />
     </form>
   );
 }

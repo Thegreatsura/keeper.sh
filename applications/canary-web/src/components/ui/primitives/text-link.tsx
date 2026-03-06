@@ -8,6 +8,7 @@ const textLink = tv({
     size: {
       base: "text-base",
       sm: "text-sm",
+      xs: "text-xs",
     },
     tone: {
       muted: "text-foreground-muted hover:text-foreground",

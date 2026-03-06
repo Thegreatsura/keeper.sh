@@ -17,6 +17,7 @@ import { Route as marketingIndexRouteImport } from './../../routes/(marketing)/i
 import { Route as authVerifyEmailRouteImport } from './../../routes/(auth)/verify-email'
 import { Route as authRegisterRouteImport } from './../../routes/(auth)/register'
 import { Route as authLoginRouteImport } from './../../routes/(auth)/login'
+import { Route as authForgotPasswordRouteImport } from './../../routes/(auth)/forgot-password'
 import { Route as oauthDashboardRouteRouteImport } from './../../routes/(oauth)/dashboard/route'
 import { Route as oauthAuthRouteRouteImport } from './../../routes/(oauth)/auth/route'
 import { Route as dashboardDashboardIndexRouteImport } from './../../routes/(dashboard)/dashboard/index'
@@ -79,6 +80,11 @@ const authRegisterRoute = authRegisterRouteImport.update({
 const authLoginRoute = authLoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => authRouteRoute,
+} as any)
+const authForgotPasswordRoute = authForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => authRouteRoute,
 } as any)
 const oauthDashboardRouteRoute = oauthDashboardRouteRouteImport.update({
@@ -242,6 +248,7 @@ const dashboardDashboardAccountsAccountIdCalendarIdRoute =
 export interface FileRoutesByFullPath {
   '/auth': typeof oauthAuthRouteRouteWithChildren
   '/dashboard': typeof oauthDashboardRouteRouteWithChildren
+  '/forgot-password': typeof authForgotPasswordRoute
   '/login': typeof authLoginRoute
   '/register': typeof authRegisterRoute
   '/verify-email': typeof authVerifyEmailRoute
@@ -274,6 +281,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof oauthAuthRouteRouteWithChildren
   '/dashboard': typeof dashboardDashboardIndexRoute
+  '/forgot-password': typeof authForgotPasswordRoute
   '/login': typeof authLoginRoute
   '/register': typeof authRegisterRoute
   '/verify-email': typeof authVerifyEmailRoute
@@ -308,6 +316,7 @@ export interface FileRoutesById {
   '/(oauth)': typeof oauthRouteRouteWithChildren
   '/(oauth)/auth': typeof oauthAuthRouteRouteWithChildren
   '/(oauth)/dashboard': typeof oauthDashboardRouteRouteWithChildren
+  '/(auth)/forgot-password': typeof authForgotPasswordRoute
   '/(auth)/login': typeof authLoginRoute
   '/(auth)/register': typeof authRegisterRoute
   '/(auth)/verify-email': typeof authVerifyEmailRoute
@@ -343,6 +352,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/auth'
     | '/dashboard'
+    | '/forgot-password'
     | '/login'
     | '/register'
     | '/verify-email'
@@ -375,6 +385,7 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/dashboard'
+    | '/forgot-password'
     | '/login'
     | '/register'
     | '/verify-email'
@@ -408,6 +419,7 @@ export interface FileRouteTypes {
     | '/(oauth)'
     | '/(oauth)/auth'
     | '/(oauth)/dashboard'
+    | '/(auth)/forgot-password'
     | '/(auth)/login'
     | '/(auth)/register'
     | '/(auth)/verify-email'
@@ -502,6 +514,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof authLoginRouteImport
+      parentRoute: typeof authRouteRoute
+    }
+    '/(auth)/forgot-password': {
+      id: '/(auth)/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof authForgotPasswordRouteImport
       parentRoute: typeof authRouteRoute
     }
     '/(oauth)/dashboard': {
@@ -697,12 +716,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface authRouteRouteChildren {
+  authForgotPasswordRoute: typeof authForgotPasswordRoute
   authLoginRoute: typeof authLoginRoute
   authRegisterRoute: typeof authRegisterRoute
   authVerifyEmailRoute: typeof authVerifyEmailRoute
 }
 
 const authRouteRouteChildren: authRouteRouteChildren = {
+  authForgotPasswordRoute: authForgotPasswordRoute,
   authLoginRoute: authLoginRoute,
   authRegisterRoute: authRegisterRoute,
   authVerifyEmailRoute: authVerifyEmailRoute,

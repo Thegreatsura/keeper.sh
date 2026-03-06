@@ -31,7 +31,7 @@ type ExternalLinkButtonOptions = ComponentPropsWithoutRef<"a"> & VariantProps<ty
 
 export function Button({ children, size, variant, className, ...props }: ButtonOptions) {
   return (
-    <button className={button({ size, variant, className })} {...props}>{children}</button>
+    <button draggable={false} className={button({ size, variant, className })} {...props}>{children}</button>
   )
 }
 

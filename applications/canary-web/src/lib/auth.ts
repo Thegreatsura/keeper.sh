@@ -38,6 +38,14 @@ export const signInWithGoogle = async (): Promise<void> => {
 
 export const signOut = () => authPost("/api/auth/sign-out");
 
+export const forgotPassword = async (email: string): Promise<void> => {
+  const { error } = await authClient.requestPasswordReset({
+    email,
+    redirectTo: "/reset-password",
+  });
+  if (error) throw new Error(error.message ?? "Failed to send reset email");
+};
+
 export const changePassword = (currentPassword: string, newPassword: string) =>
   authPost("/api/auth/change-password", { currentPassword, newPassword });
 
