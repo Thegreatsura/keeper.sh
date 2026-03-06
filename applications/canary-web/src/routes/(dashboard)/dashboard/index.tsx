@@ -53,7 +53,7 @@ function DashboardPage() {
             <NavigationMenuItemIcon>
               <CalendarPlus size={15} />
             </NavigationMenuItemIcon>
-            <NavigationMenuItemLabel>Add Calendar Source</NavigationMenuItemLabel>
+            <NavigationMenuItemLabel>Import Calendars</NavigationMenuItemLabel>
             <NavigationMenuItemTrailing />
           </NavigationMenuItem>
         </NavigationMenu>
