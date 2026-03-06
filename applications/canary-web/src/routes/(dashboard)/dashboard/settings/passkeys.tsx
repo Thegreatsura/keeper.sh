@@ -34,12 +34,14 @@ function PasskeysPage() {
   const { data: passkeys = [], error, mutate } = usePasskeys();
   const [deleteTarget, setDeleteTarget] = useState<Passkey | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [isMutating, setIsMutating] = useState(false);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const targetId = deleteTarget.id;
     setDeleteTarget(null);
     setMutationError(null);
+    setIsMutating(true);
     try {
       await mutate(
         async (current) => {
@@ -54,16 +56,21 @@ function PasskeysPage() {
       );
     } catch (err) {
       setMutationError(resolveErrorMessage(err, "Failed to delete passkey."));
+    } finally {
+      setIsMutating(false);
     }
   };
 
   const handleAdd = async () => {
     setMutationError(null);
+    setIsMutating(true);
     try {
       await addPasskey();
       await mutate();
     } catch (err) {
       setMutationError(resolveErrorMessage(err, "Failed to add passkey."));
+    } finally {
+      setIsMutating(false);
     }
   };
 
@@ -84,11 +91,11 @@ function PasskeysPage() {
             </NavigationMenuItemTrailing>
           </NavigationMenuItem>
         ))}
-        <NavigationMenuItem onClick={handleAdd}>
+        <NavigationMenuItem onClick={isMutating ? undefined : handleAdd}>
           <NavigationMenuItemIcon>
             <Plus size={15} />
           </NavigationMenuItemIcon>
-          <NavigationMenuItemLabel>Add Passkey</NavigationMenuItemLabel>
+          <NavigationMenuItemLabel>{isMutating ? "Working..." : "Add Passkey"}</NavigationMenuItemLabel>
         </NavigationMenuItem>
       </NavigationMenu>
       <Modal open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>

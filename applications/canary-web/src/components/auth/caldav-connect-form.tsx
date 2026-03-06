@@ -11,7 +11,7 @@ import { apiFetch } from "../../lib/fetcher";
 import { invalidateAccountsAndSources } from "../../lib/swr";
 import { resolveErrorMessage } from "../../utils/errors";
 
-type CalDAVProvider = "fastmail" | "icloud" | "caldav";
+export type CalDAVProvider = "fastmail" | "icloud" | "caldav";
 
 function resolveUsernameInputType(provider: CalDAVProvider): string {
   if (provider === "caldav") return "text";

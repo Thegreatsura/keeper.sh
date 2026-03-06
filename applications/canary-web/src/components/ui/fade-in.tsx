@@ -14,6 +14,8 @@ const variants: Record<Direction, { hidden: TargetAndTransition; visible: Target
   },
 };
 
+const TRANSITION = { duration: 0.2 } as const;
+
 interface FadeInProps extends HTMLMotionProps<"div"> {
   direction: Direction;
 }
@@ -26,7 +28,7 @@ export function FadeIn({ direction, children, ...props }: PropsWithChildren<Fade
       initial={hidden}
       animate={visible}
       exit={hidden}
-      transition={{ duration: 0.2 }}
+      transition={TRANSITION}
       {...props}
     >
       {children}

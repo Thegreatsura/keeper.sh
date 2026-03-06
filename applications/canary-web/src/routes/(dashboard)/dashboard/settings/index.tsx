@@ -37,17 +37,21 @@ function SettingsPage() {
   const { data: passkeys = [] } = usePasskeys();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteAccount = async () => {
     const password = passwordRef.current?.value;
     if (!password) return;
     setDeleteError(null);
+    setIsDeleting(true);
     try {
       await deleteAccount(password);
       setDeleteOpen(false);
       navigate({ to: "/login" });
     } catch (err) {
       setDeleteError(resolveErrorMessage(err, "Failed to delete account."));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -102,8 +106,8 @@ function SettingsPage() {
           <Input ref={passwordRef} type="password" placeholder="Confirm your password" />
           {deleteError && <Text size="sm" tone="danger">{deleteError}</Text>}
           <ModalFooter>
-            <Button variant="destructive" className="w-full justify-center" onClick={handleDeleteAccount}>
-              <ButtonText>Delete my account</ButtonText>
+            <Button variant="destructive" className="w-full justify-center" onClick={handleDeleteAccount} disabled={isDeleting}>
+              <ButtonText>{isDeleting ? "Deleting..." : "Delete my account"}</ButtonText>
             </Button>
             <Button variant="elevated" className="w-full justify-center" onClick={() => setDeleteOpen(false)}>
               <ButtonText>Cancel</ButtonText>

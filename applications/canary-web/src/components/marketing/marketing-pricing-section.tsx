@@ -8,13 +8,13 @@ import { CheckIcon, InfinityIcon, MinusIcon } from "lucide-react";
 type ClassNameProps = PropsWithChildren<{ className?: string }>;
 type MarketingPricingCardProps = ClassNameProps & VariantProps<typeof marketingPricingCard>;
 export type MarketingPricingFeatureValueKind =
-  | string
   | "check"
   | "minus"
-  | "infinity";
+  | "infinity"
+  | (string & {});
 
 type MarketingPricingPlanCardProps = {
-  highlighted?: boolean;
+  tone?: "default" | "inverse";
   name: string;
   price: string;
   period: string;
@@ -116,26 +116,20 @@ const pricingFeatureValueDisplay = tv({
   },
 });
 
-function resolvePricingTone(highlighted: boolean): "inverse" | "default" {
-  if (highlighted) return "inverse";
-  return "default";
-}
-
-function resolvePricingCopyTone(highlighted: boolean): "inverseMuted" | "muted" {
-  if (highlighted) return "inverseMuted";
+function resolveCopyTone(tone: "default" | "inverse"): "inverseMuted" | "muted" {
+  if (tone === "inverse") return "inverseMuted";
   return "muted";
 }
 
 export function MarketingPricingPlanCard({
-  highlighted = false,
+  tone = "default",
   name,
   price,
   period,
   description,
   ctaLabel,
 }: MarketingPricingPlanCardProps) {
-  const tone = resolvePricingTone(highlighted);
-  const copyTone = resolvePricingCopyTone(highlighted);
+  const copyTone = resolveCopyTone(tone);
 
   return (
     <MarketingPricingCard tone={tone}>
@@ -182,19 +176,13 @@ export function MarketingPricingFeatureValue({ children }: PropsWithChildren) {
   return <div className="flex justify-center py-4 tabular-nums">{children}</div>;
 }
 
-function resolveFeatureTone(muted: boolean | undefined): "muted" | "default" {
-  if (muted) return "muted";
-  return "default";
-}
-
 export function MarketingPricingFeatureDisplay({
   value,
-  muted = false,
+  tone = "default",
 }: {
   value: MarketingPricingFeatureValueKind;
-  muted?: boolean;
+  tone?: "muted" | "default";
 }) {
-  const tone = resolveFeatureTone(muted);
   const className = pricingFeatureValueDisplay({ tone });
 
   if (value === "check") {
@@ -210,7 +198,7 @@ export function MarketingPricingFeatureDisplay({
   }
 
   return (
-    <Text size="sm" tone={resolveFeatureTone(muted)} align="center">
+    <Text size="sm" tone={tone} align="center">
       {value}
     </Text>
   );

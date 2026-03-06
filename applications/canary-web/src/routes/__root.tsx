@@ -7,6 +7,17 @@ import { LinkButton, ButtonText } from "../components/ui/button";
 import { fetcher } from "../lib/fetcher";
 import { resolveErrorMessage } from "../utils/errors";
 
+const SWR_CONFIG = {
+  fetcher,
+  revalidateOnFocus: true,
+  revalidateOnReconnect: true,
+  dedupingInterval: 2000,
+  errorRetryCount: 3,
+  onError: (error: unknown, key: string) => {
+    console.error(`[SWR] ${key}:`, error);
+  },
+} as const;
+
 export const Route = createRootRoute({
   component: RootComponent,
   notFoundComponent: NotFound,
@@ -15,18 +26,7 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   return (
-    <SWRConfig
-      value={{
-        fetcher,
-        revalidateOnFocus: true,
-        revalidateOnReconnect: true,
-        dedupingInterval: 2000,
-        errorRetryCount: 3,
-        onError: (error, key) => {
-          console.error(`[SWR] ${key}:`, error);
-        },
-      }}
-    >
+    <SWRConfig value={SWR_CONFIG}>
       <Outlet />
     </SWRConfig>
   );

@@ -311,14 +311,18 @@ function RenameSection({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name }),
         });
-        return current?.map((calendar) => {
-          if (calendar.id === calendarId) {
-            return { ...calendar, name };
-          }
-          return calendar;
-        });
+        return current?.map((calendar) =>
+          calendar.id === calendarId ? { ...calendar, name } : calendar,
+        );
       },
-      { revalidate: false },
+      {
+        optimisticData: (current) =>
+          (current ?? []).map((calendar) =>
+            calendar.id === calendarId ? { ...calendar, name } : calendar,
+          ),
+        rollbackOnError: true,
+        revalidate: false,
+      },
     );
   };
 

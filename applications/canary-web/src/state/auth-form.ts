@@ -14,15 +14,5 @@ type AuthFormError = {
   active: boolean;
 } | null;
 
-const authFormErrorBaseAtom = atom<AuthFormError>(null);
-
-export const authFormErrorAtom = atom(
-  (get) => get(authFormErrorBaseAtom),
-  (_get, set, update: AuthFormError) => {
-    set(authFormErrorBaseAtom, update);
-  }
-);
-
-authFormErrorAtom.onMount = (set) => {
-  return () => set(null);
-};
+export const authFormErrorAtom = atom<AuthFormError>(null);
+authFormErrorAtom.onMount = (set) => () => set(null);

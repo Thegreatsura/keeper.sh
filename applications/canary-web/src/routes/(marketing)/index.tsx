@@ -1,9 +1,9 @@
+import { lazy, Suspense } from 'react'
 import { useSetAtom } from 'jotai'
 import { createFileRoute } from '@tanstack/react-router'
 import { Heading1, Heading2, Heading3 } from '../../components/ui/heading'
 import { Text } from '../../components/ui/text'
 import { ButtonIcon, ButtonText, ExternalLinkButton, LinkButton } from '../../components/ui/button'
-import { MarketingIllustrationCalendar, MarketingIllustrationCalendarCard, Skew, SkewTuple } from '../../components/marketing/marketing-illustration-calendar'
 import {
   MarketingFeatureBentoBody,
   MarketingFeatureBentoCard,
@@ -26,6 +26,11 @@ import {
 } from '../../components/marketing/marketing-pricing-section'
 import { calendarEmphasizedAtom } from '../../state/calendar-emphasized'
 import { ArrowRightIcon, ArrowUpRightIcon } from 'lucide-react'
+import type { Skew, SkewTuple } from '../../components/marketing/marketing-illustration-calendar'
+
+const illustrationModule = import('../../components/marketing/marketing-illustration-calendar')
+const LazyIllustrationCalendar = lazy(() => illustrationModule.then(mod => ({ default: mod.MarketingIllustrationCalendar })))
+const LazyIllustrationCalendarCard = lazy(() => illustrationModule.then(mod => ({ default: mod.MarketingIllustrationCalendarCard })))
 
 const createSkew = (rotate: number, x: number, y: number): Skew => ({ rotate, x, y });
 
@@ -98,7 +103,7 @@ type PricingPlan = {
   period: string
   description: string
   ctaLabel: string
-  highlighted?: boolean
+  tone?: "default" | "inverse"
 }
 
 const PRICING_PLANS: PricingPlan[] = [
@@ -119,7 +124,7 @@ const PRICING_PLANS: PricingPlan[] = [
     description:
       'For power users who want minutely syncs and unlimited calendars.',
     ctaLabel: 'Start Free Trial',
-    highlighted: true,
+    tone: "inverse" as const,
   },
 ]
 
@@ -173,11 +178,13 @@ function MarketingPage() {
       </div>
       <div className="contents *:z-10">
         <div className="flex flex-col">
-          <MarketingIllustrationCalendar>
-            <MarketingIllustrationCalendarCard skew={SKEW_BACK_LEFT} />
-            <MarketingIllustrationCalendarCard skew={SKEW_BACK_RIGHT} />
-            <MarketingIllustrationCalendarCard skew={SKEW_FRONT} />
-          </MarketingIllustrationCalendar>
+          <Suspense>
+            <LazyIllustrationCalendar>
+              <LazyIllustrationCalendarCard skew={SKEW_BACK_LEFT} />
+              <LazyIllustrationCalendarCard skew={SKEW_BACK_RIGHT} />
+              <LazyIllustrationCalendarCard skew={SKEW_FRONT} />
+            </LazyIllustrationCalendar>
+          </Suspense>
           <MarketingFeatureBentoSection>
             <MarketingFeatureBentoGrid>
               {MARKETING_FEATURES.map((feature) => (
@@ -208,7 +215,7 @@ function MarketingPage() {
               {PRICING_PLANS.map((plan) => (
                 <MarketingPricingPlanCard
                   key={plan.id}
-                  highlighted={plan.highlighted}
+                  tone={plan.tone}
                   name={plan.name}
                   price={plan.price}
                   period={plan.period}
@@ -224,10 +231,10 @@ function MarketingPage() {
                       <Text size="sm" className="text-left text-nowrap">{feature.label}</Text>
                     </MarketingPricingFeatureLabel>
                     <MarketingPricingFeatureValue>
-                      <MarketingPricingFeatureDisplay value={feature.free} muted />
+                      <MarketingPricingFeatureDisplay value={feature.free} tone="muted" />
                     </MarketingPricingFeatureValue>
                     <MarketingPricingFeatureValue>
-                      <MarketingPricingFeatureDisplay value={feature.pro} muted />
+                      <MarketingPricingFeatureDisplay value={feature.pro} tone="muted" />
                     </MarketingPricingFeatureValue>
                   </MarketingPricingFeatureRow>
                 ))}

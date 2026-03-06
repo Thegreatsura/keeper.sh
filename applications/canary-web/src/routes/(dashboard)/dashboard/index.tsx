@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import useSWR, { preload } from "swr";
 import { AnimatedReveal } from "../../../components/ui/animated-reveal";
-import { Calendar, CalendarPlus, CalendarDays, Settings, Sparkles, LogOut, LoaderCircle } from "lucide-react";
+import { Calendar, CalendarPlus, CalendarDays, Settings, Sparkles, LogOut, LoaderCircle, User } from "lucide-react";
 import { ErrorState } from "../../../components/ui/error-state";
 import { signOut } from "../../../lib/auth";
 import { fetcher } from "../../../lib/fetcher";
@@ -22,7 +22,6 @@ import { ProviderIconStack } from "../../../components/ui/provider-icon-stack";
 import { getAccountLabel } from "../../../utils/accounts";
 import { pluralize } from "../../../lib/pluralize";
 import { useAnimatedSWR } from "../../../hooks/use-animated-swr";
-import { User } from "lucide-react";
 
 export const Route = createFileRoute("/(dashboard)/dashboard/")({
   component: DashboardPage,
@@ -35,14 +34,14 @@ function DashboardPage() {
     navigate({ to: "/login" });
   };
 
-  const { data: accountsData } = useAnimatedSWR<CalendarAccount[]>("/api/accounts");
+  const { data: accountsData, isLoading: accountsLoading, error: accountsError, mutate: mutateAccounts } = useAnimatedSWR<CalendarAccount[]>("/api/accounts");
   const accounts = accountsData ?? [];
 
   const { data: calendarsData, shouldAnimate: animateCalendars, isLoading: calendarsLoading, error, mutate: mutateCalendars } = useAnimatedSWR<CalendarSource[]>("/api/sources");
   const calendars = calendarsData ?? [];
 
-  const { data: eventCountData } = useSWR<{ count: number }>("/api/events/count");
-  const eventCount = eventCountData?.count;
+  const { data: eventCountData, error: eventCountError } = useSWR<{ count: number }>("/api/events/count");
+  const eventCount = eventCountError ? undefined : eventCountData?.count;
 
   return (
     <div className="flex flex-col">
@@ -124,7 +123,7 @@ function DashboardPage() {
         </NavigationMenu>
         <NavigationMenu>
           <NavigationMenuPopover
-            disabled={accounts.length === 0}
+            disabled={accounts.length === 0 && !accountsLoading}
             trigger={
               <>
                 <NavigationMenuItemIcon>
@@ -139,6 +138,12 @@ function DashboardPage() {
               </>
             }
           >
+            {accountsError && <ErrorState message="Failed to load accounts." onRetry={() => mutateAccounts()} />}
+            {accountsLoading && (
+              <div className="flex justify-center py-4">
+                <LoaderCircle size={16} className="animate-spin text-foreground-muted" />
+              </div>
+            )}
             {accounts.map((account) => (
               <NavigationMenuItem
                 key={account.id}

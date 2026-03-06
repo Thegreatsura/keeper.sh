@@ -1,4 +1,3 @@
-import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import { authClient } from "../lib/auth-client";
 
 interface CheckoutCallbacks {
@@ -6,11 +5,14 @@ interface CheckoutCallbacks {
 }
 
 export async function openCheckout(productId: string, callbacks?: CheckoutCallbacks): Promise<void> {
-  const response = await authClient.checkout({
-    embedOrigin: globalThis.location.origin,
-    products: [productId],
-    redirect: false,
-  });
+  const [{ PolarEmbedCheckout }, response] = await Promise.all([
+    import("@polar-sh/checkout/embed"),
+    authClient.checkout({
+      embedOrigin: globalThis.location.origin,
+      products: [productId],
+      redirect: false,
+    }),
+  ]);
 
   if (!response.data?.url) {
     throw new Error("Failed to create checkout session");

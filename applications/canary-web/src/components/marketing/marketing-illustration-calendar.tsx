@@ -1,10 +1,9 @@
 import { useAtomValue } from "jotai";
 import { motion } from "motion/react";
-import type { TargetAndTransition } from "motion/react";
 import { memo, type PropsWithChildren } from "react";
 import { calendarEmphasizedAtom } from "../../state/calendar-emphasized";
 
-export interface Skew extends TargetAndTransition {
+export interface Skew {
   rotate: number;
   x: number;
   y: number;

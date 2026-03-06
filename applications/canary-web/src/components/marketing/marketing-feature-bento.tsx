@@ -26,14 +26,16 @@ export function MarketingFeatureBentoCard({
   );
 }
 
+const ILLUSTRATION_STYLE = {
+  backgroundImage:
+    "repeating-linear-gradient(-45deg, transparent 0 14px, var(--color-illustration-stripe) 14px 15px)",
+} as const;
+
 export function MarketingFeatureBentoIllustration({ children }: PropsWithChildren) {
   return (
     <div
       className="bg-background flex items-center justify-center p-12 min-h-32"
-      style={{
-        backgroundImage:
-          "repeating-linear-gradient(-45deg, transparent 0 14px, var(--color-illustration-stripe) 14px 15px)",
-      }}
+      style={ILLUSTRATION_STYLE}
     >
       {children}
     </div>

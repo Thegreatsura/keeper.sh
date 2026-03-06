@@ -2,9 +2,7 @@ import type { ReactNode } from "react";
 import { Heading2 } from "../ui/heading";
 import { Text } from "../ui/text";
 import { ProviderIconPair } from "./oauth-preamble";
-import { CalDAVConnectForm } from "./caldav-connect-form";
-
-type CalDAVProvider = "fastmail" | "icloud" | "caldav";
+import { CalDAVConnectForm, type CalDAVProvider } from "./caldav-connect-form";
 
 interface CalDAVConnectPageProps {
   provider: CalDAVProvider;

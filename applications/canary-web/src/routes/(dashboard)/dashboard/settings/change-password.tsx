@@ -1,5 +1,6 @@
-import { useState, type SubmitEvent } from "react";
+import { useState, useTransition, type SubmitEvent } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { LoaderCircle } from "lucide-react";
 import { Button, ButtonText } from "../../../../components/ui/button";
 import { BackButton } from "../../../../components/ui/back-button";
 import { Text } from "../../../../components/ui/text";
@@ -22,8 +23,9 @@ function resolveInputTone(error: string | null): "error" | "neutral" {
 function ChangePasswordPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     const formData = new FormData(event.currentTarget);
@@ -38,12 +40,14 @@ function ChangePasswordPage() {
       return;
     }
 
-    try {
-      await changePassword(current, newPassword);
-      navigate({ to: "/dashboard/settings" });
-    } catch (err) {
-      setError(resolveErrorMessage(err, "Failed to change password."));
-    }
+    startTransition(async () => {
+      try {
+        await changePassword(current, newPassword);
+        navigate({ to: "/dashboard/settings" });
+      } catch (err) {
+        setError(resolveErrorMessage(err, "Failed to change password."));
+      }
+    });
   };
 
   const inputTone = resolveInputTone(error);
@@ -59,8 +63,9 @@ function ChangePasswordPage() {
         </div>
         {error && <Text size="sm" tone="danger">{error}</Text>}
         <Divider />
-        <Button type="submit" variant="highlight" className="w-full justify-center">
-          <ButtonText>Save</ButtonText>
+        <Button type="submit" variant="highlight" className="w-full justify-center" disabled={isPending}>
+          {isPending && <LoaderCircle size={16} className="animate-spin" />}
+          <ButtonText>{isPending ? "Saving..." : "Save"}</ButtonText>
         </Button>
       </form>
     </div>

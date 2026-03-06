@@ -1,9 +1,8 @@
 import { StrictMode } from "react";
 import "./index.css";
-import { scan } from "react-scan";
 
 if (import.meta.env.DEV) {
-  scan({ enabled: true });
+  import("react-scan").then(({ scan }) => scan({ enabled: true }));
 }
 import { createRoot } from "react-dom/client";
 import { RouterProvider, createRouter } from "@tanstack/react-router";

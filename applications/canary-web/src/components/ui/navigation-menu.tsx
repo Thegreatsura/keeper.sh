@@ -367,6 +367,10 @@ export function NavigationMenuPopover({ trigger, children, disabled }: { trigger
   }, [expanded, close, open]);
 
   useEffect(() => {
+    return () => setOverlay(false);
+  }, [setOverlay]);
+
+  useEffect(() => {
     if (!expanded) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -414,6 +418,17 @@ export function NavigationMenuPopover({ trigger, children, disabled }: { trigger
   );
 }
 
+const POPOVER_INITIAL = { opacity: 1 } as const;
+const SHADOW_HIDDEN = { boxShadow: "0 0 0 0 rgba(0,0,0,0)" } as const;
+const SHADOW_VISIBLE = { boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)" } as const;
+const TRIGGER_INITIAL = { height: "fit-content" as const, filter: "blur(4px)", opacity: 1 };
+const TRIGGER_ANIMATE = { height: 0, filter: "blur(0)", opacity: 0 };
+const TRIGGER_EXIT = { height: "fit-content" as const, filter: "blur(0)", opacity: 1 };
+const CONTENT_INITIAL = { height: 0, filter: "blur(0)", opacity: 0 };
+const CONTENT_ANIMATE = { height: "fit-content" as const, filter: "blur(0)", opacity: 1 };
+const CONTENT_EXIT = { height: 0, filter: "blur(4px)", opacity: 0 };
+const POPOVER_CONTENT_STYLE = { maxHeight: "16rem" } as const;
+
 function NavigationMenuPopoverPanel({ children }: PropsWithChildren) {
   const { triggerContent } = usePopover();
   const variant = use(MenuVariantContext);
@@ -421,22 +436,22 @@ function NavigationMenuPopoverPanel({ children }: PropsWithChildren) {
   return (
     <motion.div
       className="absolute grid place-items-center -inset-0.75 pointer-events-none z-20"
-      initial={{ opacity: 1 }}
+      initial={POPOVER_INITIAL}
     >
       <motion.div
         className={navigationMenuStyle({
           variant,
           className: "w-full overflow-hidden pointer-events-auto"
         })}
-        initial={{ boxShadow: "0 0 0 0 rgba(0,0,0,0)" }}
-        animate={{ boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)" }}
-        exit={{ boxShadow: "0 0 0 0 rgba(0,0,0,0)" }}
+        initial={SHADOW_HIDDEN}
+        animate={SHADOW_VISIBLE}
+        exit={SHADOW_HIDDEN}
       >
         <motion.div
           className="flex flex-col justify-end"
-          initial={{ height: "fit-content", filter: "blur(4px)", opacity: 1 }}
-          animate={{ height: 0, filter: "blur(0)", opacity: 0 }}
-          exit={{ height: "fit-content", filter: "blur(0)", opacity: 1 }}
+          initial={TRIGGER_INITIAL}
+          animate={TRIGGER_ANIMATE}
+          exit={TRIGGER_EXIT}
         >
           <div className={navigationMenuItemStyle({ variant, interactive: false })}>
             {triggerContent}
@@ -445,12 +460,12 @@ function NavigationMenuPopoverPanel({ children }: PropsWithChildren) {
         </motion.div>
         <motion.div
           className="overflow-hidden"
-          initial={{ height: 0, filter: "blur(0)", opacity: 0 }}
-          animate={{ height: "fit-content", filter: "blur(0)", opacity: 1 }}
-          exit={{ height: 0, filter: "blur(4px)", opacity: 0 }}
+          initial={CONTENT_INITIAL}
+          animate={CONTENT_ANIMATE}
+          exit={CONTENT_EXIT}
         >
           <InsidePopoverContext value={true}>
-            <div className="overflow-y-auto" style={{ maxHeight: "16rem" }}>
+            <div className="overflow-y-auto" style={POPOVER_CONTENT_STYLE}>
               {children}
             </div>
           </InsidePopoverContext>
