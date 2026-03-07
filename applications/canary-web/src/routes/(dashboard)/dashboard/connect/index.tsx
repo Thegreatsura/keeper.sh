@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import Calendar from "lucide-react/dist/esm/icons/calendar";
 import Link from "lucide-react/dist/esm/icons/link";
-import Upload from "lucide-react/dist/esm/icons/upload";
 import { BackButton } from "../../../../components/ui/primitives/back-button";
 import {
   NavigationMenu,
