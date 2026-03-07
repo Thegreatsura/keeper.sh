@@ -1,4 +1,4 @@
-import { useRef, type Ref, type SubmitEvent } from "react";
+import { useEffect, useRef, type Ref, type SubmitEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAtomValue, useSetAtom } from "jotai";
 import { AnimatePresence, LazyMotion, type Variants } from "motion/react";
@@ -12,6 +12,7 @@ import {
   authFormStepAtom,
   type AuthFormStatus,
 } from "../../../state/auth-form";
+import { authClient } from "../../../lib/auth-client";
 import { signInWithEmail, signUpWithEmail } from "../../../lib/auth";
 import { Button, LinkButton, ButtonText, ButtonIcon } from "../../../components/ui/primitives/button";
 import { Divider } from "../../../components/ui/primitives/divider";
@@ -68,6 +69,7 @@ const backButtonVariants: Variants = {
 export function AuthForm({ copy }: { copy: AuthScreenCopy }) {
   return (
     <>
+      {copy.action === "signIn" && <PasskeyAutoFill />}
       <div className="flex flex-col py-2">
         <Heading2 as="span" className="text-center">{copy.heading}</Heading2>
         <Text size="sm" tone="muted" align="center">{copy.subtitle}</Text>
@@ -83,6 +85,31 @@ export function AuthForm({ copy }: { copy: AuthScreenCopy }) {
       </div>
     </>
   );
+}
+
+function PasskeyAutoFill() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (
+      !PublicKeyCredential.isConditionalMediationAvailable ||
+      !PublicKeyCredential.isConditionalMediationAvailable()
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    void authClient.signIn
+      .passkey({ autoFill: true, fetchOptions: { signal: controller.signal } })
+      .then(({ error }) => {
+        if (!error) navigate({ to: "/dashboard" });
+      });
+
+    return () => controller.abort();
+  }, [navigate]);
+
+  return null;
 }
 
 function SocialAuthButtons({ oauthActionLabel }: { oauthActionLabel: string }) {
@@ -112,6 +139,11 @@ function ForgotPasswordLink({ action }: { action: "signIn" | "signUp" }) {
       <TextLink to="/forgot-password" size="xs">Forgot password?</TextLink>
     </div>
   );
+}
+
+function resolveAutoComplete(action: "signIn" | "signUp", base: string): string {
+  if (action === "signIn") return `${base} webauthn`;
+  return base;
 }
 
 function EmailForm({ submitLabel, action }: { submitLabel: string; action: "signIn" | "signUp" }) {
@@ -171,7 +203,7 @@ function EmailForm({ submitLabel, action }: { submitLabel: string; action: "sign
   return (
     <form onSubmit={handleSubmit} className="contents">
       <div className="flex flex-col gap-1.5">
-        <EmailInput readOnly={step === "password"} />
+        <EmailInput readOnly={step === "password"} autoComplete={resolveAutoComplete(action, "email")} />
         <LazyMotion features={loadMotionFeatures}>
           <AnimatePresence>
             {step === "password" && (
@@ -181,7 +213,7 @@ function EmailForm({ submitLabel, action }: { submitLabel: string; action: "sign
                 exit={{ height: 0, opacity: 0, overflow: "hidden" }}
                 transition={{ duration: 0.2 }}
               >
-                <PasswordInput ref={passwordRef} />
+                <PasswordInput ref={passwordRef} autoComplete={resolveAutoComplete(action, "current-password")} />
               </m.div>
             )}
           </AnimatePresence>
@@ -221,7 +253,7 @@ function AuthError() {
   );
 }
 
-function EmailInput({ readOnly }: { readOnly?: boolean }) {
+function EmailInput({ readOnly, autoComplete }: { readOnly?: boolean; autoComplete?: string }) {
   const status = useAtomValue(authFormStatusAtom);
   const error = useAtomValue(authFormErrorAtom);
   const setError = useSetAtom(authFormErrorAtom);
@@ -237,13 +269,14 @@ function EmailInput({ readOnly }: { readOnly?: boolean }) {
       disabled={status === "loading"}
       type="email"
       placeholder="johndoe+keeper@example.com"
+      autoComplete={autoComplete}
       tone={resolveInputTone(error?.active)}
       onChange={clearError}
     />
   );
 }
 
-function PasswordInput({ ref }: { ref?: Ref<HTMLInputElement> }) {
+function PasswordInput({ ref, autoComplete }: { ref?: Ref<HTMLInputElement>; autoComplete?: string }) {
   const status = useAtomValue(authFormStatusAtom);
   const error = useAtomValue(authFormErrorAtom);
   const setError = useSetAtom(authFormErrorAtom);
@@ -259,6 +292,7 @@ function PasswordInput({ ref }: { ref?: Ref<HTMLInputElement> }) {
       disabled={status === "loading"}
       type="password"
       placeholder="Password"
+      autoComplete={autoComplete}
       tone={resolveInputTone(error?.active)}
       onChange={clearError}
     />
