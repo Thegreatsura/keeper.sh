@@ -92,8 +92,8 @@ function PasskeyAutoFill() {
 
   useEffect(() => {
     if (
-      !PublicKeyCredential.isConditionalMediationAvailable ||
-      !PublicKeyCredential.isConditionalMediationAvailable()
+      typeof PublicKeyCredential === "undefined" ||
+      !PublicKeyCredential.isConditionalMediationAvailable?.()
     ) {
       return;
     }
