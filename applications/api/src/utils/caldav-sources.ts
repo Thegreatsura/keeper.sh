@@ -7,6 +7,7 @@ import {
 import { and, eq, inArray } from "drizzle-orm";
 import { encryptPassword } from "@keeper.sh/encryption";
 import { database, premiumService, encryptionKey } from "../context";
+import { triggerDestinationSync } from "./sync";
 
 const FIRST_RESULT_LIMIT = 1;
 const CALDAV_CALENDAR_TYPE = "caldav";
@@ -218,6 +219,8 @@ const createCalDAVSource = async (
   if (!source) {
     throw new Error("Failed to create CalDAV source");
   }
+
+  triggerDestinationSync(userId);
 
   return {
     accountId,

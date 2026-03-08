@@ -31,6 +31,7 @@ import { ProviderIconStack } from "../../../components/ui/primitives/provider-ic
 import { getAccountLabel } from "../../../utils/accounts";
 import { pluralize } from "../../../lib/pluralize";
 import { useAnimatedSWR } from "../../../hooks/use-animated-swr";
+import { SyncStatus } from "../../../features/dashboard/components/sync-status";
 
 export const Route = createFileRoute("/(dashboard)/dashboard/")({
   component: DashboardPage,
@@ -40,11 +41,12 @@ function DashboardPage() {
   const navigate = useNavigate();
   const handleLogout = async () => {
     await signOut();
-    navigate({ to: "/login" });
+    navigate({ to: "/" });
   };
 
   return (
     <div className="flex flex-col">
+      <SyncStatus />
       <EventGraph />
       <div className="flex flex-col gap-1.5">
         <NavigationMenu>

@@ -142,7 +142,7 @@ function ForgotPasswordLink({ action }: { action: "signIn" | "signUp" }) {
 }
 
 function resolveAutoComplete(action: "signIn" | "signUp", base: string): string {
-  if (action === "signIn") return `${base} webauthn`;
+  if (action === "signIn" && base === "email") return `${base} webauthn`;
   return base;
 }
 

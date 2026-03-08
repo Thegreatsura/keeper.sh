@@ -5,6 +5,7 @@ import { loadMotionFeatures } from "../../lib/motion-features";
 import * as m from "motion/react-m";
 import { popoverOverlayAtom } from "../../state/popover-overlay";
 import { hasSessionCookie } from "../../lib/session-cookie";
+import { SyncProvider } from "../../providers/sync-provider";
 
 export const Route = createFileRoute("/(dashboard)")({
   beforeLoad: () => {
@@ -32,6 +33,7 @@ function DashboardLayout() {
             )}
           </AnimatePresence>
         </LazyMotion>
+        <SyncProvider />
         <Outlet />
       </div>
     </div>

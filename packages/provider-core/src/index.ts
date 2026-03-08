@@ -51,6 +51,12 @@ export {
   type SyncStage,
 } from "./sync/coordinator";
 export {
+  SyncAggregateTracker,
+  type SyncAggregateSnapshot,
+  type SyncAggregateMessage,
+  type SyncAggregateTrackerConfig,
+} from "./sync/aggregate-tracker";
+export {
   getEventMappingsForDestination,
   createEventMapping,
   deleteEventMapping,

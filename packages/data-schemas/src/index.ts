@@ -126,6 +126,17 @@ const syncStatusSchema = type({
 });
 type SyncStatus = typeof syncStatusSchema.infer;
 
+const syncAggregateSchema = type({
+  progressPercent: "number",
+  seq: "number",
+  syncEventsProcessed: "number",
+  syncEventsRemaining: "number",
+  syncEventsTotal: "number",
+  syncing: "boolean",
+  "lastSyncedAt?": "string | null",
+});
+type SyncAggregate = typeof syncAggregateSchema.infer;
+
 const broadcastMessageSchema = type({
   data: "unknown",
   event: "string",
@@ -258,6 +269,7 @@ export {
   socketMessageSchema,
   syncOperationSchema,
   syncStatusSchema,
+  syncAggregateSchema,
   broadcastMessageSchema,
   userSchema,
   signUpBodySchema,
@@ -292,6 +304,7 @@ export type {
   SocketMessage,
   SyncOperation,
   SyncStatus,
+  SyncAggregate,
   BroadcastMessage,
   User,
   SignUpBody,

@@ -16,7 +16,7 @@ export const navigationMenuStyle = tv({
 export type MenuVariant = VariantProps<typeof navigationMenuStyle>["variant"];
 
 export const navigationMenuItemStyle = tv({
-  base: "rounded-xl flex items-center gap-3 p-3 w-full",
+  base: "rounded-xl flex items-center gap-3 p-3.5 sm:p-3 w-full",
   variants: {
     variant: {
       default: "",

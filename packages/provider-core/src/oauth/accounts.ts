@@ -1,13 +1,14 @@
 import {
   calendarAccountsTable,
   calendarsTable,
+  eventMappingsTable,
   eventStatesTable,
   oauthCredentialsTable,
   sourceDestinationMappingsTable,
   userSubscriptionsTable,
 } from "@keeper.sh/database/schema";
 import { getStartOfToday } from "@keeper.sh/date-utils";
-import { and, asc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, or } from "drizzle-orm";
 import type { Plan } from "@keeper.sh/premium";
 import type { SyncableEvent } from "../types";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
@@ -20,6 +21,18 @@ interface OAuthAccount {
   refreshToken: string;
   accessTokenExpiresAt: Date;
 }
+
+const getDestinationScopeFilter = (database: BunSQLDatabase) =>
+  or(
+    inArray(calendarsTable.id,
+      database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
+        .from(sourceDestinationMappingsTable)
+    ),
+    inArray(calendarsTable.id,
+      database.selectDistinct({ id: eventMappingsTable.calendarId })
+        .from(eventMappingsTable)
+    ),
+  );
 
 const getOAuthAccountsByPlan = async (
   database: BunSQLDatabase,
@@ -50,10 +63,7 @@ const getOAuthAccountsByPlan = async (
       and(
         eq(calendarAccountsTable.provider, provider),
         eq(calendarAccountsTable.needsReauthentication, false),
-        inArray(calendarsTable.id,
-          database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
-            .from(sourceDestinationMappingsTable)
-        ),
+        getDestinationScopeFilter(database),
       ),
     );
 
@@ -105,10 +115,7 @@ const getOAuthAccountsForUser = async (
         eq(calendarAccountsTable.provider, provider),
         eq(calendarsTable.userId, userId),
         eq(calendarAccountsTable.needsReauthentication, false),
-        inArray(calendarsTable.id,
-          database.selectDistinct({ id: sourceDestinationMappingsTable.destinationCalendarId })
-            .from(sourceDestinationMappingsTable)
-        ),
+        getDestinationScopeFilter(database),
       ),
     );
 

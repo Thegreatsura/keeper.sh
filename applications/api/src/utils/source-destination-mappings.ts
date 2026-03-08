@@ -5,6 +5,7 @@ import {
 } from "@keeper.sh/database/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { database } from "../context";
+import { triggerDestinationSync } from "./sync";
 
 const EMPTY_LIST_COUNT = 0;
 
@@ -125,6 +126,8 @@ const setDestinationsForSource = async (
         .onConflictDoNothing();
     }
   }
+
+  triggerDestinationSync(userId);
 };
 
 const setSourcesForDestination = async (
@@ -176,6 +179,8 @@ const setSourcesForDestination = async (
       .values({ calendarId: destinationCalendarId })
       .onConflictDoNothing();
   }
+
+  triggerDestinationSync(userId);
 };
 
 export {

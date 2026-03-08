@@ -1,4 +1,4 @@
-import { use, useMemo } from "react";
+import { use, useEffect, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import useSWR, { preload, useSWRConfig } from "swr";
 import CheckIcon from "lucide-react/dist/esm/icons/check";
@@ -110,15 +110,28 @@ function CalendarDetailSeed({ calendarId }: { calendarId: string }) {
   const { data, error } = useSWR<CalendarDetail>(`/api/sources/${calendarId}`);
   const store = useStore();
 
-  if (data && store.get(calendarDetailLoadedAtom) !== calendarId) {
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+
+    if (store.get(calendarDetailLoadedAtom) === calendarId) {
+      return;
+    }
+
     store.set(calendarDetailAtom, data);
     store.set(calendarDetailLoadedAtom, calendarId);
+    store.set(calendarDetailErrorAtom, null);
     store.set(destinationIdsAtom, new Set<string>());
-  }
+  }, [calendarId, data, store]);
 
-  if (error && !store.get(calendarDetailErrorAtom)) {
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+
     store.set(calendarDetailErrorAtom, error);
-  }
+  }, [error, store]);
 
   return null;
 }
@@ -269,9 +282,17 @@ function DestinationsSeed({ calendarId }: { calendarId: string }) {
   );
   const store = useStore();
 
-  if (data && store.get(destinationIdsAtom).size === 0) {
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+
+    if (store.get(destinationIdsAtom).size !== 0) {
+      return;
+    }
+
     store.set(destinationIdsAtom, new Set(data.destinationIds));
-  }
+  }, [data, store]);
 
   return null;
 }

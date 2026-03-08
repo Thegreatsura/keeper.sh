@@ -1,16 +1,44 @@
 import { syncStatusTable, calendarsTable, sourceDestinationMappingsTable } from "@keeper.sh/database/schema";
 import { createWebsocketHandler } from "@keeper.sh/broadcast";
 import type { Socket } from "@keeper.sh/broadcast";
-import { and, eq, inArray } from "drizzle-orm";
-import { database } from "../context";
+import { syncAggregateSchema } from "@keeper.sh/data-schemas";
+import { and, eq, inArray, max } from "drizzle-orm";
+import { database, getCachedSyncAggregate, getCurrentSyncAggregate } from "../context";
+
+const INITIAL_COUNT = 0;
+const COMPLETE_PERCENT = 100;
+
+const resolvePayload = async (
+  userId: string,
+  fallback: {
+    progressPercent: number;
+    syncEventsProcessed: number;
+    syncEventsRemaining: number;
+    syncEventsTotal: number;
+    lastSyncedAt: string | null;
+  },
+) => {
+  const current = getCurrentSyncAggregate(userId, fallback);
+  const hasLiveCurrent = current.syncing || current.syncEventsRemaining > INITIAL_COUNT;
+  if (hasLiveCurrent) {
+    return current;
+  }
+
+  const cached = await getCachedSyncAggregate(userId);
+  if (!cached || !syncAggregateSchema.allows(cached)) {
+    return current;
+  }
+
+  return {
+    ...cached,
+    ...(cached.lastSyncedAt === undefined && { lastSyncedAt: fallback.lastSyncedAt }),
+  };
+};
 
 const sendInitialSyncStatus = async (userId: string, socket: Socket): Promise<void> => {
-  const statuses = await database
+  const [aggregate] = await database
     .select({
-      calendarId: syncStatusTable.calendarId,
-      lastSyncedAt: syncStatusTable.lastSyncedAt,
-      localEventCount: syncStatusTable.localEventCount,
-      remoteEventCount: syncStatusTable.remoteEventCount,
+      lastSyncedAt: max(syncStatusTable.lastSyncedAt),
     })
     .from(syncStatusTable)
     .innerJoin(
@@ -27,21 +55,20 @@ const sendInitialSyncStatus = async (userId: string, socket: Socket): Promise<vo
       ),
     );
 
-  for (const status of statuses) {
-    socket.send(
-      JSON.stringify({
-        data: {
-          calendarId: status.calendarId,
-          inSync: status.localEventCount === status.remoteEventCount,
-          lastSyncedAt: status.lastSyncedAt?.toISOString(),
-          localEventCount: status.localEventCount,
-          remoteEventCount: status.remoteEventCount,
-          status: "idle",
-        },
-        event: "sync:status",
-      }),
-    );
-  }
+  const payload = await resolvePayload(userId, {
+    lastSyncedAt: aggregate?.lastSyncedAt?.toISOString() ?? null,
+    progressPercent: COMPLETE_PERCENT,
+    syncEventsProcessed: INITIAL_COUNT,
+    syncEventsRemaining: INITIAL_COUNT,
+    syncEventsTotal: INITIAL_COUNT,
+  });
+
+  socket.send(
+    JSON.stringify({
+      data: payload,
+      event: "sync:aggregate",
+    }),
+  );
 };
 
 const websocketHandler = createWebsocketHandler({

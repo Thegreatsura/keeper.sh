@@ -327,14 +327,6 @@ abstract class CalendarProvider<TConfig extends ProviderConfig = ProviderConfig>
         remoteEventCount: currentRemoteCount,
         stage: "processing",
       });
-
-      await params.context.onDestinationSync?.({
-        broadcast: false,
-        calendarId: this.config.calendarId,
-        localEventCount: params.localEventCount,
-        remoteEventCount: currentRemoteCount,
-        userId: this.config.userId,
-      });
     }
 
     return { addFailed, added, removeFailed, removed };
