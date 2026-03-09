@@ -28,11 +28,28 @@ const textLink = tv({
 
 type TextLinkProps = Omit<ComponentPropsWithoutRef<typeof Link>, "children" | "className"> &
   PropsWithChildren<VariantProps<typeof textLink> & { className?: string }>;
+type ExternalTextLinkProps = ComponentPropsWithoutRef<"a"> &
+  PropsWithChildren<VariantProps<typeof textLink> & { className?: string }>;
 
 export function TextLink({ children, size, tone, align, className, ...props }: TextLinkProps) {
   return (
     <Link className={textLink({ size, tone, align, className })} {...props}>
       {children}
     </Link>
+  );
+}
+
+export function ExternalTextLink({
+  children,
+  size,
+  tone,
+  align,
+  className,
+  ...props
+}: ExternalTextLinkProps) {
+  return (
+    <a className={textLink({ size, tone, align, className })} {...props}>
+      {children}
+    </a>
   );
 }

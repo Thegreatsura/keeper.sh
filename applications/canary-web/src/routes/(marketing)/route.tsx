@@ -7,6 +7,7 @@ import { ButtonText, LinkButton } from '../../components/ui/primitives/button';
 import { GithubStarButton } from '../../components/ui/primitives/github-star-button';
 import { SessionSlot } from '../../components/ui/shells/session-slot';
 import HeartIcon from "lucide-react/dist/esm/icons/heart";
+import { ExternalTextLink } from "../../components/ui/primitives/text-link";
 
 export const Route = createFileRoute('/(marketing)')({
   component: MarketingLayout,
@@ -50,7 +51,17 @@ function MarketingLayout() {
       <LayoutItem>
         <MarketingFooter>
           <MarketingFooterTagline>
-            Made with <HeartIcon size={12} className="inline text-red-500 fill-red-500 relative -top-px" /> by Rida F'kih
+            Made with <HeartIcon size={12} className="inline text-red-500 fill-red-500 relative -top-px" /> by{" "}
+            <ExternalTextLink
+              align="left"
+              href="https://rida.dev"
+              rel="noopener noreferrer"
+              size="sm"
+              target="_blank"
+              tone="muted"
+            >
+              Rida F'kih
+            </ExternalTextLink>
           </MarketingFooterTagline>
           <MarketingFooterNav>
             <MarketingFooterNavGroup>
