@@ -1,7 +1,6 @@
 import { broadcastMessageSchema } from "@keeper.sh/data-schemas";
 import type { BroadcastMessage } from "@keeper.sh/data-schemas";
 import { emitWideEvent, reportError, runWideEvent } from "@keeper.sh/provider-core";
-import { createSubscriber } from "@keeper.sh/redis";
 import { connections, pingIntervals } from "./state";
 import type { Socket } from "./types";
 import type { RedisClient } from "bun";
@@ -50,9 +49,9 @@ const createBroadcastService = (config: BroadcastConfig): BroadcastService => {
   };
 
   const startSubscriber = async (): Promise<void> => {
-    const subscriber = await createSubscriber(redis);
+    const subscriber = await redis.duplicate();
 
-    await subscriber.subscribe(CHANNEL, (message) => {
+    await subscriber.subscribe(CHANNEL, (message: string) => {
       const parsed = JSON.parse(message);
       if (!broadcastMessageSchema.allows(parsed)) {
         return;

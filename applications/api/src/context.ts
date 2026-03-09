@@ -2,7 +2,7 @@ import { Resend } from "resend";
 import env from "@keeper.sh/env/api";
 import { createDatabase } from "@keeper.sh/database";
 import { syncStatusTable } from "@keeper.sh/database/schema";
-import { createRedis } from "@keeper.sh/redis";
+import { RedisClient } from "bun";
 import { createAuth } from "@keeper.sh/auth";
 import { createBroadcastService } from "@keeper.sh/broadcast";
 import { createPremiumService } from "@keeper.sh/premium";
@@ -19,7 +19,7 @@ const INITIAL_EVENT_COUNT = 0;
 const MIN_TRUSTED_ORIGINS_COUNT = 0;
 
 const database = createDatabase(env.DATABASE_URL);
-const redis = createRedis(env.REDIS_URL);
+const redis = new RedisClient(env.REDIS_URL);
 
 const parseTrustedOrigins = (origins?: string): string[] => {
   if (!origins) {

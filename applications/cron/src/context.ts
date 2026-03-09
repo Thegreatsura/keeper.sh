@@ -1,7 +1,7 @@
 import env from "@keeper.sh/env/cron";
 import { createDatabase } from "@keeper.sh/database";
 import { syncStatusTable } from "@keeper.sh/database/schema";
-import { createRedis } from "@keeper.sh/redis";
+import { RedisClient } from "bun";
 import { createPremiumService } from "@keeper.sh/premium";
 import { createBroadcastService } from "@keeper.sh/broadcast";
 import {
@@ -11,12 +11,10 @@ import {
   createSyncAggregateRuntime,
 } from "@keeper.sh/provider-core";
 import { createDestinationProviders } from "@keeper.sh/provider-registry/server";
-import type { DestinationSyncResult } from "@keeper.sh/provider-core";
+import type { DestinationSyncResult, SyncCoordinator } from "@keeper.sh/provider-core";
 import { Polar } from "@polar-sh/sdk";
 
 const database = createDatabase(env.DATABASE_URL);
-const redis = createRedis(env.REDIS_URL);
-const broadcastService = createBroadcastService({ redis });
 
 const premiumService = createPremiumService({
   commercialMode: env.COMMERCIAL_MODE ?? false,
@@ -54,19 +52,35 @@ const persistSyncStatus = async (
     });
 };
 
-const syncAggregateRuntime = createSyncAggregateRuntime({
-  broadcast: (userId, eventName, payload): void => {
-    broadcastService.emit(userId, eventName, payload);
-  },
-  persistSyncStatus,
-  redis,
-});
+interface SyncContext {
+  syncCoordinator: SyncCoordinator;
+  close: () => void;
+}
 
-const syncCoordinator = createSyncCoordinator({
-  onDestinationSync: syncAggregateRuntime.onDestinationSync,
-  onSyncProgress: syncAggregateRuntime.onSyncProgress,
-  redis,
-});
+const createSyncContext = (): SyncContext => {
+  const redis = new RedisClient(env.REDIS_URL);
+  const broadcastService = createBroadcastService({ redis });
+
+  const syncAggregateRuntime = createSyncAggregateRuntime({
+    broadcast: (userId, eventName, payload): void => {
+      broadcastService.emit(userId, eventName, payload);
+    },
+    persistSyncStatus,
+    redis,
+  });
+
+  const syncCoordinator = createSyncCoordinator({
+    onDestinationSync: syncAggregateRuntime.onDestinationSync,
+    onSyncProgress: syncAggregateRuntime.onSyncProgress,
+    redis,
+  });
+
+  const close = (): void => {
+    redis.close();
+  };
+
+  return { syncCoordinator, close };
+};
 
 const createPolarClient = (): Polar | null => {
   if (env.POLAR_ACCESS_TOKEN && env.POLAR_MODE) {
@@ -80,4 +94,4 @@ const createPolarClient = (): Polar | null => {
 
 const polarClient = createPolarClient();
 
-export { database, premiumService, destinationProviders, syncCoordinator, polarClient };
+export { database, premiumService, destinationProviders, createSyncContext, polarClient };

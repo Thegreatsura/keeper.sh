@@ -31,21 +31,29 @@ const getSourceId = (source: unknown): string | null => {
   return sourceId;
 };
 
-const createSyncUserSourcesDependencies = (): SyncUserSourcesDependencies<Source> => ({
-  fetchAndSyncSourceForCalendar: async (source) => {
-    const { database } = await import("../context");
-    await fetchAndSyncSource(database, source);
-  },
-  reportError,
-  syncDestinationsForUser: async (userId) => {
-    const { destinationProviders, syncCoordinator } = await import("../context");
-    return syncDestinationsForUserAcrossCalendars(
-      userId,
-      destinationProviders,
-      syncCoordinator,
-    );
-  },
-});
+const createSyncUserSourcesDependencies = async (): Promise<{
+  dependencies: SyncUserSourcesDependencies<Source>;
+  close: () => void;
+}> => {
+  const { createSyncContext, database, destinationProviders } = await import("../context");
+  const syncContext = createSyncContext();
+
+  return {
+    dependencies: {
+      fetchAndSyncSourceForCalendar: async (source) => {
+        await fetchAndSyncSource(database, source);
+      },
+      reportError,
+      syncDestinationsForUser: async (userId) =>
+        syncDestinationsForUserAcrossCalendars(
+          userId,
+          destinationProviders,
+          syncContext.syncCoordinator,
+        ),
+    },
+    close: syncContext.close,
+  };
+};
 
 const syncUserSources = async <TSource>(
   userId: string,
@@ -174,16 +182,21 @@ const runSyncJob = async <TSource extends SourceOwner>(
 const createSyncJob = (plan: Plan, cron: string): CronOptions =>
   withCronWideEvent({
     async callback(): Promise<void> {
-      const syncUserSourcesDependencies = createSyncUserSourcesDependencies();
-      const { getSourcesByPlan, getUsersWithDestinationsByPlan } = await import("./get-sources");
-      await runSyncJob(plan, {
-        getSourcesByPlan,
-        getUsersWithDestinationsByPlan,
-        reportError,
-        setCronEventFields,
-        syncUserSourcesForUser: (userId, sources) =>
-          syncUserSources(userId, sources, syncUserSourcesDependencies),
-      });
+      const { dependencies: syncUserSourcesDependencies, close } =
+        await createSyncUserSourcesDependencies();
+      try {
+        const { getSourcesByPlan, getUsersWithDestinationsByPlan } = await import("./get-sources");
+        await runSyncJob(plan, {
+          getSourcesByPlan,
+          getUsersWithDestinationsByPlan,
+          reportError,
+          setCronEventFields,
+          syncUserSourcesForUser: (userId, sources) =>
+            syncUserSources(userId, sources, syncUserSourcesDependencies),
+        });
+      } finally {
+        close();
+      }
     },
     cron,
     immediate: process.env.NODE_ENV !== "production",

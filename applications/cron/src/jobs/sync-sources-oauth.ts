@@ -3,6 +3,8 @@ import { createGoogleCalendarSourceProvider } from "@keeper.sh/provider-google-c
 import { createOutlookSourceProvider } from "@keeper.sh/provider-outlook";
 import { createGoogleOAuthService } from "@keeper.sh/oauth-google";
 import { createMicrosoftOAuthService } from "@keeper.sh/oauth-microsoft";
+import env from "@keeper.sh/env/cron";
+import { database } from "../context";
 import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
 import { endTiming, reportError, startTiming } from "../utils/logging";
 
@@ -58,10 +60,7 @@ const runOAuthSourceSyncJob = async (dependencies: OAuthSyncJobDependencies): Pr
   }
 };
 
-const createDefaultJobDependencies = async (): Promise<OAuthSyncJobDependencies> => {
-  const { database } = await import("../context");
-  const { default: env } = await import("@keeper.sh/env/cron");
-
+const createDefaultJobDependencies = (): OAuthSyncJobDependencies => {
   const syncGoogleSources = async (): Promise<ProviderSyncResult | null> => {
     if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
       return null;
@@ -143,7 +142,7 @@ const createDefaultJobDependencies = async (): Promise<OAuthSyncJobDependencies>
 export default withCronWideEvent({
   async callback() {
     setCronEventFields({ "job.type": "oauth-source-sync" });
-    const dependencies = await createDefaultJobDependencies();
+    const dependencies = createDefaultJobDependencies();
     await runOAuthSourceSyncJob(dependencies);
   },
   cron: "@every_1_minutes",

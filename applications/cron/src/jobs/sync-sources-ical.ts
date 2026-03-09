@@ -4,6 +4,7 @@ import { MS_PER_HOUR } from "@keeper.sh/constants";
 import { pullRemoteCalendar } from "@keeper.sh/calendar";
 import { and, desc, eq, lte } from "drizzle-orm";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
+import { database } from "../context";
 import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
 import { countSettledResults } from "../utils/count-settled-results";
 import { endTiming, reportError, startTiming } from "../utils/logging";
@@ -112,9 +113,7 @@ interface IcalSnapshotJobHooks {
 const createMissingUrlError = (calendarId: string): Error =>
   new Error(`Source ${calendarId} is missing url`);
 
-const createDefaultJobDependencies = async (): Promise<IcalSnapshotJobDependencies> => {
-  const { database } = await import("../context");
-
+const createDefaultJobDependencies = (): IcalSnapshotJobDependencies => {
   return {
     fetchRemoteCalendar,
     getRemoteSources: async () => {
@@ -222,7 +221,7 @@ const runIcalSnapshotSyncJob = async (
 
 export default withCronWideEvent({
   async callback() {
-    const dependencies = await createDefaultJobDependencies();
+    const dependencies = createDefaultJobDependencies();
     await runIcalSnapshotSyncJob(dependencies, {
       endTiming: (name) => {
         endTiming(name);

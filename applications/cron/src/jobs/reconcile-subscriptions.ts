@@ -1,6 +1,7 @@
 import type { CronOptions } from "cronbake";
 import { userSubscriptionsTable } from "@keeper.sh/database/schema";
 import { user } from "@keeper.sh/database/auth-schema";
+import { database, polarClient } from "../context";
 import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
 import { countSettledResults } from "../utils/count-settled-results";
 import { reportError } from "../utils/logging";
@@ -52,9 +53,7 @@ const runReconcileSubscriptionsJob = async (
   dependencies.setCronEventFields({ "failed.count": failed });
 };
 
-const createDefaultDependencies = async (): Promise<ReconcileSubscriptionsDependencies> => {
-  const { database, polarClient } = await import("../context");
-
+const createDefaultDependencies = (): ReconcileSubscriptionsDependencies => {
   return {
     hasBillingClient: Boolean(polarClient),
     reconcileUserSubscription: async (userId) => {
@@ -99,7 +98,7 @@ const createDefaultDependencies = async (): Promise<ReconcileSubscriptionsDepend
 
 export default withCronWideEvent({
   async callback() {
-    const dependencies = await createDefaultDependencies();
+    const dependencies = createDefaultDependencies();
     await runReconcileSubscriptionsJob(dependencies);
   },
   cron: "0 0 * * * *",

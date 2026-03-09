@@ -4,7 +4,9 @@ import type { CalDAVSourceProvider } from "@keeper.sh/provider-caldav";
 import { createFastMailSourceProvider } from "@keeper.sh/provider-fastmail";
 import { createICloudSourceProvider } from "@keeper.sh/provider-icloud";
 import { getCalDAVProviders } from "@keeper.sh/provider-registry";
+import env from "@keeper.sh/env/cron";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
+import { database } from "../context";
 import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
 import { endTiming, reportError, startTiming } from "../utils/logging";
 
@@ -66,10 +68,7 @@ const runCaldavSourceSyncJob = async (dependencies: CaldavSyncJobDependencies): 
   }
 };
 
-const createDefaultJobDependencies = async (): Promise<CaldavSyncJobDependencies> => {
-  const { default: env } = await import("@keeper.sh/env/cron");
-  const { database } = await import("../context");
-
+const createDefaultJobDependencies = (): CaldavSyncJobDependencies => {
   const syncProvider = async (provider: CaldavProvider): Promise<ProviderSyncResult | null> => {
     if (!env.ENCRYPTION_KEY) {
       return null;
@@ -117,7 +116,7 @@ const createDefaultJobDependencies = async (): Promise<CaldavSyncJobDependencies
 export default withCronWideEvent({
   async callback() {
     setCronEventFields({ "job.type": "caldav-source-sync" });
-    const dependencies = await createDefaultJobDependencies();
+    const dependencies = createDefaultJobDependencies();
     await runCaldavSourceSyncJob(dependencies);
   },
   cron: "@every_1_minutes",

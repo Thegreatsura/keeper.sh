@@ -10,8 +10,7 @@
   },
   "dependencies": {
     "@keeper.sh/data-schemas": "workspace:*",
-    "@keeper.sh/provider-core": "workspace:*",
-    "@keeper.sh/redis": "workspace:*"
+    "@keeper.sh/provider-core": "workspace:*"
   },
   "devDependencies": {
     "@keeper.sh/typescript-config": "workspace:*",
