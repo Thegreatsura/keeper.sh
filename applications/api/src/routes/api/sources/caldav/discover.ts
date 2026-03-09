@@ -1,6 +1,7 @@
 import { caldavDiscoverSourceSchema } from "@keeper.sh/data-schemas";
 import { createCalDAVClient } from "@keeper.sh/provider-caldav";
 import { withAuth, withWideEvent } from "../../../../utils/middleware";
+import { respondWithLoggedError } from "../../../../utils/logging";
 import { ErrorResponse } from "../../../../utils/responses";
 
 const POST = withWideEvent(
@@ -23,10 +24,16 @@ const POST = withWideEvent(
       return Response.json({ calendars });
     } catch (error) {
       if (error instanceof Error && error.message.includes("401")) {
-        return ErrorResponse.unauthorized("Invalid credentials").toResponse();
+        return respondWithLoggedError(
+          error,
+          ErrorResponse.unauthorized("Invalid credentials").toResponse(),
+        );
       }
 
-      return ErrorResponse.badRequest("Failed to discover calendars").toResponse();
+      return respondWithLoggedError(
+        error,
+        ErrorResponse.badRequest("Failed to discover calendars").toResponse(),
+      );
     }
   }),
 );

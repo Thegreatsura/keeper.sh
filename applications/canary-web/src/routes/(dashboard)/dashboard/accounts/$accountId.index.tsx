@@ -145,15 +145,15 @@ function AccountPrevNext({ accountId }: { accountId: string }) {
     [accounts, accountId],
   );
 
-  if (!accounts || accounts.length <= 1) return null;
-
-  const prev = currentIndex > 0 ? accounts[currentIndex - 1] : null;
-  const next = currentIndex < accounts.length - 1 ? accounts[currentIndex + 1] : null;
+  const prev = accounts && currentIndex > 0 ? accounts[currentIndex - 1] : null;
+  const next = accounts && currentIndex < accounts.length - 1 ? accounts[currentIndex + 1] : null;
 
   useEffect(() => {
     if (prev) preload(`/api/accounts/${prev.id}`, fetcher);
     if (next) preload(`/api/accounts/${next.id}`, fetcher);
-  }, [prev?.id, next?.id]);
+  }, [prev, next]);
+
+  if (!accounts || accounts.length <= 1) return null;
 
   return (
     <Pagination>

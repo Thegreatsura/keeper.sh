@@ -3,8 +3,7 @@ import type { RedisClient } from "bun";
 import type { DestinationSyncResult, SyncProgressUpdate } from "./coordinator";
 import { SyncAggregateTracker } from "./aggregate-tracker";
 import type { SyncAggregateMessage, SyncAggregateSnapshot } from "./aggregate-tracker";
-
-const swallowError = (_error: unknown): null => null;
+import { reportError } from "../utils/wide-logging";
 
 const SYNC_AGGREGATE_LATEST_KEY_PREFIX = "sync:aggregate:latest:";
 const SYNC_AGGREGATE_SEQUENCE_KEY_PREFIX = "sync:aggregate:seq:";
@@ -81,7 +80,12 @@ const createSyncAggregateRuntime = (config: SyncAggregateRuntimeConfig): SyncAgg
       }
 
       config.broadcast(userId, "sync:aggregate", payload);
-    } catch {
+    } catch (error) {
+      reportError(error, {
+        "operation.name": "sync:aggregate:emit",
+        "operation.type": "sync-aggregate",
+        "user.id": userId,
+      });
       config.broadcast(userId, "sync:aggregate", aggregate);
     }
   };
@@ -103,7 +107,13 @@ const createSyncAggregateRuntime = (config: SyncAggregateRuntimeConfig): SyncAgg
   const onSyncProgress = (update: SyncProgressUpdate): void => {
     const aggregate = tracker.trackProgress(update);
     if (aggregate) {
-      emitSyncAggregate(update.userId, aggregate).catch(swallowError);
+      emitSyncAggregate(update.userId, aggregate).catch((error) => {
+        reportError(error, {
+          "operation.name": "sync:aggregate:progress",
+          "operation.type": "sync-aggregate",
+          "user.id": update.userId,
+        });
+      });
     }
   };
 
@@ -126,7 +136,12 @@ const createSyncAggregateRuntime = (config: SyncAggregateRuntimeConfig): SyncAgg
         return parsed;
       }
       return null;
-    } catch {
+    } catch (error) {
+      reportError(error, {
+        "operation.name": "sync:aggregate:cached:parse",
+        "operation.type": "sync-aggregate",
+        "user.id": userId,
+      });
       return null;
     }
   };

@@ -39,6 +39,18 @@ export {
 export { generateEventUid, isKeeperEvent } from "./events/identity";
 export { RateLimiter, type RateLimiterConfig } from "./utils/rate-limiter";
 export { getErrorMessage } from "./utils/error";
+export {
+  emitWideEvent,
+  endTiming,
+  getCurrentRequestId,
+  incrementLogCount,
+  initializeWideLogger,
+  reportError,
+  runWideEvent,
+  setLogFields,
+  shutdownLogging,
+  startTiming,
+} from "./utils/wide-logging";
 export { getEventsForDestination } from "./events/events";
 export { syncDestinationsForUser, type DestinationProvider } from "./sync/destinations";
 export {

@@ -5,6 +5,7 @@ import type { SyncResult } from "@keeper.sh/provider-core";
 import { fetchAndSyncSource } from "@keeper.sh/calendar";
 import type { Source } from "@keeper.sh/calendar";
 import { setCronEventFields, withCronWideEvent } from "./with-wide-event";
+import { reportError } from "./logging";
 
 interface SourceOwner {
   userId: string;
@@ -12,14 +13,30 @@ interface SourceOwner {
 
 interface SyncUserSourcesDependencies<TSource> {
   fetchAndSyncSourceForCalendar: (source: TSource) => Promise<void>;
+  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
   syncDestinationsForUser: (userId: string) => Promise<SyncResult>;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const getSourceId = (source: unknown): string | null => {
+  if (!isRecord(source)) {
+    return null;
+  }
+  const sourceId = source.id;
+  if (typeof sourceId !== "string") {
+    return null;
+  }
+  return sourceId;
+};
 
 const createSyncUserSourcesDependencies = (): SyncUserSourcesDependencies<Source> => ({
   fetchAndSyncSourceForCalendar: async (source) => {
     const { database } = await import("../context");
     await fetchAndSyncSource(database, source);
   },
+  reportError,
   syncDestinationsForUser: async (userId) => {
     const { destinationProviders, syncCoordinator } = await import("../context");
     return syncDestinationsForUserAcrossCalendars(
@@ -35,10 +52,22 @@ const syncUserSources = async <TSource>(
   sources: TSource[],
   dependencies: SyncUserSourcesDependencies<TSource>,
 ): Promise<SyncResult> => {
-  await Promise.allSettled(
+  const settlements = await Promise.allSettled(
     sources.map((source) =>
       Promise.resolve().then(() => dependencies.fetchAndSyncSourceForCalendar(source))),
   );
+
+  for (const [index, settlement] of settlements.entries()) {
+    if (settlement.status === "rejected") {
+      const source = sources[index];
+      dependencies.reportError?.(settlement.reason, {
+        "operation.name": "sync-calendar-events:fetch-source",
+        ...(source && { "source.calendar_id": getSourceId(source) }),
+        "user.id": userId,
+      });
+    }
+  }
+
   return dependencies.syncDestinationsForUser(userId);
 };
 
@@ -71,6 +100,7 @@ const INITIAL_REMOVE_FAILED_COUNT = 0;
 interface SyncJobDependencies<TSource extends SourceOwner> {
   getSourcesByPlan: (plan: Plan) => Promise<TSource[]>;
   getUsersWithDestinationsByPlan: (plan: Plan) => Promise<string[]>;
+  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
   setCronEventFields: (fields: Record<string, unknown>) => void;
   syncUserSourcesForUser: (userId: string, sources: TSource[]) => Promise<SyncResult>;
 }
@@ -90,8 +120,9 @@ const runSyncJob = async <TSource extends SourceOwner>(
 
   const sourcesByUser = groupSourcesByUser(sources);
   ensureUsersWithDestinationsIncluded(sourcesByUser, usersWithDestinations);
+  const sourceEntries = [...sourcesByUser.entries()];
 
-  const userSyncs = [...sourcesByUser.entries()].map(([userId, userSources]) =>
+  const userSyncs = sourceEntries.map(([userId, userSources]) =>
     Promise.resolve().then(() =>
       dependencies.syncUserSourcesForUser(userId, userSources)),
   );
@@ -108,8 +139,21 @@ const runSyncJob = async <TSource extends SourceOwner>(
     removed: INITIAL_REMOVED_COUNT,
   };
 
-  for (const settled of settledResults) {
+  for (const [index, settled] of settledResults.entries()) {
     if (settled.status !== "fulfilled") {
+      const sourceEntry = sourceEntries[index];
+      if (sourceEntry) {
+        dependencies.reportError?.(settled.reason, {
+          "operation.name": "sync-calendar-events:user-sync",
+          "subscription.plan": plan,
+          "user.id": sourceEntry[0],
+        });
+      } else {
+        dependencies.reportError?.(settled.reason, {
+          "operation.name": "sync-calendar-events:user-sync",
+          "subscription.plan": plan,
+        });
+      }
       continue;
     }
     totals.added += settled.value.added;
@@ -135,6 +179,7 @@ const createSyncJob = (plan: Plan, cron: string): CronOptions =>
       await runSyncJob(plan, {
         getSourcesByPlan,
         getUsersWithDestinationsByPlan,
+        reportError,
         setCronEventFields,
         syncUserSourcesForUser: (userId, sources) =>
           syncUserSources(userId, sources, syncUserSourcesDependencies),

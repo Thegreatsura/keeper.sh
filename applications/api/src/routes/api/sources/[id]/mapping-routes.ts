@@ -1,4 +1,5 @@
 import { ErrorResponse } from "../../../../utils/responses";
+import { respondWithLoggedError } from "../../../../utils/logging";
 import { calendarIdsBodySchema } from "../../../../utils/request-body";
 import { idParamSchema } from "../../../../utils/request-query";
 
@@ -111,7 +112,7 @@ const handlePutSourceDestinationsRoute = async (
       "Some destination calendars not found",
     );
     if (mappedResponse) {
-      return mappedResponse;
+      return respondWithLoggedError(error, mappedResponse);
     }
     throw error;
   }
@@ -163,7 +164,7 @@ const handlePutSourcesForDestinationRoute = async (
       "Some source calendars not found",
     );
     if (mappedResponse) {
-      return mappedResponse;
+      return respondWithLoggedError(error, mappedResponse);
     }
     throw error;
   }

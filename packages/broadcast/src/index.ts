@@ -1,6 +1,6 @@
-import { WideEvent } from "@keeper.sh/log";
 import { broadcastMessageSchema } from "@keeper.sh/data-schemas";
 import type { BroadcastMessage } from "@keeper.sh/data-schemas";
+import { emitWideEvent, reportError, runWideEvent } from "@keeper.sh/provider-core";
 import { createSubscriber } from "@keeper.sh/redis";
 import { connections, pingIntervals } from "./state";
 import type { Socket } from "./types";
@@ -60,12 +60,10 @@ const createBroadcastService = (config: BroadcastConfig): BroadcastService => {
       sendToUser(parsed.userId, parsed.event, parsed.data);
     });
 
-    const event = new WideEvent();
-    event.set({
+    await emitWideEvent({
       "operation.type": "lifecycle",
       "operation.name": "broadcast:subscriber:start",
     });
-    event.emit();
   };
 
   return { emit, startSubscriber };
@@ -100,16 +98,31 @@ const sendPing = (socket: Socket): void => {
 };
 
 const emitWebSocketEvent = (userId: string, operationName: string, error?: unknown): void => {
-  const event = new WideEvent();
-  event.set({
+  const fields = {
     "user.id": userId,
     "operation.type": "connection",
     "operation.name": operationName,
-  });
-  if (error) {
-    event.addError(error);
+  };
+
+  if (!error) {
+    emitWideEvent(fields).catch((error) => {
+      reportError(error, {
+        ...fields,
+        "operation.name": `${operationName}:emit`,
+      });
+    });
+    return;
   }
-  event.emit();
+
+  runWideEvent(fields, () => {
+    reportError(error, fields);
+    return globalThis.undefined;
+  }).catch((error) => {
+    reportError(error, {
+      ...fields,
+      "operation.name": `${operationName}:run`,
+    });
+  });
 };
 
 const startPing = (socket: Socket): ReturnType<typeof setInterval> => {
@@ -160,8 +173,12 @@ const createWebsocketHandler = (
       emitWebSocketEvent(userId, "websocket:open", error);
       try {
         socket.close();
-      } catch {
-        // Socket may already be closed
+      } catch (error) {
+        reportError(error, {
+          "operation.name": "websocket:close:failed",
+          "operation.type": "connection",
+          "user.id": userId,
+        });
       }
     }
   },

@@ -1,8 +1,7 @@
-import { isKeeperEvent } from "@keeper.sh/provider-core";
+import { isKeeperEvent, reportError } from "@keeper.sh/provider-core";
 import type { SourceEvent } from "@keeper.sh/provider-core";
 import { eventStatesTable } from "@keeper.sh/database/schema";
 import { getStartOfToday } from "@keeper.sh/date-utils";
-import { WideEvent } from "@keeper.sh/log";
 import { and, eq, inArray } from "drizzle-orm";
 import { CalDAVClient } from "../shared/client";
 import { parseICalToRemoteEvent } from "../shared/ics";
@@ -166,7 +165,12 @@ const createCalDAVSourceProvider = (
       const events = await fetchEventsFromCalDAV(account);
       return processEvents(account.calendarId, events);
     } catch (error) {
-      WideEvent.error(error);
+      reportError(error, {
+        "operation.name": "caldav-source:sync",
+        "source.calendar_id": account.calendarId,
+        "source.provider": options.providerId,
+        "user.id": account.userId,
+      });
       return {
         eventsAdded: EMPTY_COUNT,
         eventsRemoved: EMPTY_COUNT,

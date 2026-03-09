@@ -30,7 +30,7 @@ interface PatchSourceDependencies {
     updates: Record<string, string | boolean>,
   ) => Promise<Record<string, unknown> | null>;
   triggerDestinationSync: (userId: string) => void;
-  reportError?: (error: unknown) => void;
+  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
 }
 
 interface DeleteSourceDependencies {
@@ -98,7 +98,11 @@ const handlePatchSourceRoute = async (
   try {
     dependencies.triggerDestinationSync(context.userId);
   } catch (error) {
-    dependencies.reportError?.(error);
+    dependencies.reportError?.(error, {
+      "operation.name": "source:patch:trigger-sync",
+      "source.calendar_id": resolvedId.id,
+      "user.id": context.userId,
+    });
   }
 
   return Response.json(updated);

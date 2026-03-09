@@ -1,5 +1,4 @@
 import { HTTP_STATUS, KEEPER_CATEGORY } from "@keeper.sh/constants";
-import { WideEvent } from "@keeper.sh/log";
 import type { OutlookEvent } from "@keeper.sh/data-schemas";
 import {
   microsoftApiErrorSchema,
@@ -22,6 +21,7 @@ import {
   OAuthCalendarProvider,
   createOAuthDestinationProvider,
   getErrorMessage,
+  reportError,
 } from "@keeper.sh/provider-core";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { MICROSOFT_GRAPH_API, OUTLOOK_PAGE_SIZE } from "../shared/api";
@@ -161,7 +161,12 @@ class OutlookCalendarProviderInstance extends OAuthCalendarProvider<OutlookCalen
     try {
       return await this.createEvent(resource);
     } catch (error) {
-      WideEvent.error(error);
+      reportError(error, {
+        "destination.calendar_id": this.config.calendarId,
+        "operation.name": "outlook-calendar:push",
+        "source.provider": this.id,
+        "user.id": this.config.userId,
+      });
       return {
         error: getErrorMessage(error),
         success: false,
@@ -219,7 +224,12 @@ class OutlookCalendarProviderInstance extends OAuthCalendarProvider<OutlookCalen
       await response.body?.cancel?.();
       return { success: true };
     } catch (error) {
-      WideEvent.error(error);
+      reportError(error, {
+        "destination.calendar_id": this.config.calendarId,
+        "operation.name": "outlook-calendar:delete",
+        "source.provider": this.id,
+        "user.id": this.config.userId,
+      });
       return {
         error: getErrorMessage(error),
         success: false,

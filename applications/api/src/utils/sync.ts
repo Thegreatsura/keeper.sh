@@ -1,6 +1,6 @@
 import { syncDestinationsForUser } from "@keeper.sh/provider-core";
-import { WideEvent } from "@keeper.sh/log";
 import { spawnBackgroundJob } from "./background-task";
+import { reportError } from "./logging";
 
 type DestinationSyncResult = Awaited<ReturnType<typeof syncDestinationsForUser>>;
 
@@ -46,7 +46,11 @@ const triggerDestinationSync = (userId: string): void => {
   };
 
   startSync().catch((error) => {
-    WideEvent.error(error);
+    reportError(error, {
+      "operation.name": "destination-sync:trigger",
+      "operation.type": "background-job",
+      "user.id": userId,
+    });
   });
 };
 

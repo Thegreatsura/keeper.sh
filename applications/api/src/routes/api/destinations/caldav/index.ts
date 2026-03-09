@@ -1,5 +1,6 @@
 import { caldavConnectRequestSchema } from "@keeper.sh/data-schemas";
 import { withAuth, withWideEvent } from "../../../../utils/middleware";
+import { respondWithLoggedError } from "../../../../utils/logging";
 import { ErrorResponse } from "../../../../utils/responses";
 import {
   CalDAVConnectionError,
@@ -32,13 +33,16 @@ const POST = withWideEvent(
       return Response.json({ success: true }, { status: 201 });
     } catch (error) {
       if (error instanceof DestinationLimitError) {
-        return ErrorResponse.paymentRequired(error.message).toResponse();
+        return respondWithLoggedError(error, ErrorResponse.paymentRequired(error.message).toResponse());
       }
       if (error instanceof CalDAVConnectionError) {
-        return ErrorResponse.badRequest(error.message).toResponse();
+        return respondWithLoggedError(error, ErrorResponse.badRequest(error.message).toResponse());
       }
 
-      return ErrorResponse.badRequest("All fields are required").toResponse();
+      return respondWithLoggedError(
+        error,
+        ErrorResponse.badRequest("All fields are required").toResponse(),
+      );
     }
   }),
 );

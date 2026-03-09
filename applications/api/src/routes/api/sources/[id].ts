@@ -12,7 +12,7 @@ import {
   getDestinationsForSource,
   getSourcesForDestination,
 } from "../../../utils/source-destination-mappings";
-import { WideEvent } from "@keeper.sh/log";
+import { reportError } from "../../../utils/logging";
 import { handleDeleteSourceRoute, handlePatchSourceRoute } from "./[id]/source-item-routes";
 
 const GET = withWideEvent(
@@ -71,9 +71,7 @@ const PATCH = withWideEvent(
     return handlePatchSourceRoute(
       { body: payload, params, userId },
       {
-        reportError: (error) => {
-          WideEvent.error(error);
-        },
+        reportError,
         triggerDestinationSync,
         updateSource: async (userIdToUpdate, sourceCalendarId, updates) => {
           const [updated] = await database

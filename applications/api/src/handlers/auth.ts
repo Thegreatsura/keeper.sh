@@ -1,6 +1,6 @@
 import type { MaybePromise } from "bun";
-import { WideEvent } from "@keeper.sh/log";
 import { auth } from "../context";
+import { runWideEvent, setLogFields, trackStatusError } from "../utils/logging";
 
 const HTTP_INTERNAL_SERVER_ERROR = 500;
 const HTTP_ERROR_THRESHOLD = 400;
@@ -48,14 +48,10 @@ const extractAuthContext = (request: Request, pathname: string): Record<string, 
   };
 };
 
-const handleAuthResponseStatus = (event: WideEvent, response: Response): void => {
-  event.set({ "http.status_code": response.status });
+const handleAuthResponseStatus = (response: Response): void => {
+  setLogFields({ "http.status_code": response.status });
   if (response.status >= HTTP_ERROR_THRESHOLD) {
-    event.set({
-      "error.occurred": true,
-      "error.message": `HTTP ${response.status}`,
-      "error.type": "AuthError",
-    });
+    trackStatusError(response.status, "AuthError");
   }
 };
 
@@ -105,23 +101,16 @@ const processAuthResponse = async (pathname: string, response: Response): Promis
   return clearSessionCookies(response);
 };
 
-const handleAuthRequest = (pathname: string, request: Request): MaybePromise<Response> => {
-  const event = new WideEvent();
-  event.set(extractAuthContext(request, pathname));
-
-  return event.run(async () => {
+const handleAuthRequest = (pathname: string, request: Request): MaybePromise<Response> =>
+  runWideEvent(extractAuthContext(request, pathname), async () => {
     try {
       const response = await auth.handler(request);
-      handleAuthResponseStatus(event, response);
+      handleAuthResponseStatus(response);
       return processAuthResponse(pathname, response);
     } catch (error) {
-      event.addError(error);
-      event.set({ "http.status_code": HTTP_INTERNAL_SERVER_ERROR });
+      setLogFields({ "http.status_code": HTTP_INTERNAL_SERVER_ERROR });
       throw error;
-    } finally {
-      event.emit();
     }
   });
-};
 
 export { handleAuthRequest };

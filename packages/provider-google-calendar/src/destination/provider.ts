@@ -1,9 +1,13 @@
 import {
   OAuthCalendarProvider,
   createOAuthDestinationProvider,
+  endTiming,
   generateEventUid,
   getErrorMessage,
   isKeeperEvent,
+  reportError,
+  setLogFields,
+  startTiming,
 } from "@keeper.sh/provider-core";
 import type {
   BroadcastSyncStatus,
@@ -16,7 +20,6 @@ import type {
   RemoteEvent,
   SyncableEvent,
 } from "@keeper.sh/provider-core";
-import { WideEvent } from "@keeper.sh/log";
 import { googleApiErrorSchema, googleEventListSchema } from "@keeper.sh/data-schemas";
 import type { GoogleEvent } from "@keeper.sh/data-schemas";
 import { HTTP_STATUS } from "@keeper.sh/constants";
@@ -172,7 +175,12 @@ class GoogleCalendarProviderInstance extends OAuthCalendarProvider<GoogleCalenda
       }
       return result;
     } catch (error) {
-      WideEvent.error(error);
+      reportError(error, {
+        "destination.calendar_id": this.config.calendarId,
+        "operation.name": "google-calendar:push",
+        "source.provider": this.id,
+        "user.id": this.config.userId,
+      });
       return { error: getErrorMessage(error), success: false };
     }
   }
@@ -239,14 +247,18 @@ class GoogleCalendarProviderInstance extends OAuthCalendarProvider<GoogleCalenda
       await response.body?.cancel?.();
       return { success: true };
     } catch (error) {
-      WideEvent.error(error);
+      reportError(error, {
+        "destination.calendar_id": this.config.calendarId,
+        "operation.name": "google-calendar:delete",
+        "source.provider": this.id,
+        "user.id": this.config.userId,
+      });
       return { error: getErrorMessage(error), success: false };
     }
   }
 
   private async findEventByUid(uid: string): Promise<GoogleEvent | null> {
-    const event = WideEvent.grasp();
-    event?.startTiming("findEventByUid");
+    startTiming("findEventByUid");
 
     const url = new URL(
       `calendars/${encodeURIComponent(this.config.externalCalendarId)}/events`,
@@ -260,11 +272,11 @@ class GoogleCalendarProviderInstance extends OAuthCalendarProvider<GoogleCalenda
       method: "GET",
     });
 
-    event?.endTiming("findEventByUid");
+    endTiming("findEventByUid");
 
     if (!response.ok) {
       await response.body?.cancel?.();
-      event?.set({ "find_event_by_uid.status": response.status });
+      setLogFields({ "find_event_by_uid.status": response.status });
       return null;
     }
 

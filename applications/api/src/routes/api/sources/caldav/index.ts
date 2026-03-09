@@ -1,6 +1,7 @@
 import { createCalDAVSourceSchema } from "@keeper.sh/data-schemas";
 import { HTTP_STATUS } from "@keeper.sh/constants";
 import { withAuth, withWideEvent } from "../../../../utils/middleware";
+import { respondWithLoggedError } from "../../../../utils/logging";
 import { ErrorResponse } from "../../../../utils/responses";
 import { caldavSourcesQuerySchema } from "../../../../utils/request-query";
 import {
@@ -40,10 +41,13 @@ const POST = withWideEvent(
       return Response.json(source, { status: HTTP_STATUS.CREATED });
     } catch (error) {
       if (error instanceof CalDAVSourceLimitError) {
-        return ErrorResponse.paymentRequired(error.message).toResponse();
+        return respondWithLoggedError(error, ErrorResponse.paymentRequired(error.message).toResponse());
       }
       if (error instanceof DuplicateCalDAVSourceError) {
-        return Response.json({ error: error.message }, { status: HTTP_STATUS.CONFLICT });
+        return respondWithLoggedError(
+          error,
+          Response.json({ error: error.message }, { status: HTTP_STATUS.CONFLICT }),
+        );
       }
 
       let message = "Invalid request body";
@@ -51,7 +55,7 @@ const POST = withWideEvent(
         const { message: errorMessage } = error;
         message = errorMessage;
       }
-      return ErrorResponse.badRequest(message).toResponse();
+      return respondWithLoggedError(error, ErrorResponse.badRequest(message).toResponse());
     }
   }),
 );

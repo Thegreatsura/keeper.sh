@@ -4,9 +4,9 @@ import type { CalDAVSourceProvider } from "@keeper.sh/provider-caldav";
 import { createFastMailSourceProvider } from "@keeper.sh/provider-fastmail";
 import { createICloudSourceProvider } from "@keeper.sh/provider-icloud";
 import { getCalDAVProviders } from "@keeper.sh/provider-registry";
-import { WideEvent } from "@keeper.sh/log";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
+import { endTiming, reportError, startTiming } from "../utils/logging";
 
 interface SourceProviderConfig {
   database: BunSQLDatabase;
@@ -36,7 +36,7 @@ interface CaldavSyncJobDependencies {
   providers: CaldavProvider[];
   syncProvider: (provider: CaldavProvider) => Promise<ProviderSyncResult | null>;
   setCronEventFields: (fields: Record<string, unknown>) => void;
-  reportError?: (error: unknown) => void;
+  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
 }
 
 const runCaldavSourceSyncJob = async (dependencies: CaldavSyncJobDependencies): Promise<void> => {
@@ -45,9 +45,13 @@ const runCaldavSourceSyncJob = async (dependencies: CaldavSyncJobDependencies): 
       Promise.resolve().then(() => dependencies.syncProvider(provider))),
   );
 
-  for (const settlement of settlements) {
+  for (const [index, settlement] of settlements.entries()) {
     if (settlement.status === "rejected") {
-      dependencies.reportError?.(settlement.reason);
+      const provider = dependencies.providers[index];
+      dependencies.reportError?.(settlement.reason, {
+        "operation.name": "caldav-source-sync:provider",
+        ...(provider && { "source.provider": provider.id }),
+      });
       continue;
     }
 
@@ -81,9 +85,8 @@ const createDefaultJobDependencies = async (): Promise<CaldavSyncJobDependencies
       encryptionKey: env.ENCRYPTION_KEY,
     });
 
-    const event = WideEvent.grasp();
     const timingKey = `sync_${provider.id}`;
-    event?.startTiming(timingKey);
+    startTiming(timingKey);
 
     try {
       const result = await sourceProvider.syncAllSources();
@@ -93,18 +96,19 @@ const createDefaultJobDependencies = async (): Promise<CaldavSyncJobDependencies
         providerId: provider.id,
       };
     } catch (error) {
-      event?.addError(error);
+      reportError(error, {
+        "operation.name": "caldav-source-sync:provider",
+        "source.provider": provider.id,
+      });
       return null;
     } finally {
-      event?.endTiming(timingKey);
+      endTiming(timingKey);
     }
   };
 
   return {
     providers: getCalDAVProviders(),
-    reportError: (error) => {
-      WideEvent.error(error);
-    },
+    reportError,
     setCronEventFields,
     syncProvider,
   };

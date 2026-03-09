@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { withAuth, withWideEvent } from "../../../utils/middleware";
 import { ErrorResponse } from "../../../utils/responses";
 import { database, resend, feedbackEmail } from "../../../context";
+import { respondWithLoggedError } from "../../../utils/logging";
 
 const TEMPLATE_ID = {
   feedback: "user-feedback",
@@ -59,8 +60,11 @@ const POST = withWideEvent(
       });
 
       return Response.json({ success: true });
-    } catch {
-      return ErrorResponse.badRequest("Invalid feedback request.").toResponse();
+    } catch (error) {
+      return respondWithLoggedError(
+        error,
+        ErrorResponse.badRequest("Invalid feedback request.").toResponse(),
+      );
     }
   }),
 );

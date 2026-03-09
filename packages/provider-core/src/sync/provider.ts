@@ -18,8 +18,8 @@ import {
 import type { EventMapping } from "../events/mappings";
 import { createSyncEventContentHash } from "../events/content-hash";
 import type { SyncContext, SyncStage } from "./coordinator";
-import { WideEvent } from "@keeper.sh/log";
 import { buildRemoveOperations } from "./operations";
+import { reportError, setLogFields } from "../utils/wide-logging";
 
 const INITIAL_REMOTE_EVENT_COUNT = 0;
 const EMPTY_STALE_MAPPINGS_COUNT = 0;
@@ -115,12 +115,23 @@ abstract class CalendarProvider<TConfig extends ProviderConfig = ProviderConfig>
 
       return processed;
     } catch (error) {
-      WideEvent.error(error);
+      reportError(error, {
+        "destination.calendar_id": this.config.calendarId,
+        "operation.name": "sync:provider",
+        "operation.type": "sync",
+        "user.id": this.config.userId,
+      });
 
       let shouldEmitError = false;
       try {
         shouldEmitError = await context.isCurrent();
-      } catch {
+      } catch (error) {
+        reportError(error, {
+          "destination.calendar_id": this.config.calendarId,
+          "operation.name": "sync:isCurrent",
+          "operation.type": "sync",
+          "user.id": this.config.userId,
+        });
         shouldEmitError = false;
       }
 
@@ -318,7 +329,7 @@ abstract class CalendarProvider<TConfig extends ProviderConfig = ProviderConfig>
           added++;
           currentRemoteCount++;
         } else {
-          WideEvent.grasp()?.set({
+          setLogFields({
             "push.error": result?.error,
             "push.remote_id": result?.remoteId,
             "push.success": result?.success,

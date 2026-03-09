@@ -5,6 +5,7 @@ import {
   getErrorMessage,
   getEventsForDestination,
   isKeeperEvent,
+  reportError,
 } from "@keeper.sh/provider-core";
 import type {
   CalDAVConfig,
@@ -17,7 +18,6 @@ import type {
   SyncableEvent,
 } from "@keeper.sh/provider-core";
 import { getStartOfToday } from "@keeper.sh/date-utils";
-import { WideEvent } from "@keeper.sh/log";
 import { CalDAVClient } from "../shared/client";
 import { eventToICalString, parseICalToRemoteEvent } from "../shared/ics";
 import { createCalDAVService } from "./sync";
@@ -129,7 +129,12 @@ class CalDAVProviderInstance extends CalendarProvider<CalDAVConfig> {
 
             return { remoteId: uid, success: true };
           } catch (error) {
-            WideEvent.error(error);
+            reportError(error, {
+              "destination.calendar_id": this.config.calendarId,
+              "operation.name": "caldav:push",
+              "source.provider": this.id,
+              "user.id": this.config.userId,
+            });
             return { error: getErrorMessage(error), success: false };
           }
         }),
@@ -156,7 +161,12 @@ class CalDAVProviderInstance extends CalendarProvider<CalDAVConfig> {
               return { success: true };
             }
 
-            WideEvent.error(error);
+            reportError(error, {
+              "destination.calendar_id": this.config.calendarId,
+              "operation.name": "caldav:delete",
+              "source.provider": this.id,
+              "user.id": this.config.userId,
+            });
             return { error: getErrorMessage(error), success: false };
           }
         }),

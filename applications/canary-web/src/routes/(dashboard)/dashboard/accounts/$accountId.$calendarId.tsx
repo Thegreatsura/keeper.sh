@@ -122,7 +122,6 @@ function CalendarDetailPage() {
   const { data: account, isLoading: accountLoading, error: accountError, mutate: mutateAccount } = useSWR<CalendarAccount>(`/api/accounts/${accountId}`);
   const { data: calendar, isLoading: calendarLoading, error: calendarError } = useSWR<CalendarDetail>(`/api/sources/${calendarId}`);
   const { mutate: mutateCalendar } = useSWRConfig();
-  const store = useStore();
 
   useSeedCalendarDetail(calendarId, calendar);
 
@@ -171,7 +170,7 @@ function CalendarPrevNext({ calendarId }: { calendarId: string }) {
   useEffect(() => {
     if (prev) preload(`/api/sources/${prev.id}`, fetcher);
     if (next) preload(`/api/sources/${next.id}`, fetcher);
-  }, [prev?.id, next?.id]);
+  }, [prev, next]);
 
   const toCalendar = (c: CalendarSource) => `/dashboard/accounts/${c.accountId}/${c.id}`;
 

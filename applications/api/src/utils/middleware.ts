@@ -1,10 +1,17 @@
 import type { MaybePromise } from "bun";
-import { WideEvent } from "@keeper.sh/log";
 import { ErrorResponse } from "./responses";
 import { calendarsTable, sourceDestinationMappingsTable } from "@keeper.sh/database/schema";
 import { user as userTable } from "@keeper.sh/database/auth-schema";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { auth, database, premiumService } from "../context";
+import {
+  endTiming,
+  reportError,
+  runWideEvent,
+  setLogFields,
+  startTiming,
+  trackStatusError,
+} from "./logging";
 
 const HTTP_ERROR_THRESHOLD = 400;
 const HTTP_INTERNAL_SERVER_ERROR = 500;
@@ -39,14 +46,10 @@ const extractHttpContext = (request: Request): Record<string, unknown> => {
   };
 };
 
-const handleResponseStatus = (event: WideEvent, status: number): void => {
-  event.set({ "http.status_code": status });
+const handleResponseStatus = (status: number): void => {
+  setLogFields({ "http.status_code": status });
   if (status >= HTTP_ERROR_THRESHOLD) {
-    event.set({
-      "error.occurred": true,
-      "error.message": `HTTP ${status}`,
-      "error.type": "HttpError",
-    });
+    trackStatusError(status, "HttpError");
   }
 };
 
@@ -54,7 +57,11 @@ const fetchUserPlan = async (userId: string): Promise<"free" | "pro" | null> => 
   try {
     return await premiumService.getUserPlan(userId);
   } catch (error) {
-    WideEvent.error(error);
+    reportError(error, {
+      "operation.name": "http:user-context:plan",
+      "operation.type": "http",
+      "user.id": userId,
+    });
     return null;
   }
 };
@@ -92,7 +99,11 @@ const fetchUserCounts = async (
       "source.count": sources?.count ?? DEFAULT_COUNT,
     };
   } catch (error) {
-    WideEvent.error(error);
+    reportError(error, {
+      "operation.name": "http:user-context:counts",
+      "operation.type": "http",
+      "user.id": userId,
+    });
     return null;
   }
 };
@@ -109,18 +120,17 @@ const fetchAccountAgeDays = async (userId: string): Promise<number | null> => {
     }
     return Math.floor((Date.now() - result.createdAt.getTime()) / MS_PER_DAY);
   } catch (error) {
-    WideEvent.error(error);
+    reportError(error, {
+      "operation.name": "http:user-context:account-age",
+      "operation.type": "http",
+      "user.id": userId,
+    });
     return null;
   }
 };
 
 const enrichWithUserContext = async (userId: string): Promise<void> => {
-  const event = WideEvent.grasp();
-  if (!event) {
-    return;
-  }
-
-  event.set({ "user.id": userId });
+  setLogFields({ "user.id": userId });
 
   const [plan, counts, accountAgeDays] = await Promise.all([
     fetchUserPlan(userId),
@@ -129,13 +139,13 @@ const enrichWithUserContext = async (userId: string): Promise<void> => {
   ]);
 
   if (plan) {
-    event.set({ "subscription.plan": plan });
+    setLogFields({ "subscription.plan": plan });
   }
   if (counts) {
-    event.set(counts);
+    setLogFields(counts);
   }
   if (accountAgeDays !== null) {
-    event.set({ "account.age_days": accountAgeDays });
+    setLogFields({ "account.age_days": accountAgeDays });
   }
 };
 
@@ -152,32 +162,24 @@ const getSession = async (request: Request): Promise<Session | null> => {
 
 const withWideEvent =
   (handler: RouteCallback): RouteHandler =>
-  (request, params) => {
-    const event = new WideEvent();
-    event.set(extractHttpContext(request));
-
-    return event.run(async () => {
+  (request, params) =>
+    runWideEvent(extractHttpContext(request), async () => {
       try {
         const response = await handler({ params, request });
-        handleResponseStatus(event, response.status);
+        handleResponseStatus(response.status);
         return response;
       } catch (error) {
-        event.addError(error);
-        event.set({ "http.status_code": HTTP_INTERNAL_SERVER_ERROR });
+        setLogFields({ "http.status_code": HTTP_INTERNAL_SERVER_ERROR });
         throw error;
-      } finally {
-        event.emit();
       }
     });
-  };
 
 const withAuth =
   (handler: AuthenticatedRouteCallback): RouteCallback =>
   async ({ request, params }) => {
-    const event = WideEvent.grasp();
-    event?.startTiming("auth");
+    startTiming("auth");
     const session = await getSession(request);
-    event?.endTiming("auth");
+    endTiming("auth");
 
     if (!session?.user?.id) {
       return ErrorResponse.unauthorized().toResponse();

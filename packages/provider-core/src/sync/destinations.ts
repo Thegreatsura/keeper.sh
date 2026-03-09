@@ -1,6 +1,6 @@
 import type { SyncResult } from "../types";
 import type { SyncContext, SyncCoordinator } from "./coordinator";
-import { WideEvent } from "@keeper.sh/log";
+import { reportError } from "../utils/wide-logging";
 
 const INITIAL_ADDED_COUNT = 0;
 const INITIAL_ADD_FAILED_COUNT = 0;
@@ -33,9 +33,14 @@ const syncDestinationsForUser = async (
     removed: INITIAL_REMOVED_COUNT,
   };
 
-  for (const settled of settledResults) {
+  for (const [providerIndex, settled] of settledResults.entries()) {
     if (settled.status === "rejected") {
-      WideEvent.error(settled.reason);
+      reportError(settled.reason, {
+        "operation.name": "sync:destination-provider",
+        "operation.type": "sync",
+        "provider.index": providerIndex,
+        "user.id": userId,
+      });
       continue;
     }
     if (settled.value === null) {

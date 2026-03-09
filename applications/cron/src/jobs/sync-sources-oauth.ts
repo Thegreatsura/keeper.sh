@@ -3,8 +3,8 @@ import { createGoogleCalendarSourceProvider } from "@keeper.sh/provider-google-c
 import { createOutlookSourceProvider } from "@keeper.sh/provider-outlook";
 import { createGoogleOAuthService } from "@keeper.sh/oauth-google";
 import { createMicrosoftOAuthService } from "@keeper.sh/oauth-microsoft";
-import { WideEvent } from "@keeper.sh/log";
 import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
+import { endTiming, reportError, startTiming } from "../utils/logging";
 
 interface ProviderSyncResult {
   eventsAdded: number;
@@ -16,7 +16,7 @@ interface OAuthSyncJobDependencies {
   syncGoogleSources: () => Promise<ProviderSyncResult | null>;
   syncOutlookSources: () => Promise<ProviderSyncResult | null>;
   setCronEventFields: (fields: Record<string, unknown>) => void;
-  reportError?: (error: unknown) => void;
+  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
 }
 
 const publishProviderMetrics = (
@@ -42,13 +42,19 @@ const runOAuthSourceSyncJob = async (dependencies: OAuthSyncJobDependencies): Pr
   if (googleSettlement?.status === "fulfilled" && googleSettlement.value) {
     publishProviderMetrics("google", googleSettlement.value, dependencies);
   } else if (googleSettlement?.status === "rejected") {
-    dependencies.reportError?.(googleSettlement.reason);
+    dependencies.reportError?.(googleSettlement.reason, {
+      "operation.name": "oauth-source-sync:google",
+      "source.provider": "google",
+    });
   }
 
   if (outlookSettlement?.status === "fulfilled" && outlookSettlement.value) {
     publishProviderMetrics("outlook", outlookSettlement.value, dependencies);
   } else if (outlookSettlement?.status === "rejected") {
-    dependencies.reportError?.(outlookSettlement.reason);
+    dependencies.reportError?.(outlookSettlement.reason, {
+      "operation.name": "oauth-source-sync:outlook",
+      "source.provider": "outlook",
+    });
   }
 };
 
@@ -71,8 +77,7 @@ const createDefaultJobDependencies = async (): Promise<OAuthSyncJobDependencies>
       oauthProvider: googleOAuth,
     });
 
-    const event = WideEvent.grasp();
-    event?.startTiming("syncGoogleSources");
+    startTiming("syncGoogleSources");
 
     try {
       const result = await googleSourceProvider.syncAllSources();
@@ -82,10 +87,13 @@ const createDefaultJobDependencies = async (): Promise<OAuthSyncJobDependencies>
         eventsRemoved: result.eventsRemoved,
       };
     } catch (error) {
-      event?.addError(error);
+      reportError(error, {
+        "operation.name": "oauth-source-sync:google",
+        "source.provider": "google",
+      });
       return null;
     } finally {
-      event?.endTiming("syncGoogleSources");
+      endTiming("syncGoogleSources");
     }
   };
 
@@ -104,8 +112,7 @@ const createDefaultJobDependencies = async (): Promise<OAuthSyncJobDependencies>
       oauthProvider: microsoftOAuth,
     });
 
-    const event = WideEvent.grasp();
-    event?.startTiming("syncOutlookSources");
+    startTiming("syncOutlookSources");
 
     try {
       const result = await outlookSourceProvider.syncAllSources();
@@ -115,17 +122,18 @@ const createDefaultJobDependencies = async (): Promise<OAuthSyncJobDependencies>
         eventsRemoved: result.eventsRemoved,
       };
     } catch (error) {
-      event?.addError(error);
+      reportError(error, {
+        "operation.name": "oauth-source-sync:outlook",
+        "source.provider": "outlook",
+      });
       return null;
     } finally {
-      event?.endTiming("syncOutlookSources");
+      endTiming("syncOutlookSources");
     }
   };
 
   return {
-    reportError: (error) => {
-      WideEvent.error(error);
-    },
+    reportError,
     setCronEventFields,
     syncGoogleSources,
     syncOutlookSources,

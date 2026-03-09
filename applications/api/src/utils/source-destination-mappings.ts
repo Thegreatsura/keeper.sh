@@ -3,10 +3,10 @@ import {
   sourceDestinationMappingsTable,
   syncStatusTable,
 } from "@keeper.sh/database/schema";
-import { WideEvent } from "@keeper.sh/log";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { database as databaseInstance } from "../context";
 import { triggerDestinationSync } from "./sync";
+import { reportError } from "./logging";
 
 const EMPTY_LIST_COUNT = 0;
 const USER_MAPPING_LOCK_NAMESPACE = 9001;
@@ -42,7 +42,7 @@ interface SetDestinationsDependencies {
     callback: (transaction: SetDestinationsTransaction) => Promise<TResult>,
   ) => Promise<TResult>;
   triggerDestinationSync: (userId: string) => void;
-  reportError?: (error: unknown) => void;
+  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
 }
 
 interface SetSourcesTransaction {
@@ -61,7 +61,7 @@ interface SetSourcesDependencies {
     callback: (transaction: SetSourcesTransaction) => Promise<TResult>,
   ) => Promise<TResult>;
   triggerDestinationSync: (userId: string) => void;
-  reportError?: (error: unknown) => void;
+  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
 }
 
 const assertAllIdsOwned = (
@@ -216,9 +216,7 @@ const createSetDestinationsDependencies = async (): Promise<SetDestinationsDepen
   const { database } = await import("../context");
 
   return {
-    reportError: (error) => {
-      WideEvent.error(error);
-    },
+    reportError,
     triggerDestinationSync,
     withTransaction: (callback) =>
       database.transaction((transactionClient) =>
@@ -230,9 +228,7 @@ const createSetSourcesDependencies = async (): Promise<SetSourcesDependencies> =
   const { database } = await import("../context");
 
   return {
-    reportError: (error) => {
-      WideEvent.error(error);
-    },
+    reportError,
     triggerDestinationSync,
     withTransaction: (callback) =>
       database.transaction((transactionClient) =>
@@ -276,7 +272,11 @@ const runSetDestinationsForSource = async (
   try {
     dependencies.triggerDestinationSync(userId);
   } catch (error) {
-    dependencies.reportError?.(error);
+    dependencies.reportError?.(error, {
+      "operation.name": "mappings:set-destinations:trigger-sync",
+      "source.calendar_id": sourceCalendarId,
+      "user.id": userId,
+    });
   }
 };
 
@@ -312,7 +312,11 @@ const runSetSourcesForDestination = async (
   try {
     dependencies.triggerDestinationSync(userId);
   } catch (error) {
-    dependencies.reportError?.(error);
+    dependencies.reportError?.(error, {
+      "destination.calendar_id": destinationCalendarId,
+      "operation.name": "mappings:set-sources:trigger-sync",
+      "user.id": userId,
+    });
   }
 };
 

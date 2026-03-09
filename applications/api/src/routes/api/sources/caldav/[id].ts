@@ -1,4 +1,5 @@
 import { withAuth, withWideEvent } from "../../../../utils/middleware";
+import { respondWithLoggedError } from "../../../../utils/logging";
 import { ErrorResponse } from "../../../../utils/responses";
 import { CalDAVSourceNotFoundError, deleteCalDAVSource } from "../../../../utils/caldav-sources";
 
@@ -15,7 +16,7 @@ const DELETE = withWideEvent(
       return new Response(null, { status: 204 });
     } catch (error) {
       if (error instanceof CalDAVSourceNotFoundError) {
-        return ErrorResponse.notFound(error.message).toResponse();
+        return respondWithLoggedError(error, ErrorResponse.notFound(error.message).toResponse());
       }
 
       throw error;

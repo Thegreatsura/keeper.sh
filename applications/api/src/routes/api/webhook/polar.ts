@@ -1,10 +1,10 @@
 import type { MaybePromise } from "bun";
 import { WebhookVerificationError, validateEvent } from "@polar-sh/sdk/webhooks";
-import { WideEvent } from "@keeper.sh/log";
 import { ErrorResponse } from "../../../utils/responses";
 import { database } from "../../../context";
 import env from "@keeper.sh/env/api";
 import { userSubscriptionsTable } from "@keeper.sh/database/schema";
+import { respondWithLoggedError, runWideEvent, setLogFields } from "../../../utils/logging";
 
 const HTTP_OK = 200;
 
@@ -37,7 +37,6 @@ const upsertSubscription = async (
 };
 
 const handleSubscriptionCreated = async (
-  event: WideEvent,
   userId: string | null,
   subscriptionId: string,
 ): Promise<Response> => {
@@ -45,13 +44,12 @@ const handleSubscriptionCreated = async (
     return new Response(null, { status: HTTP_OK });
   }
 
-  event.set({ "user.id": userId });
+  setLogFields({ "user.id": userId });
   await upsertSubscription(userId, "pro", subscriptionId);
   return new Response(null, { status: HTTP_OK });
 };
 
 const handleSubscriptionUpdated = async (
-  event: WideEvent,
   userId: string | null,
   subscriptionId: string,
   isActive: boolean,
@@ -61,13 +59,12 @@ const handleSubscriptionUpdated = async (
   }
 
   const plan = getPlanFromActiveStatus(isActive);
-  event.set({ "subscription.plan": plan, "user.id": userId });
+  setLogFields({ "subscription.plan": plan, "user.id": userId });
   await upsertSubscription(userId, plan, subscriptionId);
   return new Response(null, { status: HTTP_OK });
 };
 
 const handleSubscriptionCanceled = async (
-  event: WideEvent,
   userId: string | null,
   subscriptionId: string,
 ): Promise<Response> => {
@@ -75,7 +72,7 @@ const handleSubscriptionCanceled = async (
     return new Response(null, { status: HTTP_OK });
   }
 
-  event.set({ "subscription.plan": "free", "user.id": userId });
+  setLogFields({ "subscription.plan": "free", "user.id": userId });
   await upsertSubscription(userId, "free", subscriptionId);
   return new Response(null, { status: HTTP_OK });
 };
@@ -87,13 +84,10 @@ const POST = (request: Request): MaybePromise<Response> => {
     return ErrorResponse.notImplemented().toResponse();
   }
 
-  const wideEvent = new WideEvent();
-  wideEvent.set({
+  return runWideEvent({
     "operation.name": "polar",
     "operation.type": "webhook",
-  });
-
-  return wideEvent.run(async () => {
+  }, async () => {
     try {
       const body = await request.text();
       const headers: Record<string, string> = {};
@@ -102,11 +96,10 @@ const POST = (request: Request): MaybePromise<Response> => {
       }
 
       const event = validateEvent(body, headers, webhookSecret);
-      wideEvent.set({ "operation.name": `polar:${event.type}` });
+      setLogFields({ "operation.name": `polar:${event.type}` });
 
       if (event.type === "subscription.created") {
         return handleSubscriptionCreated(
-          wideEvent,
           event.data.customer.externalId ?? null,
           event.data.id,
         );
@@ -114,7 +107,6 @@ const POST = (request: Request): MaybePromise<Response> => {
 
       if (event.type === "subscription.updated") {
         return handleSubscriptionUpdated(
-          wideEvent,
           event.data.customer.externalId ?? null,
           event.data.id,
           event.data.status === "active",
@@ -123,7 +115,6 @@ const POST = (request: Request): MaybePromise<Response> => {
 
       if (event.type === "subscription.canceled") {
         return handleSubscriptionCanceled(
-          wideEvent,
           event.data.customer.externalId ?? null,
           event.data.id,
         );
@@ -132,13 +123,10 @@ const POST = (request: Request): MaybePromise<Response> => {
       return new Response(null, { status: HTTP_OK });
     } catch (error) {
       if (error instanceof WebhookVerificationError) {
-        wideEvent.set({ "error.occurred": true, "error.type": "WebhookVerificationError" });
-        return ErrorResponse.unauthorized().toResponse();
+        return respondWithLoggedError(error, ErrorResponse.unauthorized().toResponse());
       }
-      wideEvent.addError(error);
+      setLogFields({ "http.status_code": 500 });
       throw error;
-    } finally {
-      wideEvent.emit();
     }
   });
 };

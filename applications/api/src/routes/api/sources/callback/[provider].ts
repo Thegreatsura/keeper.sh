@@ -1,4 +1,5 @@
 import { withWideEvent } from "../../../../utils/middleware";
+import { respondWithLoggedError } from "../../../../utils/logging";
 import { ErrorResponse } from "../../../../utils/responses";
 import { buildRedirectUrl, OAuthError } from "../../../../utils/oauth";
 import { oauthCallbackQuerySchema, providerParamSchema } from "../../../../utils/request-query";
@@ -18,7 +19,7 @@ const GET = withWideEvent(async ({ request, params }) => {
     return ErrorResponse.notFound().toResponse();
   }
 
-  const {provider} = params;
+  const { provider } = params;
 
   const errorUrl = buildRedirectUrl("/dashboard/integrations", {
     error: "Failed to connect source",
@@ -81,10 +82,10 @@ const GET = withWideEvent(async ({ request, params }) => {
     return Response.redirect(successUrl.toString());
   } catch (error) {
     if (error instanceof OAuthError) {
-      return Response.redirect(error.redirectUrl.toString());
+      return respondWithLoggedError(error, Response.redirect(error.redirectUrl.toString()));
     }
 
-    return Response.redirect(errorUrl.toString());
+    return respondWithLoggedError(error, Response.redirect(errorUrl.toString()));
   }
 });
 

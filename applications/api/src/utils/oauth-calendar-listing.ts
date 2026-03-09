@@ -1,5 +1,6 @@
 import { HTTP_STATUS } from "@keeper.sh/constants";
 import { ErrorResponse } from "./responses";
+import { respondWithLoggedError } from "./logging";
 import {
   DestinationNotFoundError,
   DestinationProviderMismatchError,
@@ -159,7 +160,7 @@ const listOAuthCalendars = async <TCalendar>(
   } catch (error) {
     const response = handleCalendarListError(error, options.isCalendarListError);
     if (response) {
-      return response;
+      return respondWithLoggedError(error, response);
     }
 
     throw error;

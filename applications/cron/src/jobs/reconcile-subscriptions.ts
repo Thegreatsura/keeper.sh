@@ -1,9 +1,9 @@
 import type { CronOptions } from "cronbake";
 import { userSubscriptionsTable } from "@keeper.sh/database/schema";
 import { user } from "@keeper.sh/database/auth-schema";
-import { WideEvent } from "@keeper.sh/log";
 import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
 import { countSettledResults } from "../utils/count-settled-results";
+import { reportError } from "../utils/logging";
 
 const EMPTY_SUBSCRIPTIONS_COUNT = 0;
 const INITIAL_PROCESSED_COUNT = 0;
@@ -20,7 +20,7 @@ interface ReconcileSubscriptionsDependencies {
   selectUserIds: () => Promise<string[]>;
   reconcileUserSubscription: (userId: string) => Promise<void>;
   setCronEventFields: (fields: Record<string, unknown>) => void;
-  reportError?: (error: unknown) => void;
+  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
 }
 
 const runReconcileSubscriptionsJob = async (
@@ -38,9 +38,13 @@ const runReconcileSubscriptionsJob = async (
     userIds.map((userId) => dependencies.reconcileUserSubscription(userId)),
   );
 
-  for (const settlement of settlements) {
+  for (const [index, settlement] of settlements.entries()) {
     if (settlement.status === "rejected") {
-      dependencies.reportError?.(settlement.reason);
+      const userId = userIds[index];
+      dependencies.reportError?.(settlement.reason, {
+        "operation.name": "reconcile-subscriptions:user",
+        ...(userId && { "user.id": userId }),
+      });
     }
   }
 
@@ -84,9 +88,7 @@ const createDefaultDependencies = async (): Promise<ReconcileSubscriptionsDepend
           target: userSubscriptionsTable.userId,
         });
     },
-    reportError: (error) => {
-      WideEvent.error(error);
-    },
+    reportError,
     selectUserIds: async () => {
       const users = await database.select({ id: user.id }).from(user);
       return users.map((userRecord) => userRecord.id);
