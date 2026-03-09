@@ -2,18 +2,10 @@ import { type } from "entrykit";
 import type { ServerConfig } from "./types";
 
 export const envSchema = type({
-  API_PROXY_TARGET: "string.url",
+  VITE_API_URL: "string.url",
   ENV: "'development'|'production'|'test'",
   PORT: "string",
-  VITE_DEV_SERVER_PORT: "string",
 });
-
-interface ParsedEnvironment {
-  API_PROXY_TARGET: string;
-  ENV: "development" | "production" | "test";
-  PORT: string;
-  VITE_DEV_SERVER_PORT: string;
-}
 
 function parsePort(variableName: string, value: string): number {
   const port = Number(value);
@@ -24,13 +16,22 @@ function parsePort(variableName: string, value: string): number {
   return port;
 }
 
-export function createServerConfig(environment: ParsedEnvironment): ServerConfig {
+function deriveVitePort(serverPort: number): number {
+  const derivedPort = serverPort + 1;
+  if (derivedPort > 65535) {
+    throw new Error("PORT must be less than 65535 to derive a Vite development port.");
+  }
+
+  return derivedPort;
+}
+
+export function createServerConfig(environment: typeof envSchema.infer): ServerConfig {
   const serverPort = parsePort("PORT", environment.PORT);
-  const vitePort = parsePort("VITE_DEV_SERVER_PORT", environment.VITE_DEV_SERVER_PORT);
+  const vitePort = deriveVitePort(serverPort);
   const runtimeEnvironment = environment.ENV;
 
   return {
-    apiProxyOrigin: environment.API_PROXY_TARGET,
+    apiProxyOrigin: environment.VITE_API_URL,
     environment: runtimeEnvironment,
     isProduction: runtimeEnvironment === "production",
     serverPort,
