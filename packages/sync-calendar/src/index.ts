@@ -1,28 +1,36 @@
-import type { calendarSourcesTable } from "@keeper.sh/database/schema";
+import type { calendarsTable } from "@keeper.sh/database/schema";
 import { calendarSnapshotsTable, eventStatesTable } from "@keeper.sh/database/schema";
 import { pullRemoteCalendar } from "@keeper.sh/pull-calendar";
 import { diffEvents, parseIcsEvents } from "@keeper.sh/sync-events";
 import { parseIcsCalendar } from "@keeper.sh/calendar";
 import { desc, eq, inArray } from "drizzle-orm";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
+import { parseOptionalJsonObject } from "./optional-json";
 
 const FIRST_RESULT_LIMIT = 1;
 const EMPTY_EVENTS_COUNT = 0;
 
+const stringifyIfPresent = (value: unknown) => {
+  if (!value) {
+    return;
+  }
+  return JSON.stringify(value);
+};
+
 class RemoteCalendarSyncError extends Error {
   constructor(
-    public sourceId: string,
+    public calendarId: string,
     cause: unknown,
   ) {
-    super(`Failed to sync remote calendar ${sourceId}`);
+    super(`Failed to sync remote calendar ${calendarId}`);
     this.cause = cause;
   }
 }
 
-type Source = typeof calendarSourcesTable.$inferSelect;
+type Source = typeof calendarsTable.$inferSelect;
 
 interface SyncCalendarService {
-  createSnapshot: (sourceId: string, ical: string) => Promise<void>;
+  createSnapshot: (calendarId: string, ical: string) => Promise<void>;
   syncSourceFromSnapshot: (source: Source) => Promise<void>;
   fetchAndSyncSource: (source: Source) => Promise<void>;
 }
@@ -32,21 +40,58 @@ const toStoredEvent = (row: {
   sourceEventUid: string;
   startTime: Date;
   endTime: Date;
-}): { endTime: Date; id: string; startTime: Date; uid: string } => ({
-  endTime: row.endTime,
-  id: row.id,
-  startTime: row.startTime,
-  uid: row.sourceEventUid,
-});
+  startTimeZone: string | null;
+  recurrenceRule: string | null;
+  exceptionDates: string | null;
+}): {
+  endTime: Date;
+  id: string;
+  startTime: Date;
+  startTimeZone?: string;
+  uid: string;
+  recurrenceRule?: object;
+  exceptionDates?: object;
+} => {
+  const storedEvent: {
+    endTime: Date;
+    id: string;
+    startTime: Date;
+    startTimeZone?: string;
+    uid: string;
+    recurrenceRule?: object;
+    exceptionDates?: object;
+  } = {
+    endTime: row.endTime,
+    id: row.id,
+    startTime: row.startTime,
+    uid: row.sourceEventUid,
+  };
+
+  if (row.startTimeZone !== null) {
+    storedEvent.startTimeZone = row.startTimeZone;
+  }
+
+  const recurrenceRule = parseOptionalJsonObject(row.recurrenceRule);
+  if (recurrenceRule) {
+    storedEvent.recurrenceRule = recurrenceRule;
+  }
+
+  const exceptionDates = parseOptionalJsonObject(row.exceptionDates);
+  if (exceptionDates) {
+    storedEvent.exceptionDates = exceptionDates;
+  }
+
+  return storedEvent;
+};
 
 const createSyncCalendarService = (database: BunSQLDatabase): SyncCalendarService => {
   const getLatestSnapshot = async (
-    sourceId: string,
+    calendarId: string,
   ): Promise<ReturnType<typeof parseIcsCalendar> | null> => {
     const [snapshot] = await database
       .select({ ical: calendarSnapshotsTable.ical })
       .from(calendarSnapshotsTable)
-      .where(eq(calendarSnapshotsTable.sourceId, sourceId))
+      .where(eq(calendarSnapshotsTable.calendarId, calendarId))
       .orderBy(desc(calendarSnapshotsTable.createdAt))
       .limit(FIRST_RESULT_LIMIT);
 
@@ -57,17 +102,20 @@ const createSyncCalendarService = (database: BunSQLDatabase): SyncCalendarServic
   };
 
   const getStoredEvents = async (
-    sourceId: string,
-  ): Promise<{ endTime: Date; id: string; startTime: Date; uid: string }[]> => {
+    calendarId: string,
+  ): Promise<{ endTime: Date; id: string; startTime: Date; startTimeZone?: string; uid: string }[]> => {
     const results = await database
       .select({
         endTime: eventStatesTable.endTime,
+        exceptionDates: eventStatesTable.exceptionDates,
         id: eventStatesTable.id,
+        recurrenceRule: eventStatesTable.recurrenceRule,
         sourceEventUid: eventStatesTable.sourceEventUid,
         startTime: eventStatesTable.startTime,
+        startTimeZone: eventStatesTable.startTimeZone,
       })
       .from(eventStatesTable)
-      .where(eq(eventStatesTable.sourceId, sourceId));
+      .where(eq(eventStatesTable.calendarId, calendarId));
 
     const events = [];
     for (const row of results) {
@@ -80,26 +128,36 @@ const createSyncCalendarService = (database: BunSQLDatabase): SyncCalendarServic
     return events;
   };
 
-  const removeEvents = async (_sourceId: string, eventIds: string[]): Promise<void> => {
+  const removeEvents = async (_calendarId: string, eventIds: string[]): Promise<void> => {
     await database.delete(eventStatesTable).where(inArray(eventStatesTable.id, eventIds));
   };
 
   const addEvents = async (
-    sourceId: string,
-    events: { uid: string; startTime: Date; endTime: Date }[],
+    calendarId: string,
+    events: {
+      uid: string;
+      startTime: Date;
+      endTime: Date;
+      startTimeZone?: string;
+      recurrenceRule?: object;
+      exceptionDates?: object;
+    }[],
   ): Promise<void> => {
     const rows = events.map((event) => ({
       endTime: event.endTime,
+      exceptionDates: stringifyIfPresent(event.exceptionDates),
       sourceEventUid: event.uid,
-      sourceId,
+      calendarId,
+      recurrenceRule: stringifyIfPresent(event.recurrenceRule),
       startTime: event.startTime,
+      startTimeZone: event.startTimeZone,
     }));
 
     await database.insert(eventStatesTable).values(rows);
   };
 
-  const createSnapshot = async (sourceId: string, ical: string): Promise<void> => {
-    await database.insert(calendarSnapshotsTable).values({ ical, sourceId });
+  const createSnapshot = async (calendarId: string, ical: string): Promise<void> => {
+    await database.insert(calendarSnapshotsTable).values({ ical, calendarId });
   };
 
   const syncSourceFromSnapshot = async (source: Source): Promise<void> => {

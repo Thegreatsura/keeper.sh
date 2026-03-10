@@ -8,6 +8,7 @@ import type {
 import { MICROSOFT_GRAPH_API, GONE_STATUS } from "../../shared/api";
 import { isSimpleAuthError } from "../../shared/errors";
 import { parseEventDateTime } from "../../shared/date-time";
+import { outlookEventListSchema } from "@keeper.sh/data-schemas";
 import { isKeeperEvent } from "@keeper.sh/provider-core";
 
 class EventsFetchError extends Error {
@@ -39,13 +40,36 @@ interface FullSyncRequiredResult {
   fullSyncRequired: true;
 }
 
+interface FetchCalendarNameOptions {
+  accessToken: string;
+  calendarId: string;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const parseCalendarName = (value: unknown): string | null => {
+  if (!isRecord(value) || typeof value.name !== "string") {
+    return null;
+  }
+
+  const normalizedName = value.name.trim();
+  if (normalizedName.length === 0) {
+    return null;
+  }
+
+  return normalizedName;
+};
+
 const buildInitialUrl = (calendarId: string, timeMin: Date, timeMax: Date): URL => {
   const encodedCalendarId = encodeURIComponent(calendarId);
-  const url = new URL(`${MICROSOFT_GRAPH_API}/me/calendars/${encodedCalendarId}/calendarView/delta`);
+  const url = new URL(
+    `${MICROSOFT_GRAPH_API}/me/calendars/${encodedCalendarId}/calendarView/delta`,
+  );
 
   url.searchParams.set("startDateTime", timeMin.toISOString());
   url.searchParams.set("endDateTime", timeMax.toISOString());
-  url.searchParams.set("$select", "id,iCalUId,subject,start,end");
+  url.searchParams.set("$select", "id,iCalUId,subject,body,location,start,end");
 
   return url;
 };
@@ -93,7 +117,8 @@ const fetchEventsPage = async (
     );
   }
 
-  const data = (await response.json()) as OutlookEventsListResponse;
+  const responseBody = await response.json();
+  const data = outlookEventListSchema.assert(responseBody);
   return { data, fullSyncRequired: false };
 };
 
@@ -116,10 +141,12 @@ const fetchCalendarEvents = async (options: FetchEventsOptions): Promise<FetchEv
     return { events: [], fullSyncRequired: true };
   }
 
-  for (const event of initialResult.data.value) {
+  for (const event of initialResult.data.value ?? []) {
     if (event["@removed"]) {
       const uid = event.iCalUId ?? event.id;
-      cancelledEventUids.push(uid);
+      if (uid) {
+        cancelledEventUids.push(uid);
+      }
     } else {
       events.push(event);
     }
@@ -141,10 +168,12 @@ const fetchCalendarEvents = async (options: FetchEventsOptions): Promise<FetchEv
       return { events: [], fullSyncRequired: true };
     }
 
-    for (const event of pageResult.data.value) {
+    for (const event of pageResult.data.value ?? []) {
       if (event["@removed"]) {
         const uid = event.iCalUId ?? event.id;
-        cancelledEventUids.push(uid);
+        if (uid) {
+          cancelledEventUids.push(uid);
+        }
       } else {
         events.push(event);
       }
@@ -170,19 +199,62 @@ const fetchCalendarEvents = async (options: FetchEventsOptions): Promise<FetchEv
   return result;
 };
 
+const fetchCalendarName = async (options: FetchCalendarNameOptions): Promise<string | null> => {
+  const encodedCalendarId = encodeURIComponent(options.calendarId);
+  const url = `${MICROSOFT_GRAPH_API}/me/calendars/${encodedCalendarId}?$select=name`;
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${options.accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const authRequired = isSimpleAuthError(response.status);
+    throw new EventsFetchError(
+      `Failed to fetch calendar metadata: ${response.status}`,
+      response.status,
+      authRequired,
+    );
+  }
+
+  const responseBody = await response.json();
+  return parseCalendarName(responseBody);
+};
+
 const parseOutlookEvents = (events: OutlookCalendarEvent[]): EventTimeSlot[] => {
   const result: EventTimeSlot[] = [];
 
   for (const event of events) {
-    if (!event.start || !event.end || !event.iCalUId) {
+    if (
+      !event.start?.dateTime
+      || !event.start.timeZone
+      || !event.end?.dateTime
+      || !event.end.timeZone
+      || !event.iCalUId
+    ) {
       continue;
     }
     if (isKeeperEvent(event.iCalUId)) {
       continue;
     }
+
+    const start = {
+      dateTime: event.start.dateTime,
+      timeZone: event.start.timeZone,
+    };
+
+    const end = {
+      dateTime: event.end.dateTime,
+      timeZone: event.end.timeZone,
+    };
+
     result.push({
-      endTime: parseEventDateTime(event.end),
-      startTime: parseEventDateTime(event.start),
+      description: event.body?.content,
+      endTime: parseEventDateTime(end),
+      location: event.location?.displayName,
+      startTime: parseEventDateTime(start),
+      startTimeZone: start.timeZone,
+      title: event.subject,
       uid: event.iCalUId,
     });
   }
@@ -190,4 +262,4 @@ const parseOutlookEvents = (events: OutlookCalendarEvent[]): EventTimeSlot[] => 
   return result;
 };
 
-export { fetchCalendarEvents, parseOutlookEvents, EventsFetchError };
+export { fetchCalendarEvents, fetchCalendarName, parseOutlookEvents, EventsFetchError };

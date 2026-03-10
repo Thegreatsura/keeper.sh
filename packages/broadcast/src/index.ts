@@ -1,14 +1,11 @@
-import { WideEvent } from "@keeper.sh/log";
 import { broadcastMessageSchema } from "@keeper.sh/data-schemas";
 import type { BroadcastMessage } from "@keeper.sh/data-schemas";
-import { createSubscriber } from "@keeper.sh/redis";
-import { connections, pingIntervals } from "./state";
+import { emitWideEvent, reportError, runWideEvent } from "@keeper.sh/provider-core";
+import { connections } from "./state";
 import type { Socket } from "./types";
 import type { RedisClient } from "bun";
 
 const EMPTY_CONNECTIONS_COUNT = 0;
-const WEBSOCKET_READY_STATE_OPEN = 1;
-const PING_INTERVAL_MS = 10_000;
 const IDLE_TIMEOUT_SECONDS = 60;
 
 type OnConnectCallback = (userId: string, socket: Socket) => void | Promise<void>;
@@ -50,9 +47,9 @@ const createBroadcastService = (config: BroadcastConfig): BroadcastService => {
   };
 
   const startSubscriber = async (): Promise<void> => {
-    const subscriber = await createSubscriber(redis);
+    const subscriber = await redis.duplicate();
 
-    await subscriber.subscribe(CHANNEL, (message) => {
+    await subscriber.subscribe(CHANNEL, (message: string) => {
       const parsed = JSON.parse(message);
       if (!broadcastMessageSchema.allows(parsed)) {
         return;
@@ -60,12 +57,10 @@ const createBroadcastService = (config: BroadcastConfig): BroadcastService => {
       sendToUser(parsed.userId, parsed.event, parsed.data);
     });
 
-    const event = new WideEvent();
-    event.set({
+    await emitWideEvent({
       "operation.type": "lifecycle",
       "operation.name": "broadcast:subscriber:start",
     });
-    event.emit();
   };
 
   return { emit, startSubscriber };
@@ -95,35 +90,32 @@ const removeConnection = (userId: string, socket: Socket): void => {
 const getConnectionCount = (userId: string): number =>
   connections.get(userId)?.size ?? EMPTY_CONNECTIONS_COUNT;
 
-const sendPing = (socket: Socket): void => {
-  socket.send(JSON.stringify({ event: "ping" }));
-};
-
 const emitWebSocketEvent = (userId: string, operationName: string, error?: unknown): void => {
-  const event = new WideEvent();
-  event.set({
+  const fields = {
     "user.id": userId,
     "operation.type": "connection",
     "operation.name": operationName,
-  });
-  if (error) {
-    event.addError(error);
+  };
+
+  if (!error) {
+    emitWideEvent(fields).catch((error) => {
+      reportError(error, {
+        ...fields,
+        "operation.name": `${operationName}:emit`,
+      });
+    });
+    return;
   }
-  event.emit();
-};
 
-const startPing = (socket: Socket): ReturnType<typeof setInterval> => {
-  sendPing(socket);
-
-  const interval = setInterval((): void => {
-    if (socket.readyState !== WEBSOCKET_READY_STATE_OPEN) {
-      clearInterval(interval);
-      return;
-    }
-    sendPing(socket);
-  }, PING_INTERVAL_MS);
-
-  return interval;
+  runWideEvent(fields, () => {
+    reportError(error, fields);
+    return globalThis.undefined;
+  }).catch((error) => {
+    reportError(error, {
+      ...fields,
+      "operation.name": `${operationName}:run`,
+    });
+  });
 };
 
 const createWebsocketHandler = (
@@ -136,13 +128,6 @@ const createWebsocketHandler = (
 } => ({
   close(socket: Socket): void {
     const { userId } = socket.data;
-    const interval = pingIntervals.get(socket);
-
-    if (interval) {
-      clearInterval(interval);
-      pingIntervals.delete(socket);
-    }
-
     removeConnection(userId, socket);
     emitWebSocketEvent(userId, "websocket:close");
   },
@@ -151,13 +136,21 @@ const createWebsocketHandler = (
   async open(socket: Socket): Promise<void> {
     const { userId } = socket.data;
     addConnection(userId, socket);
-    pingIntervals.set(socket, startPing(socket));
 
     try {
       await options?.onConnect?.(userId, socket);
       emitWebSocketEvent(userId, "websocket:open");
     } catch (error) {
       emitWebSocketEvent(userId, "websocket:open", error);
+      try {
+        socket.close();
+      } catch (error) {
+        reportError(error, {
+          "operation.name": "websocket:close:failed",
+          "operation.type": "connection",
+          "user.id": userId,
+        });
+      }
     }
   },
 });

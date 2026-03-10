@@ -1,6 +1,6 @@
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 
-type AuthType = "oauth" | "caldav";
+type AuthType = "oauth" | "caldav" | "none";
 
 interface SourcePreferenceOption {
   id: string;
@@ -24,6 +24,11 @@ interface CalDAVProviderConfig {
   passwordHelp: string;
 }
 
+interface ProviderCapabilities {
+  canRead: boolean;
+  canWrite: boolean;
+}
+
 interface ProviderDefinition {
   id: string;
   name: string;
@@ -32,6 +37,7 @@ interface ProviderDefinition {
   comingSoon?: boolean;
   caldav?: CalDAVProviderConfig;
   sourcePreferences?: SourcePreferencesConfig;
+  capabilities: ProviderCapabilities;
 }
 
 interface SyncableEvent {
@@ -39,11 +45,15 @@ interface SyncableEvent {
   sourceEventUid: string;
   startTime: Date;
   endTime: Date;
+  startTimeZone?: string;
+  recurrenceRule?: object;
+  exceptionDates?: object;
   summary: string;
   description?: string;
-  sourceId: string;
-  sourceName: string | null;
-  sourceUrl: string | null;
+  location?: string;
+  calendarId: string;
+  calendarName: string | null;
+  calendarUrl: string | null;
 }
 
 interface PushResult {
@@ -85,14 +95,14 @@ interface ListRemoteEventsOptions {
 
 type BroadcastSyncStatus = (
   userId: string,
-  destinationId: string,
+  calendarId: string,
   data: { needsReauthentication: boolean },
 ) => void;
 
 interface ProviderConfig {
   database: BunSQLDatabase;
   userId: string;
-  destinationId: string;
+  calendarId: string;
   broadcastSyncStatus?: BroadcastSyncStatus;
 }
 
@@ -104,7 +114,7 @@ interface OAuthProviderConfig extends ProviderConfig {
 }
 
 interface GoogleCalendarConfig extends OAuthProviderConfig {
-  calendarId: string;
+  externalCalendarId: string;
 }
 
 type OutlookCalendarConfig = OAuthProviderConfig;
@@ -119,6 +129,12 @@ interface SourceEvent {
   uid: string;
   startTime: Date;
   endTime: Date;
+  startTimeZone?: string;
+  recurrenceRule?: object;
+  exceptionDates?: object;
+  title?: string;
+  description?: string;
+  location?: string;
 }
 
 interface SourceSyncResult {
@@ -132,20 +148,20 @@ interface SourceSyncResult {
 interface OAuthSourceConfig {
   database: BunSQLDatabase;
   userId: string;
-  sourceId: string;
+  calendarId: string;
   externalCalendarId: string;
   accessToken: string;
   refreshToken: string;
   accessTokenExpiresAt: Date;
   syncToken: string | null;
-  destinationId?: string;
-  oauthCredentialId?: string;
-  oauthSourceCredentialId?: string;
+  calendarAccountId: string;
+  oauthCredentialId: string;
 }
 
 export type {
   AuthType,
   CalDAVProviderConfig,
+  ProviderCapabilities,
   ProviderDefinition,
   SourcePreferenceOption,
   SourcePreferencesConfig,

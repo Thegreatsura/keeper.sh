@@ -1,0 +1,156 @@
+import type { CronOptions } from "cronbake";
+import { createGoogleCalendarSourceProvider } from "@keeper.sh/provider-google-calendar";
+import { createOutlookSourceProvider } from "@keeper.sh/provider-outlook";
+import { createGoogleOAuthService } from "@keeper.sh/oauth-google";
+import { createMicrosoftOAuthService } from "@keeper.sh/oauth-microsoft";
+import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
+import { endTiming, reportError, startTiming } from "../utils/logging";
+
+interface ProviderSyncResult {
+  eventsAdded: number;
+  eventsRemoved: number;
+  errorCount: number;
+}
+
+interface OAuthSyncJobDependencies {
+  syncGoogleSources: () => Promise<ProviderSyncResult | null>;
+  syncOutlookSources: () => Promise<ProviderSyncResult | null>;
+  setCronEventFields: (fields: Record<string, unknown>) => void;
+  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
+}
+
+const publishProviderMetrics = (
+  provider: "google" | "outlook",
+  result: ProviderSyncResult,
+  dependencies: OAuthSyncJobDependencies,
+): void => {
+  dependencies.setCronEventFields({
+    [`${provider}.error.count`]: result.errorCount,
+    [`${provider}.events.added`]: result.eventsAdded,
+    [`${provider}.events.removed`]: result.eventsRemoved,
+  });
+};
+
+const runOAuthSourceSyncJob = async (dependencies: OAuthSyncJobDependencies): Promise<void> => {
+  const settlements = await Promise.allSettled([
+    Promise.resolve().then(() => dependencies.syncGoogleSources()),
+    Promise.resolve().then(() => dependencies.syncOutlookSources()),
+  ]);
+
+  const [googleSettlement, outlookSettlement] = settlements;
+
+  if (googleSettlement?.status === "fulfilled" && googleSettlement.value) {
+    publishProviderMetrics("google", googleSettlement.value, dependencies);
+  } else if (googleSettlement?.status === "rejected") {
+    dependencies.reportError?.(googleSettlement.reason, {
+      "operation.name": "oauth-source-sync:google",
+      "source.provider": "google",
+    });
+  }
+
+  if (outlookSettlement?.status === "fulfilled" && outlookSettlement.value) {
+    publishProviderMetrics("outlook", outlookSettlement.value, dependencies);
+  } else if (outlookSettlement?.status === "rejected") {
+    dependencies.reportError?.(outlookSettlement.reason, {
+      "operation.name": "oauth-source-sync:outlook",
+      "source.provider": "outlook",
+    });
+  }
+};
+
+const createDefaultJobDependencies = async (): Promise<OAuthSyncJobDependencies> => {
+  const [{ default: env }, { database }] = await Promise.all([
+    import("@keeper.sh/env/cron"),
+    import("../context"),
+  ]);
+
+  const syncGoogleSources = async (): Promise<ProviderSyncResult | null> => {
+    if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+      return null;
+    }
+
+    const googleOAuth = createGoogleOAuthService({
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+    });
+
+    const googleSourceProvider = createGoogleCalendarSourceProvider({
+      database,
+      oauthProvider: googleOAuth,
+    });
+
+    startTiming("syncGoogleSources");
+
+    try {
+      const result = await googleSourceProvider.syncAllSources();
+      return {
+        errorCount: result.errors?.length ?? 0,
+        eventsAdded: result.eventsAdded,
+        eventsRemoved: result.eventsRemoved,
+      };
+    } catch (error) {
+      reportError(error, {
+        "operation.name": "oauth-source-sync:google",
+        "source.provider": "google",
+      });
+      return null;
+    } finally {
+      endTiming("syncGoogleSources");
+    }
+  };
+
+  const syncOutlookSources = async (): Promise<ProviderSyncResult | null> => {
+    if (!env.MICROSOFT_CLIENT_ID || !env.MICROSOFT_CLIENT_SECRET) {
+      return null;
+    }
+
+    const microsoftOAuth = createMicrosoftOAuthService({
+      clientId: env.MICROSOFT_CLIENT_ID,
+      clientSecret: env.MICROSOFT_CLIENT_SECRET,
+    });
+
+    const outlookSourceProvider = createOutlookSourceProvider({
+      database,
+      oauthProvider: microsoftOAuth,
+    });
+
+    startTiming("syncOutlookSources");
+
+    try {
+      const result = await outlookSourceProvider.syncAllSources();
+      return {
+        errorCount: result.errors?.length ?? 0,
+        eventsAdded: result.eventsAdded,
+        eventsRemoved: result.eventsRemoved,
+      };
+    } catch (error) {
+      reportError(error, {
+        "operation.name": "oauth-source-sync:outlook",
+        "source.provider": "outlook",
+      });
+      return null;
+    } finally {
+      endTiming("syncOutlookSources");
+    }
+  };
+
+  return {
+    reportError,
+    setCronEventFields,
+    syncGoogleSources,
+    syncOutlookSources,
+  };
+};
+
+export default withCronWideEvent({
+  async callback() {
+    setCronEventFields({ "job.type": "oauth-source-sync" });
+    const dependencies = await createDefaultJobDependencies();
+    await runOAuthSourceSyncJob(dependencies);
+  },
+  cron: "@every_1_minutes",
+  immediate: true,
+  name: import.meta.file,
+}) satisfies CronOptions;
+
+export { runOAuthSourceSyncJob };

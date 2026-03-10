@@ -1,54 +1,88 @@
 import {
-  calendarSourcesTable,
+  calendarsTable,
   eventStatesTable,
   sourceDestinationMappingsTable,
 } from "@keeper.sh/database/schema";
-import { getStartOfToday } from "@keeper.sh/date-utils";
-import { and, asc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, or } from "drizzle-orm";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import type { SyncableEvent } from "../types";
+import { getOAuthSyncWindowStart } from "../oauth/sync-window";
+import {
+  hasActiveFutureOccurrence,
+  parseExceptionDatesFromJson,
+  parseRecurrenceRuleFromJson,
+} from "./recurrence";
 
 const EMPTY_SOURCES_COUNT = 0;
 
-const getMappedSourceIds = async (
-  database: BunSQLDatabase,
-  destinationId: string,
-): Promise<string[]> => {
-  const mappings = await database
-    .select({ sourceId: sourceDestinationMappingsTable.sourceId })
-    .from(sourceDestinationMappingsTable)
-    .where(eq(sourceDestinationMappingsTable.destinationId, destinationId));
-
-  return mappings.map((mapping) => mapping.sourceId);
+const orAbsent = <TValue>(value: TValue | null): TValue | undefined => {
+  if (value === null) {
+    return;
+  }
+  return value;
 };
 
-const fetchEventsForSources = async (
+const excludeOrAbsent = <TValue>(exclude: boolean, value: TValue | null): TValue | undefined => {
+  if (exclude) {
+    return;
+  }
+  return orAbsent(value);
+};
+const TEMPLATE_TOKEN_PATTERN = /\{\{(\w+)\}\}/g;
+const DEFAULT_EVENT_NAME = "Busy";
+const DEFAULT_EVENT_NAME_TEMPLATE = "{{calendar_name}}";
+
+const getMappedSourceCalendarIds = async (
   database: BunSQLDatabase,
-  sourceIds: string[],
+  destinationCalendarId: string,
+): Promise<string[]> => {
+  const mappings = await database
+    .select({ sourceCalendarId: sourceDestinationMappingsTable.sourceCalendarId })
+    .from(sourceDestinationMappingsTable)
+    .where(eq(sourceDestinationMappingsTable.destinationCalendarId, destinationCalendarId));
+
+  return mappings.map((mapping) => mapping.sourceCalendarId);
+};
+
+const fetchEventsForCalendars = async (
+  database: BunSQLDatabase,
+  calendarIds: string[],
 ): Promise<SyncableEvent[]> => {
-  if (sourceIds.length === EMPTY_SOURCES_COUNT) {
+  if (calendarIds.length === EMPTY_SOURCES_COUNT) {
     return [];
   }
 
-  const startOfToday = getStartOfToday();
+  const syncWindowStart = getOAuthSyncWindowStart();
 
   const results = await database
     .select({
+      calendarId: eventStatesTable.calendarId,
+      calendarName: calendarsTable.name,
+      calendarUrl: calendarsTable.url,
+      customEventName: calendarsTable.customEventName,
+      excludeEventDescription: calendarsTable.excludeEventDescription,
+      excludeEventLocation: calendarsTable.excludeEventLocation,
+      excludeEventName: calendarsTable.excludeEventName,
+      description: eventStatesTable.description,
       endTime: eventStatesTable.endTime,
+      exceptionDates: eventStatesTable.exceptionDates,
       id: eventStatesTable.id,
+      location: eventStatesTable.location,
+      recurrenceRule: eventStatesTable.recurrenceRule,
       sourceEventUid: eventStatesTable.sourceEventUid,
-      sourceId: eventStatesTable.sourceId,
-      sourceName: calendarSourcesTable.name,
-      sourceType: calendarSourcesTable.sourceType,
-      sourceUrl: calendarSourcesTable.url,
       startTime: eventStatesTable.startTime,
+      startTimeZone: eventStatesTable.startTimeZone,
+      title: eventStatesTable.title,
     })
     .from(eventStatesTable)
-    .innerJoin(calendarSourcesTable, eq(eventStatesTable.sourceId, calendarSourcesTable.id))
+    .innerJoin(calendarsTable, eq(eventStatesTable.calendarId, calendarsTable.id))
     .where(
       and(
-        inArray(eventStatesTable.sourceId, sourceIds),
-        gte(eventStatesTable.startTime, startOfToday),
+        inArray(eventStatesTable.calendarId, calendarIds),
+        or(
+          gte(eventStatesTable.startTime, syncWindowStart),
+          isNotNull(eventStatesTable.recurrenceRule),
+        ),
       ),
     )
     .orderBy(asc(eventStatesTable.startTime));
@@ -60,32 +94,76 @@ const fetchEventsForSources = async (
       continue;
     }
 
+    const parsedRecurrenceRule = parseRecurrenceRuleFromJson(result.recurrenceRule);
+    const parsedExceptionDates = parseExceptionDatesFromJson(result.exceptionDates);
+
+    if (
+      result.startTime < syncWindowStart
+      && !hasActiveFutureOccurrence(
+        result.startTime,
+        parsedRecurrenceRule,
+        parsedExceptionDates,
+        syncWindowStart,
+      )
+    ) {
+      continue;
+    }
+
+    const eventName = result.title ?? DEFAULT_EVENT_NAME;
+    const {calendarName} = result;
+    const template = result.customEventName || DEFAULT_EVENT_NAME_TEMPLATE;
+
+    let summary = eventName;
+    if (result.excludeEventName) {
+      summary = resolveEventNameTemplate(template, {
+        calendar_name: calendarName,
+        event_name: eventName,
+      });
+    }
+
     syncableEvents.push({
+      calendarId: result.calendarId,
+      calendarName: result.calendarName,
+      calendarUrl: result.calendarUrl,
+      description: excludeOrAbsent(result.excludeEventDescription, result.description),
       endTime: result.endTime,
       id: result.id,
+      location: excludeOrAbsent(result.excludeEventLocation, result.location),
+      exceptionDates: parsedExceptionDates,
+      recurrenceRule: orAbsent(parsedRecurrenceRule),
       sourceEventUid: result.sourceEventUid,
-      sourceId: result.sourceId,
-      sourceName: result.sourceName,
-      sourceUrl: result.sourceUrl ?? result.sourceType,
       startTime: result.startTime,
-      summary: result.sourceName ?? "Busy",
+      startTimeZone: orAbsent(result.startTimeZone),
+      summary,
     });
   }
 
   return syncableEvents;
 };
 
+const resolveEventNameTemplate = (
+  template: string,
+  variables: Record<string, string>,
+): string => {
+  const resolved = template.replace(
+    TEMPLATE_TOKEN_PATTERN,
+    (token, variableName) => variables[variableName] ?? token,
+  ).trim();
+
+  return resolved || variables.calendar_name || DEFAULT_EVENT_NAME;
+};
+
 const getEventsForDestination = async (
   database: BunSQLDatabase,
-  destinationId: string,
+  destinationCalendarId: string,
 ): Promise<SyncableEvent[]> => {
-  const sourceIds = await getMappedSourceIds(database, destinationId);
+  const sourceCalendarIds = await getMappedSourceCalendarIds(database, destinationCalendarId);
 
-  if (sourceIds.length === EMPTY_SOURCES_COUNT) {
+  if (sourceCalendarIds.length === EMPTY_SOURCES_COUNT) {
     return [];
   }
 
-  return fetchEventsForSources(database, sourceIds);
+  return fetchEventsForCalendars(database, sourceCalendarIds);
 };
 
 export { getEventsForDestination };

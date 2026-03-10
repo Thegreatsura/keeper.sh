@@ -5,9 +5,14 @@ import type {
   GoogleEventsListResponse,
   EventTimeSlot,
 } from "../types";
-import { GOOGLE_CALENDAR_EVENTS_URL, GOOGLE_CALENDAR_MAX_RESULTS, GONE_STATUS } from "../../shared/api";
+import {
+  GOOGLE_CALENDAR_EVENTS_URL,
+  GOOGLE_CALENDAR_MAX_RESULTS,
+  GONE_STATUS,
+} from "../../shared/api";
 import { isSimpleAuthError } from "../../shared/errors";
 import { parseEventDateTime } from "../../shared/date-time";
+import { googleEventListSchema } from "@keeper.sh/data-schemas";
 import { isKeeperEvent } from "@keeper.sh/provider-core";
 
 class EventsFetchError extends Error {
@@ -39,6 +44,31 @@ interface PageFetchResult {
 interface FullSyncRequiredResult {
   fullSyncRequired: true;
 }
+
+interface FetchCalendarNameOptions {
+  accessToken: string;
+  calendarId: string;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const parseCalendarName = (value: unknown): string | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  if (typeof value.summary !== "string") {
+    return null;
+  }
+
+  const normalizedName = value.summary.trim();
+  if (normalizedName.length === 0) {
+    return null;
+  }
+
+  return normalizedName;
+};
 
 const fetchEventsPage = async (
   options: PageFetchOptions,
@@ -83,12 +113,20 @@ const fetchEventsPage = async (
     );
   }
 
-  const data = (await response.json()) as GoogleEventsListResponse;
+  const responseBody = await response.json();
+  const data = googleEventListSchema.assert(responseBody);
   return { data, fullSyncRequired: false };
 };
 
 const fetchCalendarEvents = async (options: FetchEventsOptions): Promise<FetchEventsResult> => {
-  const { accessToken, calendarId, syncToken, timeMin, timeMax, maxResults = GOOGLE_CALENDAR_MAX_RESULTS } = options;
+  const {
+    accessToken,
+    calendarId,
+    syncToken,
+    timeMin,
+    timeMax,
+    maxResults = GOOGLE_CALENDAR_MAX_RESULTS,
+  } = options;
 
   const baseUrl = `${GOOGLE_CALENDAR_EVENTS_URL}/${encodeURIComponent(calendarId)}/events`;
   const events: GoogleCalendarEvent[] = [];
@@ -108,10 +146,12 @@ const fetchCalendarEvents = async (options: FetchEventsOptions): Promise<FetchEv
     return { events: [], fullSyncRequired: true };
   }
 
-  for (const event of result.data.items) {
+  for (const event of result.data.items ?? []) {
     if (event.status === "cancelled") {
       const uid = event.iCalUID ?? event.id;
-      cancelledEventUids.push(uid);
+      if (uid) {
+        cancelledEventUids.push(uid);
+      }
     } else {
       events.push(event);
     }
@@ -134,10 +174,12 @@ const fetchCalendarEvents = async (options: FetchEventsOptions): Promise<FetchEv
       return { events: [], fullSyncRequired: true };
     }
 
-    for (const event of result.data.items) {
+    for (const event of result.data.items ?? []) {
       if (event.status === "cancelled") {
         const uid = event.iCalUID ?? event.id;
-        cancelledEventUids.push(uid);
+        if (uid) {
+          cancelledEventUids.push(uid);
+        }
       } else {
         events.push(event);
       }
@@ -160,6 +202,27 @@ const fetchCalendarEvents = async (options: FetchEventsOptions): Promise<FetchEv
   }
 
   return fetchResult;
+};
+
+const fetchCalendarName = async (options: FetchCalendarNameOptions): Promise<string | null> => {
+  const url = `${GOOGLE_CALENDAR_EVENTS_URL}/${encodeURIComponent(options.calendarId)}`;
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${options.accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const authRequired = isSimpleAuthError(response.status);
+    throw new EventsFetchError(
+      `Failed to fetch calendar metadata: ${response.status}`,
+      response.status,
+      authRequired,
+    );
+  }
+
+  const responseBody = await response.json();
+  return parseCalendarName(responseBody);
 };
 
 interface EventTypeFilters {
@@ -201,8 +264,12 @@ const parseGoogleEvents = (
       continue;
     }
     result.push({
+      description: event.description,
       endTime: parseEventDateTime(event.end),
+      location: event.location,
       startTime: parseEventDateTime(event.start),
+      startTimeZone: event.start.timeZone ?? event.end.timeZone,
+      title: event.summary,
       uid: event.iCalUID,
     });
   }
@@ -210,5 +277,5 @@ const parseGoogleEvents = (
   return result;
 };
 
-export { fetchCalendarEvents, parseGoogleEvents, EventsFetchError };
+export { fetchCalendarEvents, fetchCalendarName, parseGoogleEvents, EventsFetchError };
 export type { EventTypeFilters };

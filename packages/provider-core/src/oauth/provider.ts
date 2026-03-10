@@ -1,4 +1,4 @@
-import { calendarDestinationsTable, oauthCredentialsTable } from "@keeper.sh/database/schema";
+import { calendarAccountsTable, calendarsTable, oauthCredentialsTable } from "@keeper.sh/database/schema";
 import { TOKEN_REFRESH_BUFFER_MS } from "@keeper.sh/constants";
 import { eq } from "drizzle-orm";
 import { CalendarProvider } from "../sync/provider";
@@ -8,7 +8,6 @@ import type { DeleteResult, OAuthProviderConfig, PushResult, SyncableEvent } fro
 const DEFAULT_CONCURRENCY = 10;
 const DEFAULT_REQUESTS_PER_MINUTE = 600;
 const MS_PER_SECOND = 1000;
-const FIRST_RESULT_LIMIT = 1;
 
 interface OAuthRefreshResult {
   access_token: string;
@@ -84,14 +83,44 @@ abstract class OAuthCalendarProvider<
     };
   }
 
-  protected async markNeedsReauthentication(): Promise<void> {
-    const { database, destinationId, userId, broadcastSyncStatus } = this.config;
-    await database
-      .update(calendarDestinationsTable)
-      .set({ needsReauthentication: true })
-      .where(eq(calendarDestinationsTable.id, destinationId));
+  private async getCalendarAccountId(calendarId: string): Promise<string | null> {
+    const [calendar] = await this.config.database
+      .select({ accountId: calendarsTable.accountId })
+      .from(calendarsTable)
+      .where(eq(calendarsTable.id, calendarId))
+      .limit(1);
 
-    broadcastSyncStatus?.(userId, destinationId, { needsReauthentication: true });
+    return calendar?.accountId ?? null;
+  }
+
+  private async getOAuthCredentialIdForCalendar(calendarId: string): Promise<string | null> {
+    const accountId = await this.getCalendarAccountId(calendarId);
+    if (!accountId) {
+      return null;
+    }
+
+    const [account] = await this.config.database
+      .select({ oauthCredentialId: calendarAccountsTable.oauthCredentialId })
+      .from(calendarAccountsTable)
+      .where(eq(calendarAccountsTable.id, accountId))
+      .limit(1);
+
+    return account?.oauthCredentialId ?? null;
+  }
+
+  protected async markNeedsReauthentication(): Promise<void> {
+    const { database, calendarId, userId, broadcastSyncStatus } = this.config;
+
+    const calendarAccountId = await this.getCalendarAccountId(calendarId);
+
+    if (calendarAccountId) {
+      await database
+        .update(calendarAccountsTable)
+        .set({ needsReauthentication: true })
+        .where(eq(calendarAccountsTable.id, calendarAccountId));
+    }
+
+    broadcastSyncStatus?.(userId, calendarId, { needsReauthentication: true });
   }
 
   protected async handleAuthErrorResponse(errorMessage: string): Promise<AuthErrorResult> {
@@ -104,7 +133,7 @@ abstract class OAuthCalendarProvider<
   }
 
   protected async ensureValidToken(): Promise<void> {
-    const { database, accessTokenExpiresAt, refreshToken, destinationId } = this.config;
+    const { database, accessTokenExpiresAt, refreshToken, calendarId } = this.config;
 
     if (accessTokenExpiresAt.getTime() > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
       return;
@@ -119,15 +148,8 @@ abstract class OAuthCalendarProvider<
 
     const newExpiresAt = new Date(Date.now() + tokenData.expires_in * MS_PER_SECOND);
 
-    const [destination] = await database
-      .select({
-        oauthCredentialId: calendarDestinationsTable.oauthCredentialId,
-      })
-      .from(calendarDestinationsTable)
-      .where(eq(calendarDestinationsTable.id, destinationId))
-      .limit(FIRST_RESULT_LIMIT);
-
-    if (destination?.oauthCredentialId) {
+    const oauthCredentialId = await this.getOAuthCredentialIdForCalendar(calendarId);
+    if (oauthCredentialId) {
       await database
         .update(oauthCredentialsTable)
         .set({
@@ -135,7 +157,7 @@ abstract class OAuthCalendarProvider<
           expiresAt: newExpiresAt,
           refreshToken: tokenData.refresh_token ?? refreshToken,
         })
-        .where(eq(oauthCredentialsTable.id, destination.oauthCredentialId));
+        .where(eq(oauthCredentialsTable.id, oauthCredentialId));
     }
 
     this.currentAccessToken = tokenData.access_token;

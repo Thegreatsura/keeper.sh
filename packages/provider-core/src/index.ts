@@ -9,7 +9,12 @@ export {
   type OAuthProvidersConfig,
   type OAuthProviders,
 } from "./oauth/providers";
-export { buildOAuthConfigs, type OAuthCredentials, type OAuthEnv, type OAuthConfigs } from "./oauth/config";
+export {
+  buildOAuthConfigs,
+  type OAuthCredentials,
+  type OAuthEnv,
+  type OAuthConfigs,
+} from "./oauth/config";
 export {
   OAuthCalendarProvider,
   type OAuthRefreshResult,
@@ -26,6 +31,16 @@ export {
   type ProcessEventsOptions,
 } from "./oauth/source-provider";
 export {
+  OAUTH_SYNC_WINDOW_VERSION,
+  getOAuthSyncWindow,
+  getOAuthSyncWindowStart,
+} from "./oauth/sync-window";
+export {
+  decodeStoredSyncToken,
+  encodeStoredSyncToken,
+  resolveSyncTokenForWindow,
+} from "./oauth/sync-token";
+export {
   createOAuthSourceProvider,
   type CreateOAuthSourceProviderOptions,
   type OAuthSourceAccount,
@@ -34,7 +49,26 @@ export {
 export { generateEventUid, isKeeperEvent } from "./events/identity";
 export { RateLimiter, type RateLimiterConfig } from "./utils/rate-limiter";
 export { getErrorMessage } from "./utils/error";
+export {
+  emitWideEvent,
+  endTiming,
+  getCurrentRequestId,
+  incrementLogCount,
+  initializeWideLogger,
+  reportError,
+  runWideEvent,
+  setLogFields,
+  shutdownLogging,
+  startTiming,
+} from "./utils/wide-logging";
 export { getEventsForDestination } from "./events/events";
+export {
+  buildSourceEventIdentityKey,
+  buildSourceEventsToAdd,
+  buildSourceEventStateIdsToRemove,
+  type ExistingSourceEventState,
+  type SourceEventDiffOptions,
+} from "./source/event-diff";
 export { syncDestinationsForUser, type DestinationProvider } from "./sync/destinations";
 export {
   createSyncCoordinator,
@@ -45,6 +79,17 @@ export {
   type SyncProgressUpdate,
   type SyncStage,
 } from "./sync/coordinator";
+export {
+  SyncAggregateTracker,
+  type SyncAggregateSnapshot,
+  type SyncAggregateMessage,
+  type SyncAggregateTrackerConfig,
+} from "./sync/aggregate-tracker";
+export {
+  createSyncAggregateRuntime,
+  type SyncAggregateRuntimeConfig,
+  type SyncAggregateRuntime,
+} from "./sync/aggregate-runtime";
 export {
   getEventMappingsForDestination,
   createEventMapping,
@@ -60,6 +105,7 @@ export {
 export type {
   AuthType,
   CalDAVProviderConfig,
+  ProviderCapabilities,
   ProviderDefinition,
   SourcePreferenceOption,
   SourcePreferencesConfig,

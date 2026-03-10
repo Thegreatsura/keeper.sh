@@ -1,4 +1,4 @@
-import { WideEvent } from "@keeper.sh/log";
+import { setLogFields } from "../utils/wide-logging";
 import { SYNC_TTL_SECONDS } from "@keeper.sh/constants";
 import type { RedisClient } from "bun";
 
@@ -7,16 +7,12 @@ const SYNC_KEY_PREFIX = "sync:generation:";
 const getSyncKey = (userId: string): string => `${SYNC_KEY_PREFIX}${userId}`;
 
 const enrichWideEventWithSyncContext = (userId: string, generation: number): void => {
-  const event = WideEvent.grasp();
-  if (!event) {
-    return;
-  }
-  event.set({ "sync.generation": generation, "user.id": userId });
+  setLogFields({ "sync.generation": generation, "user.id": userId });
 };
 
 interface DestinationSyncResult {
   userId: string;
-  destinationId: string;
+  calendarId: string;
   localEventCount: number;
   remoteEventCount: number;
   broadcast?: boolean;
@@ -26,7 +22,7 @@ type SyncStage = "fetching" | "comparing" | "processing" | "error";
 
 interface SyncProgressUpdate {
   userId: string;
-  destinationId: string;
+  calendarId: string;
   status: "syncing" | "error";
   stage: SyncStage;
   localEventCount: number;

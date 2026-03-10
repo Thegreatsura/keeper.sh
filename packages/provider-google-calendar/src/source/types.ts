@@ -21,20 +21,22 @@ interface GoogleEventDateTime {
 }
 
 interface GoogleCalendarEvent {
-  id: string;
+  id?: string;
   iCalUID?: string;
-  status: "confirmed" | "tentative" | "cancelled";
+  status?: "confirmed" | "tentative" | "cancelled";
   summary?: string;
-  start: GoogleEventDateTime;
-  end: GoogleEventDateTime;
+  description?: string;
+  location?: string;
+  start?: GoogleEventDateTime;
+  end?: GoogleEventDateTime;
   created?: string;
   updated?: string;
   eventType?: "default" | "focusTime" | "workingLocation" | "outOfOffice";
 }
 
 interface GoogleEventsListResponse {
-  kind: "calendar#events";
-  items: GoogleCalendarEvent[];
+  kind?: "calendar#events";
+  items?: GoogleCalendarEvent[];
   nextPageToken?: string;
   nextSyncToken?: string;
 }
@@ -60,6 +62,10 @@ interface EventTimeSlot {
   uid: string;
   startTime: Date;
   endTime: Date;
+  startTimeZone?: string;
+  title?: string;
+  description?: string;
+  location?: string;
 }
 
 export type {

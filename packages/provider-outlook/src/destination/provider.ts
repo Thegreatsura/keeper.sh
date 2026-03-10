@@ -1,12 +1,10 @@
 import { HTTP_STATUS, KEEPER_CATEGORY } from "@keeper.sh/constants";
-import { WideEvent } from "@keeper.sh/log";
 import type { OutlookEvent } from "@keeper.sh/data-schemas";
 import {
   microsoftApiErrorSchema,
   outlookEventListSchema,
   outlookEventSchema,
 } from "@keeper.sh/data-schemas";
-import { getStartOfToday } from "@keeper.sh/date-utils";
 import type {
   BroadcastSyncStatus,
   DeleteResult,
@@ -22,6 +20,8 @@ import {
   OAuthCalendarProvider,
   createOAuthDestinationProvider,
   getErrorMessage,
+  getOAuthSyncWindowStart,
+  reportError,
 } from "@keeper.sh/provider-core";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { MICROSOFT_GRAPH_API, OUTLOOK_PAGE_SIZE } from "../shared/api";
@@ -48,8 +48,8 @@ const createOutlookCalendarProvider = (
       accessTokenExpiresAt: account.accessTokenExpiresAt,
       accountId: account.accountId,
       broadcastSyncStatus: broadcast,
+      calendarId: account.calendarId,
       database: db,
-      destinationId: account.destinationId,
       refreshToken: account.refreshToken,
       userId: account.userId,
     }),
@@ -81,10 +81,14 @@ class OutlookCalendarProviderInstance extends OAuthCalendarProvider<OutlookCalen
     const remoteEvents: RemoteEvent[] = [];
     let nextLink: string | null = null;
 
-    const today = getStartOfToday();
+    const lookbackStart = getOAuthSyncWindowStart();
 
     do {
-      const url = OutlookCalendarProviderInstance.buildListEventsUrl(today, options.until, nextLink);
+      const url = OutlookCalendarProviderInstance.buildListEventsUrl(
+        lookbackStart,
+        options.until,
+        nextLink,
+      );
 
       const response = await fetch(url, {
         headers: this.headers,
@@ -118,7 +122,11 @@ class OutlookCalendarProviderInstance extends OAuthCalendarProvider<OutlookCalen
     return remoteEvents;
   }
 
-  private static buildListEventsUrl(today: Date, until: Date, nextLink: string | null): URL {
+  private static buildListEventsUrl(
+    lookbackStart: Date,
+    until: Date,
+    nextLink: string | null,
+  ): URL {
     if (nextLink) {
       return new URL(nextLink);
     }
@@ -126,7 +134,7 @@ class OutlookCalendarProviderInstance extends OAuthCalendarProvider<OutlookCalen
     const url = new URL(`${MICROSOFT_GRAPH_API}/me/calendar/events`);
     url.searchParams.set(
       "$filter",
-      `categories/any(c:c eq '${KEEPER_CATEGORY}') and start/dateTime ge '${today.toISOString()}' and start/dateTime le '${until.toISOString()}'`,
+      `categories/any(c:c eq '${KEEPER_CATEGORY}') and start/dateTime ge '${lookbackStart.toISOString()}' and start/dateTime le '${until.toISOString()}'`,
     );
     url.searchParams.set("$top", String(OUTLOOK_PAGE_SIZE));
     url.searchParams.set("$select", "id,iCalUId,subject,start,end,categories");
@@ -157,7 +165,12 @@ class OutlookCalendarProviderInstance extends OAuthCalendarProvider<OutlookCalen
     try {
       return await this.createEvent(resource);
     } catch (error) {
-      WideEvent.error(error);
+      reportError(error, {
+        "destination.calendar_id": this.config.calendarId,
+        "operation.name": "outlook-calendar:push",
+        "source.provider": this.id,
+        "user.id": this.config.userId,
+      });
       return {
         error: getErrorMessage(error),
         success: false,
@@ -212,9 +225,15 @@ class OutlookCalendarProviderInstance extends OAuthCalendarProvider<OutlookCalen
         return { error: errorMessage, success: false };
       }
 
+      await response.body?.cancel?.();
       return { success: true };
     } catch (error) {
-      WideEvent.error(error);
+      reportError(error, {
+        "destination.calendar_id": this.config.calendarId,
+        "operation.name": "outlook-calendar:delete",
+        "source.provider": this.id,
+        "user.id": this.config.userId,
+      });
       return {
         error: getErrorMessage(error),
         success: false,
@@ -233,14 +252,27 @@ class OutlookCalendarProviderInstance extends OAuthCalendarProvider<OutlookCalen
     };
   }
 
+  private static getLocationFromSyncableEvent(event: SyncableEvent): OutlookEvent["location"] {
+    if (!event.location) {
+      return;
+    }
+
+    return {
+      displayName: event.location,
+    };
+  }
+
   private static toOutlookEvent(event: SyncableEvent): OutlookEvent {
     const body = OutlookCalendarProviderInstance.getBodyFromSyncableEvent(event);
+    const location = OutlookCalendarProviderInstance.getLocationFromSyncableEvent(event);
+    const eventTimeZone = event.startTimeZone ?? "UTC";
 
     return {
       ...(body && { body }),
+      ...(location && { location }),
       categories: [KEEPER_CATEGORY],
-      end: { dateTime: event.endTime.toISOString(), timeZone: "UTC" },
-      start: { dateTime: event.startTime.toISOString(), timeZone: "UTC" },
+      end: { dateTime: event.endTime.toISOString(), timeZone: eventTimeZone },
+      start: { dateTime: event.startTime.toISOString(), timeZone: eventTimeZone },
       subject: event.summary,
     };
   }

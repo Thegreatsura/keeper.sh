@@ -6,6 +6,9 @@ import { checkout, polar, portal } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { Resend } from "resend";
 import { usernameOnly } from "@keeper.sh/auth-plugin-username-only";
+import { deletePolarCustomerByExternalId } from "./polar-customer-delete";
+import { writeAuthStderr } from "./runtime-environment";
+import { resolveAuthCapabilities } from "./capabilities";
 import {
   user as userTable,
   session as sessionTable,
@@ -13,7 +16,6 @@ import {
   verification as verificationTable,
   passkey as passkeyTable,
 } from "@keeper.sh/database/auth-schema";
-import { signUpBodySchema } from "@keeper.sh/data-schemas";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import type { BetterAuthPlugin, User } from "better-auth";
 
@@ -37,6 +39,8 @@ interface AuthConfig {
   polarMode?: "sandbox" | "production";
   googleClientId?: string;
   googleClientSecret?: string;
+  microsoftClientId?: string;
+  microsoftClientSecret?: string;
   resendApiKey?: string;
   passkeyRpId?: string;
   passkeyRpName?: string;
@@ -46,8 +50,20 @@ interface AuthConfig {
 
 interface AuthResult {
   auth: ReturnType<typeof betterAuth>;
+  capabilities: ReturnType<typeof resolveAuthCapabilities>;
   polarClient: Polar | null;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const extractSignUpEmail = (value: unknown): string | null => {
+  if (!isRecord(value) || typeof value.email !== "string") {
+    return null;
+  }
+
+  return value.email;
+};
 
 const createAuth = (config: AuthConfig): AuthResult => {
   const {
@@ -60,6 +76,8 @@ const createAuth = (config: AuthConfig): AuthResult => {
     polarMode,
     googleClientId,
     googleClientSecret,
+    microsoftClientId,
+    microsoftClientSecret,
     resendApiKey,
     passkeyRpId,
     passkeyRpName,
@@ -75,6 +93,15 @@ const createAuth = (config: AuthConfig): AuthResult => {
   };
 
   const resend = buildResendClient();
+  const capabilities = resolveAuthCapabilities({
+    commercialMode,
+    googleClientId,
+    googleClientSecret,
+    microsoftClientId,
+    microsoftClientSecret,
+    passkeyOrigin,
+    passkeyRpId,
+  });
 
   const plugins: BetterAuthPlugin[] = [];
 
@@ -140,6 +167,15 @@ const createAuth = (config: AuthConfig): AuthResult => {
     };
   }
 
+  if (microsoftClientId && microsoftClientSecret) {
+    socialProviders.microsoft = {
+      clientId: microsoftClientId,
+      clientSecret: microsoftClientSecret,
+      prompt: "consent",
+      scope: ["offline_access", "User.Read", "Calendars.ReadWrite"],
+    };
+  }
+
   const auth = betterAuth({
     account: {
       accountLinking: {
@@ -193,7 +229,10 @@ const createAuth = (config: AuthConfig): AuthResult => {
         if (context.path !== "/sign-up/email") {
           return;
         }
-        const { email } = signUpBodySchema.assert(context.body);
+        const email = extractSignUpEmail(context.body);
+        if (!email) {
+          return;
+        }
         const existingUser = await context.context.adapter.findOne<User>({
           model: "user",
           where: [
@@ -220,7 +259,7 @@ const createAuth = (config: AuthConfig): AuthResult => {
         }
 
         if (error.body.message.toLowerCase().includes("invalid origin")) {
-          process.stderr.write(
+          writeAuthStderr(
             "A request has failed due to an origin mismatch. If this was meant to be a valid request, please set the `TRUSTED_ORIGINS` environment variable to include the origin you intend on accessing Keeper from.\n\nThis should be a comma-delimited array of values, for more information please refer to the documentation on GitHub. https://github.com/ridafkih/keeper.sh#accessing-keeper-from-non-localhost-urls",
           );
         }
@@ -237,17 +276,16 @@ const createAuth = (config: AuthConfig): AuthResult => {
             return;
           }
 
-          await polarClient.customers.deleteExternal({
-            externalId: user.id,
-          });
+          await deletePolarCustomerByExternalId(polarClient, user.id);
         },
         enabled: true,
       },
     },
   });
 
-  return { auth, polarClient: polarClient ?? null };
+  return { auth, capabilities, polarClient: polarClient ?? null };
 };
 
 export { createAuth };
+export { resolveAuthCapabilities } from "./capabilities";
 export type { AuthConfig, AuthResult };

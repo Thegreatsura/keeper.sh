@@ -10,9 +10,18 @@ type Plan = typeof planSchema.infer;
 const billingPeriodSchema = type("'monthly' | 'yearly'");
 type BillingPeriod = typeof billingPeriodSchema.infer;
 
+const feedbackRequestSchema = type({
+  message: "string",
+  type: "'feedback' | 'report'",
+  "wantsFollowUp?": "boolean",
+  "+": "reject",
+});
+type FeedbackRequest = typeof feedbackRequestSchema.infer;
+
 const createSourceSchema = type({
   name: "string",
   url: "string",
+  "+": "reject",
 });
 
 type CreateSource = typeof createSourceSchema.infer;
@@ -22,9 +31,13 @@ const stringSchema = type("string");
 const googleEventSchema = type({
   "description?": "string",
   "end?": { "dateTime?": "string", "timeZone?": "string" },
+  "eventType?": "'default' | 'focusTime' | 'workingLocation' | 'outOfOffice'",
   "iCalUID?": "string",
   "id?": "string",
+  "location?": "string",
+  "recurrence?": "string[]",
   "start?": { "dateTime?": "string", "timeZone?": "string" },
+  "status?": "'confirmed' | 'tentative' | 'cancelled'",
   "summary?": "string",
 });
 type GoogleEvent = typeof googleEventSchema.infer;
@@ -32,6 +45,7 @@ type GoogleEvent = typeof googleEventSchema.infer;
 const googleEventListSchema = type({
   "items?": googleEventSchema.array(),
   "nextPageToken?": "string",
+  "nextSyncToken?": "string",
 });
 type GoogleEventList = typeof googleEventListSchema.infer;
 
@@ -78,17 +92,20 @@ const microsoftUserInfoSchema = type({
 type MicrosoftUserInfo = typeof microsoftUserInfoSchema.infer;
 
 const outlookEventSchema = type({
-  "body?": type({ "content?": "string", "contentType?": "string" }).or(type('null')),
+  "@removed?": { "reason?": "'deleted' | 'changed'" },
+  "body?": type({ "content?": "string", "contentType?": "string" }).or(type("null")),
   "categories?": "string[]",
   "end?": { "dateTime?": "string", "timeZone?": "string" },
   "iCalUId?": "string",
   "id?": "string",
+  "location?": { "displayName?": "string" },
   "start?": { "dateTime?": "string", "timeZone?": "string" },
   "subject?": "string",
 });
 type OutlookEvent = typeof outlookEventSchema.infer;
 
 const outlookEventListSchema = type({
+  "@odata.deltaLink?": "string",
   "@odata.nextLink?": "string",
   "value?": outlookEventSchema.array(),
 });
@@ -98,6 +115,25 @@ const microsoftApiErrorSchema = type({
   "error?": { "code?": "string", "message?": "string" },
 });
 type MicrosoftApiError = typeof microsoftApiErrorSchema.infer;
+
+const authSocialProvidersSchema = type({
+  google: "boolean",
+  microsoft: "boolean",
+  "+": "reject",
+});
+type AuthSocialProviders = typeof authSocialProvidersSchema.infer;
+
+const authCapabilitiesSchema = type({
+  commercialMode: "boolean",
+  credentialMode: "'email' | 'username'",
+  requiresEmailVerification: "boolean",
+  socialProviders: authSocialProvidersSchema,
+  supportsChangePassword: "boolean",
+  supportsPasskeys: "boolean",
+  supportsPasswordReset: "boolean",
+  "+": "reject",
+});
+type AuthCapabilities = typeof authCapabilitiesSchema.infer;
 
 const socketMessageSchema = type({
   "data?": "unknown",
@@ -126,6 +162,17 @@ const syncStatusSchema = type({
 });
 type SyncStatus = typeof syncStatusSchema.infer;
 
+const syncAggregateSchema = type({
+  progressPercent: "number",
+  seq: "number",
+  syncEventsProcessed: "number",
+  syncEventsRemaining: "number",
+  syncEventsTotal: "number",
+  syncing: "boolean",
+  "lastSyncedAt?": "string | null",
+});
+type SyncAggregate = typeof syncAggregateSchema.infer;
+
 const broadcastMessageSchema = type({
   data: "unknown",
   event: "string",
@@ -146,6 +193,7 @@ const signUpBodySchema = type({
   email: "string",
   "name?": "string",
   "password?": "string",
+  "+": "reject",
 });
 type SignUpBody = typeof signUpBodySchema.infer;
 
@@ -153,6 +201,7 @@ const caldavDiscoverRequestSchema = type({
   password: "string",
   serverUrl: "string",
   username: "string",
+  "+": "reject",
 });
 type CalDAVDiscoverRequest = typeof caldavDiscoverRequestSchema.infer;
 
@@ -162,11 +211,13 @@ const caldavConnectRequestSchema = type({
   "provider?": "string",
   serverUrl: "string",
   username: "string",
+  "+": "reject",
 });
 type CalDAVConnectRequest = typeof caldavConnectRequestSchema.infer;
 
 const updateSourceDestinationsSchema = type({
   destinationIds: "string[]",
+  "+": "reject",
 });
 type UpdateSourceDestinations = typeof updateSourceDestinationsSchema.infer;
 
@@ -203,6 +254,7 @@ const createOAuthSourceSchema = type({
   "syncFocusTime?": "boolean",
   "syncOutOfOffice?": "boolean",
   "syncWorkingLocation?": "boolean",
+  "+": "reject",
 });
 type CreateOAuthSource = typeof createOAuthSourceSchema.infer;
 
@@ -213,6 +265,7 @@ const createCalDAVSourceSchema = type({
   provider: "'caldav' | 'fastmail' | 'icloud'",
   serverUrl: "string",
   username: "string",
+  "+": "reject",
 });
 type CreateCalDAVSource = typeof createCalDAVSourceSchema.infer;
 
@@ -220,6 +273,7 @@ const caldavDiscoverSourceSchema = type({
   password: "string",
   serverUrl: "string",
   username: "string",
+  "+": "reject",
 });
 type CalDAVDiscoverSource = typeof caldavDiscoverSourceSchema.infer;
 
@@ -236,6 +290,7 @@ type OAuthCalendarSource = typeof oauthCalendarSourceSchema.infer;
 
 const updateOAuthSourceDestinationsSchema = type({
   destinationIds: "string[]",
+  "+": "reject",
 });
 type UpdateOAuthSourceDestinations = typeof updateOAuthSourceDestinationsSchema.infer;
 
@@ -243,6 +298,7 @@ export {
   proxyableMethods,
   planSchema,
   billingPeriodSchema,
+  feedbackRequestSchema,
   createSourceSchema,
   stringSchema,
   googleEventSchema,
@@ -255,9 +311,12 @@ export {
   outlookEventSchema,
   outlookEventListSchema,
   microsoftApiErrorSchema,
+  authSocialProvidersSchema,
+  authCapabilitiesSchema,
   socketMessageSchema,
   syncOperationSchema,
   syncStatusSchema,
+  syncAggregateSchema,
   broadcastMessageSchema,
   userSchema,
   signUpBodySchema,
@@ -278,6 +337,7 @@ export type {
   ProxyableMethods,
   Plan,
   BillingPeriod,
+  FeedbackRequest,
   CreateSource,
   GoogleEvent,
   GoogleEventList,
@@ -289,9 +349,12 @@ export type {
   OutlookEvent,
   OutlookEventList,
   MicrosoftApiError,
+  AuthSocialProviders,
+  AuthCapabilities,
   SocketMessage,
   SyncOperation,
   SyncStatus,
+  SyncAggregate,
   BroadcastMessage,
   User,
   SignUpBody,

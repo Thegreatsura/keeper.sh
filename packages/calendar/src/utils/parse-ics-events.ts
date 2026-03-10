@@ -43,6 +43,9 @@ const getEventEndTime = (event: IcsEvent, startTime: Date): Date => {
 const isKeeperEvent = (uid: string | undefined): boolean =>
   uid?.endsWith(KEEPER_EVENT_SUFFIX) ?? false;
 
+const getEventStartTimeZone = (event: IcsEvent): string | undefined =>
+  event.start.local?.timezone;
+
 const parseIcsEvents = (calendar: IcsCalendar): EventTimeSlot[] => {
   const result: EventTimeSlot[] = [];
 
@@ -56,8 +59,14 @@ const parseIcsEvents = (calendar: IcsCalendar): EventTimeSlot[] => {
 
     const startTime = event.start.date;
     result.push({
+      description: event.description,
       endTime: getEventEndTime(event, startTime),
+      exceptionDates: event.exceptionDates,
+      location: event.location,
+      recurrenceRule: event.recurrenceRule,
       startTime,
+      startTimeZone: getEventStartTimeZone(event),
+      title: event.summary,
       uid: event.uid,
     });
   }

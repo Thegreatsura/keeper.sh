@@ -1,18 +1,29 @@
-import { isKeeperEvent } from "@keeper.sh/provider-core";
+import {
+  buildSourceEventStateIdsToRemove,
+  buildSourceEventsToAdd,
+  isKeeperEvent,
+  reportError,
+} from "@keeper.sh/provider-core";
 import type { SourceEvent } from "@keeper.sh/provider-core";
 import { eventStatesTable } from "@keeper.sh/database/schema";
-import { getStartOfToday } from "@keeper.sh/date-utils";
-import { WideEvent } from "@keeper.sh/log";
 import { and, eq, inArray } from "drizzle-orm";
 import { CalDAVClient } from "../shared/client";
 import { parseICalToRemoteEvent } from "../shared/ics";
 import { createCalDAVSourceService } from "./sync";
+import { getCalDAVSyncWindow } from "./sync-window";
 import type {
   CalDAVProviderOptions,
   CalDAVSourceAccount,
   CalDAVSourceProviderConfig,
   CalDAVSourceSyncResult,
 } from "../types";
+
+const stringifyIfPresent = (value: unknown) => {
+  if (!value) {
+    return;
+  }
+  return JSON.stringify(value);
+};
 
 const EMPTY_COUNT = 0;
 const YEARS_UNTIL_FUTURE = 2;
@@ -35,9 +46,7 @@ const createCalDAVSourceProvider = (
   const { database } = config;
   const sourceService = createCalDAVSourceService(config);
 
-  const fetchEventsFromCalDAV = async (
-    account: CalDAVSourceAccount,
-  ): Promise<SourceEvent[]> => {
+  const fetchEventsFromCalDAV = async (account: CalDAVSourceAccount): Promise<SourceEvent[]> => {
     const password = sourceService.getDecryptedPassword(account.encryptedPassword);
     const client = new CalDAVClient({
       credentials: {
@@ -47,17 +56,15 @@ const createCalDAVSourceProvider = (
       serverUrl: account.serverUrl,
     });
 
-    const today = getStartOfToday();
-    const futureDate = new Date(today);
-    futureDate.setFullYear(futureDate.getFullYear() + YEARS_UNTIL_FUTURE);
+    const syncWindow = getCalDAVSyncWindow(YEARS_UNTIL_FUTURE);
 
     const calendarUrl = await client.resolveCalendarUrl(account.calendarUrl);
 
     const objects = await client.fetchCalendarObjects({
       calendarUrl,
       timeRange: {
-        end: futureDate.toISOString(),
-        start: today.toISOString(),
+        end: syncWindow.end.toISOString(),
+        start: syncWindow.start.toISOString(),
       },
     });
 
@@ -78,13 +85,19 @@ const createCalDAVSourceProvider = (
         continue;
       }
 
-      if (parsed.endTime < today) {
+      if (parsed.endTime < syncWindow.start) {
         continue;
       }
 
       events.push({
+        description: parsed.description,
         endTime: parsed.endTime,
+        exceptionDates: parsed.exceptionDates,
+        location: parsed.location,
+        recurrenceRule: parsed.recurrenceRule,
         startTime: parsed.startTime,
+        startTimeZone: parsed.startTimeZone,
+        title: parsed.title,
         uid: parsed.uid,
       });
     }
@@ -93,61 +106,70 @@ const createCalDAVSourceProvider = (
   };
 
   const processEvents = async (
-    sourceId: string,
+    calendarId: string,
     events: SourceEvent[],
   ): Promise<CalDAVSourceSyncResult> => {
     const existingEvents = await database
       .select({
+        endTime: eventStatesTable.endTime,
         id: eventStatesTable.id,
         sourceEventUid: eventStatesTable.sourceEventUid,
+        startTime: eventStatesTable.startTime,
       })
       .from(eventStatesTable)
-      .where(eq(eventStatesTable.sourceId, sourceId));
+      .where(eq(eventStatesTable.calendarId, calendarId));
 
-    const existingUids = new Set(existingEvents.map((event) => event.sourceEventUid));
-    const incomingUids = new Set(events.map((event) => event.uid));
+    const eventsToAdd = buildSourceEventsToAdd(existingEvents, events);
+    const eventStateIdsToRemove = buildSourceEventStateIdsToRemove(existingEvents, events);
 
-    const toAdd = events.filter((event) => !existingUids.has(event.uid));
-    const toRemoveUids = existingEvents
-      .filter((event) => event.sourceEventUid && !incomingUids.has(event.sourceEventUid))
-      .map((event) => event.sourceEventUid)
-      .filter((uid): uid is string => uid !== null);
-
-    if (toRemoveUids.length > EMPTY_COUNT) {
+    if (eventStateIdsToRemove.length > EMPTY_COUNT) {
       await database
         .delete(eventStatesTable)
         .where(
           and(
-            eq(eventStatesTable.sourceId, sourceId),
-            inArray(eventStatesTable.sourceEventUid, toRemoveUids),
+            eq(eventStatesTable.calendarId, calendarId),
+            inArray(eventStatesTable.id, eventStateIdsToRemove),
           ),
         );
     }
 
-    if (toAdd.length > EMPTY_COUNT) {
+    if (eventsToAdd.length > EMPTY_COUNT) {
       await database.insert(eventStatesTable).values(
-        toAdd.map((event) => ({
+        eventsToAdd.map((event) => ({
+          calendarId,
+          description: event.description,
           endTime: event.endTime,
+          exceptionDates: stringifyIfPresent(event.exceptionDates),
+          location: event.location,
+          recurrenceRule: stringifyIfPresent(event.recurrenceRule),
           sourceEventUid: event.uid,
-          sourceId,
           startTime: event.startTime,
+          startTimeZone: event.startTimeZone,
+          title: event.title,
         })),
       );
     }
 
     return {
-      eventsAdded: toAdd.length,
-      eventsRemoved: toRemoveUids.length,
+      eventsAdded: eventsToAdd.length,
+      eventsRemoved: eventStateIdsToRemove.length,
       syncToken: null,
     };
   };
 
-  const syncSingleSource = async (account: CalDAVSourceAccount): Promise<CalDAVSourceSyncResult> => {
+  const syncSingleSource = async (
+    account: CalDAVSourceAccount,
+  ): Promise<CalDAVSourceSyncResult> => {
     try {
       const events = await fetchEventsFromCalDAV(account);
-      return processEvents(account.sourceId, events);
+      return processEvents(account.calendarId, events);
     } catch (error) {
-      WideEvent.error(error);
+      reportError(error, {
+        "operation.name": "caldav-source:sync",
+        "source.calendar_id": account.calendarId,
+        "source.provider": options.providerId,
+        "user.id": account.userId,
+      });
       return {
         eventsAdded: EMPTY_COUNT,
         eventsRemoved: EMPTY_COUNT,
@@ -179,9 +201,9 @@ const createCalDAVSourceProvider = (
     return combineResults(results);
   };
 
-  const syncSource = async (sourceId: string): Promise<CalDAVSourceSyncResult> => {
+  const syncSource = async (calendarId: string): Promise<CalDAVSourceSyncResult> => {
     const sources = await sourceService.getAllCalDAVSources();
-    const source = sources.find((source) => source.sourceId === sourceId);
+    const source = sources.find((source) => source.calendarId === calendarId);
 
     if (!source) {
       return { eventsAdded: EMPTY_COUNT, eventsRemoved: EMPTY_COUNT, syncToken: null };
