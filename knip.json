@@ -11,11 +11,11 @@
   "ignoreExportsUsedInFile": true,
   "workspaces": {
     "packages/*": {
-      "entry": ["src/**/*.test.ts!"],
+      "entry": ["src/{index.ts,api.ts,cron.ts,**/*.test.ts}"],
       "project": "src/**/*.{ts,tsx}"
     },
     "applications/*": {
-      "entry": ["src/**/*.test.ts!"],
+      "entry": ["src/{index.ts,main.tsx,server.tsx,**/*.test.ts}"],
       "project": "src/**/*.{ts,tsx}"
     },
     "applications/api": {
