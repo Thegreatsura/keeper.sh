@@ -1,5 +1,4 @@
-![](https://github.com/user-attachments/assets/09996180-326b-4081-b12b-f00393d1aa6e#gh-light-mode-only)
-![](https://github.com/user-attachments/assets/10546b8e-639d-44d1-a79d-b49a65f09724#gh-dark-mode-only)
+![](./applications/canary-web/public/open-graph.png)
 
 # About
 
