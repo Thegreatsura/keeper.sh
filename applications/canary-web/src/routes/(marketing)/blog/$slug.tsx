@@ -57,9 +57,6 @@ function BlogPostPage() {
   }
 
   const createdDate = formatIsoDate(blogPost.metadata.createdAt);
-  const updatedDate = blogPost.metadata.updatedAt === blogPost.metadata.createdAt
-    ? null
-    : formatIsoDate(blogPost.metadata.updatedAt);
 
   return (
     <div className="flex flex-col gap-6 py-16">

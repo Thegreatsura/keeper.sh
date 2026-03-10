@@ -9,6 +9,7 @@ import { listUserCalendars as listGoogleCalendars } from "@keeper.sh/provider-go
 import { listUserCalendars as listOutlookCalendars } from "@keeper.sh/provider-outlook";
 import { spawnBackgroundJob } from "./background-task";
 import { getSourceProvider } from "@keeper.sh/provider-registry/server";
+import { applySourceSyncDefaults } from "./source-sync-defaults";
 import { database, premiumService, oauthProviders } from "../context";
 
 import { triggerDestinationSync } from "./sync";
@@ -320,7 +321,7 @@ const createOAuthSource = async (
 
   const [source] = await database
     .insert(calendarsTable)
-    .values({
+    .values(applySourceSyncDefaults({
       accountId: account.id,
       calendarType: OAUTH_CALENDAR_TYPE,
       capabilities: ["pull", "push"],
@@ -331,7 +332,7 @@ const createOAuthSource = async (
       name,
       originalName: name,
       userId,
-    })
+    }))
     .returning();
 
   if (!source) {
@@ -451,7 +452,7 @@ const insertOAuthCalendars = async (
   await database
     .insert(calendarsTable)
     .values(
-      calendars.map((calendar) => ({
+      calendars.map((calendar) => applySourceSyncDefaults({
         accountId,
         calendarType: OAUTH_CALENDAR_TYPE,
         capabilities: ["pull", "push"],

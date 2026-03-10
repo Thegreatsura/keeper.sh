@@ -8,6 +8,7 @@ import {
   runCreateSource,
   runDeleteSource,
 } from "./source-lifecycle";
+import { applySourceSyncDefaults } from "./source-sync-defaults";
 
 import { spawnBackgroundJob } from "./background-task";
 import { database, premiumService } from "../context";
@@ -86,13 +87,13 @@ const createSource = (userId: string, name: string, url: string): Promise<Source
       createSourceCalendar: async ({ accountId, name: sourceName, url: sourceUrl, userId: sourceUserId }) => {
         const [source] = await database
           .insert(calendarsTable)
-          .values({
+          .values(applySourceSyncDefaults({
             accountId,
             calendarType: ICAL_CALENDAR_TYPE,
             name: sourceName,
             url: sourceUrl,
             userId: sourceUserId,
-          })
+          }))
           .returning();
         return source;
       },

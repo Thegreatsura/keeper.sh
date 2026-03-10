@@ -1,8 +1,11 @@
 import { useSetAtom } from 'jotai'
 import { createFileRoute } from '@tanstack/react-router'
-import { CanonicalLink, jsonLdMeta, seoMeta, softwareApplicationSchema } from '../../lib/seo'
+import { CanonicalLink, jsonLdMeta, seoMeta, softwareApplicationSchema, faqSchema } from '../../lib/seo'
 import { Heading1, Heading2, Heading3 } from '../../components/ui/primitives/heading'
 import { Text } from '../../components/ui/primitives/text'
+import { MarketingHowItWorksSection, MarketingHowItWorksGrid, MarketingHowItWorksStep } from '../../features/marketing/components/marketing-how-it-works'
+import { MarketingFaqSection, MarketingFaqList, MarketingFaqQuestion } from '../../features/marketing/components/marketing-faq'
+import { Collapsible } from '../../components/ui/primitives/collapsible'
 import { ButtonIcon, ButtonText, ExternalLinkButton, LinkButton } from '../../components/ui/primitives/button'
 import { MarketingIllustrationCalendar, MarketingIllustrationCalendarCard, type Skew, type SkewTuple } from '../../features/marketing/components/marketing-illustration-calendar'
 import {
@@ -133,6 +136,74 @@ const PRICING_FEATURES: PricingFeature[] = [
   { label: 'Priority Support', free: 'minus', pro: 'check' },
 ]
 
+type HowItWorksStep = {
+  title: string
+  description: string
+}
+
+const HOW_IT_WORKS_STEPS: HowItWorksStep[] = [
+  {
+    title: 'Connect your calendars',
+    description:
+      'Link your Google, Outlook, iCloud, or CalDAV accounts using OAuth or ICS feeds. It takes seconds.',
+  },
+  {
+    title: 'Configure sync rules',
+    description:
+      'Choose which calendars to sync and how events should appear. Keeper handles the rest automatically.',
+  },
+  {
+    title: 'Stay in sync',
+    description:
+      'Events are continuously aggregated and pushed across all your linked calendars. Conflicts are reconciled.',
+  },
+]
+
+type FaqItem = {
+  question: string
+  answer: string
+  content?: React.ReactNode
+}
+
+const FAQ_ITEMS: FaqItem[] = [
+  {
+    question: 'Can I use ICS or iCal links as a source?',
+    answer:
+      'Yes. Any publicly accessible ICS or iCal link can be used as a calendar source in Keeper. This means you can pull events from services that only offer read-only calendar feeds.',
+  },
+  {
+    question: 'Which calendar providers does Keeper.sh support?',
+    answer:
+      'Keeper.sh works with Google Calendar, Microsoft Outlook, Apple iCloud, FastMail, and any provider that supports CalDAV or ICS feeds. If your calendar supports one of these protocols, it will work with Keeper.',
+  },
+  {
+    question: 'Can I self-host Keeper.sh?',
+    answer:
+      'Yes. Keeper.sh is open-source under the AGPL-3.0 license. Check the README on GitHub for setup instructions, or use one of the many Docker images we offer for quick deployment.',
+    content: <>Yes. Keeper.sh is open-source under the AGPL-3.0 license. Check the <a href="https://github.com/ridafkih/keeper.sh#readme" target="_blank" rel="noreferrer" className="text-foreground underline underline-offset-2">README on GitHub</a> for setup instructions, or use one of the many Docker images we offer for quick deployment.</>,
+  },
+  {
+    question: 'How often do calendars sync?',
+    answer:
+      'On the free plan, calendars sync every 30 minutes. Users who upgrade to the Pro plan get syncs every single minute.',
+  },
+  {
+    question: 'Are my event details visible to others?',
+    answer:
+      'Only if you want them to be. Shared iCal feeds anonymize event details by default, showing only busy/free time blocks to protect your privacy.',
+  },
+  {
+    question: 'Can I control how synced events appear?',
+    answer:
+      'Yes. You configure how events are displayed on each destination calendar. Titles, descriptions, and other details can be customized or stripped entirely.',
+  },
+  {
+    question: 'Can I cancel my subscription anytime?',
+    answer:
+      'Yes. You can cancel at any time from your account settings. Your access continues until the end of the current billing period.',
+  },
+]
+
 export const Route = createFileRoute('/(marketing)/')({
   component: MarketingPage,
   head: () => ({
@@ -145,6 +216,7 @@ export const Route = createFileRoute('/(marketing)/')({
         brandPosition: "before",
       }),
       jsonLdMeta(softwareApplicationSchema()),
+      jsonLdMeta(faqSchema(FAQ_ITEMS)),
     ],
   }),
 })
@@ -249,6 +321,36 @@ function MarketingPage() {
               </MarketingPricingFeatureMatrix>
             </MarketingPricingComparisonGrid>
           </MarketingPricingSection>
+
+          <MarketingHowItWorksSection>
+            <Heading2 className="text-center">How It Works</Heading2>
+            <MarketingHowItWorksGrid>
+              {HOW_IT_WORKS_STEPS.map((step, index) => (
+                <MarketingHowItWorksStep key={step.title} step={index + 1}>
+                  <Heading3 as="h3">{step.title}</Heading3>
+                  <Text size="sm" tone="muted">{step.description}</Text>
+                </MarketingHowItWorksStep>
+              ))}
+            </MarketingHowItWorksGrid>
+          </MarketingHowItWorksSection>
+
+          <MarketingFaqSection>
+            <Heading2 className="text-center">Frequently Asked Questions</Heading2>
+            <Text size="sm" align="center" className="mt-2 max-w-[48ch] mx-auto">
+              Everything you need to know about Keeper.sh. Can't find what you're looking for? Reach out at{' '}
+              <a href="mailto:support@keeper.sh" className="text-foreground underline underline-offset-2">support@keeper.sh</a>.
+            </Text>
+            <MarketingFaqList>
+              {FAQ_ITEMS.map((item) => (
+                <Collapsible
+                  key={item.question}
+                  trigger={<MarketingFaqQuestion>{item.question}</MarketingFaqQuestion>}
+                >
+                  <Text size="sm" tone="muted">{item.content ?? item.answer}</Text>
+                </Collapsible>
+              ))}
+            </MarketingFaqList>
+          </MarketingFaqSection>
         </div>
       </div>
     </div>
