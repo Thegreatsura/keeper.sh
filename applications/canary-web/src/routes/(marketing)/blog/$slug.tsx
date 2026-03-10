@@ -5,7 +5,7 @@ import { markdownComponents } from "../../../components/ui/primitives/markdown-c
 import { Text } from "../../../components/ui/primitives/text";
 import { BlogPostCta } from "../../../features/blog/components/blog-post-cta";
 import { findBlogPostBySlug, formatIsoDate } from "../../../lib/blog-posts";
-import { CanonicalLink, jsonLdMeta, seoMeta, blogPostingSchema, breadcrumbSchema } from "../../../lib/seo";
+import { canonicalUrl, jsonLdMeta, seoMeta, blogPostingSchema, breadcrumbSchema } from "../../../lib/seo";
 
 export const Route = createFileRoute("/(marketing)/blog/$slug")({
   component: BlogPostPage,
@@ -17,6 +17,7 @@ export const Route = createFileRoute("/(marketing)/blog/$slug")({
 
     const postUrl = `/blog/${params.slug}`;
     return {
+      links: [{ rel: "canonical", href: canonicalUrl(postUrl) }],
       meta: [
         ...seoMeta({
           title: blogPost.metadata.title,
@@ -57,15 +58,21 @@ function BlogPostPage() {
   }
 
   const createdDate = formatIsoDate(blogPost.metadata.createdAt);
+  const updatedDate = formatIsoDate(blogPost.metadata.updatedAt);
+  const showUpdated = blogPost.metadata.updatedAt !== blogPost.metadata.createdAt;
 
   return (
     <div className="flex flex-col gap-6 py-16">
-      <CanonicalLink path={`/blog/${slug}`} />
       <header className="flex flex-col gap-2">
         <Heading1>{blogPost.metadata.title}</Heading1>
         <div className="flex flex-col">
           <Text size="sm" tone="muted" align="left">
-            Created {createdDate}
+            By{" "}
+            <a href="https://rida.dev" target="_blank" rel="noreferrer" className="text-foreground underline underline-offset-2">
+              Rida F'kih
+            </a>
+            {" · "}{createdDate}
+            {showUpdated && <> · Updated {updatedDate}</>}
           </Text>
         </div>
       </header>

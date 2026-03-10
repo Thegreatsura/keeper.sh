@@ -100,3 +100,7 @@ Google Calendar and Outlook require OAuth app setup (Google Cloud / Azure). CalD
 - Privacy Policy: https://keeper.sh/privacy
 - Terms & Conditions: https://keeper.sh/terms
 - GitHub: https://github.com/ridafkih/keeper.sh
+
+## Maintainer
+
+Maintained by Rida F'kih (https://rida.dev)

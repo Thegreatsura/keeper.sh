@@ -11,6 +11,8 @@ export interface ViteScript {
 
 export interface ViteAssets {
   stylesheets: string[];
+  inlineStyles: string[];
+  modulePreloads: string[];
   headScripts: ViteScript[];
   bodyScripts: ViteScript[];
 }

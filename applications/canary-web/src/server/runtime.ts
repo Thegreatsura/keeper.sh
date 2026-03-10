@@ -31,7 +31,7 @@ async function loadProductionRenderer(): Promise<EntryServerModule> {
 
 async function createProductionRuntime(): Promise<Runtime> {
   const template = await fs.readFile(`${clientDistDirectory}/index.html`, "utf-8");
-  const viteAssets = extractViteAssets(template);
+  const viteAssets = await extractViteAssets(template, true);
   const renderer = await loadProductionRenderer();
 
   return {
@@ -80,7 +80,7 @@ async function createDevelopmentRuntime(vitePort: number): Promise<Runtime> {
     resolveViteAssets: async (requestPath) => {
       const template = await fs.readFile(sourceTemplatePath, "utf-8");
       const transformed = await viteServer.transformIndexHtml(requestPath, template);
-      return extractViteAssets(transformed);
+      return extractViteAssets(transformed, false);
     },
     renderApp: async (request, viteAssets) => {
       const renderer = await loadDevelopmentRenderer(viteServer);

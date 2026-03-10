@@ -61,6 +61,18 @@ function resolveStaticFilePath(pathname: string): string | null {
   return candidatePath;
 }
 
+function getCacheControlHeader(pathname: string): string {
+  if (pathname.startsWith("/assets/")) {
+    return "public, max-age=31536000, immutable";
+  }
+
+  if (pathname.startsWith("/integrations/") || pathname.startsWith("/contributors/")) {
+    return "public, max-age=604800, stale-while-revalidate=86400";
+  }
+
+  return "public, max-age=3600, stale-while-revalidate=86400";
+}
+
 export async function readStaticFile(pathname: string): Promise<Response> {
   const candidatePath = resolveStaticFilePath(pathname);
   if (!candidatePath) {
@@ -73,7 +85,11 @@ export async function readStaticFile(pathname: string): Promise<Response> {
       return new Response("Not Found", { status: 404 });
     }
 
-    return new Response(Bun.file(candidatePath));
+    return new Response(Bun.file(candidatePath), {
+      headers: {
+        "cache-control": getCacheControlHeader(pathname),
+      },
+    });
   } catch {
     return new Response("Not Found", { status: 404 });
   }

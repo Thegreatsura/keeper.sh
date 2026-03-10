@@ -2,12 +2,13 @@ import type { PropsWithChildren } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Heading1, Heading2, Heading3 } from "../../components/ui/primitives/heading";
 import { Text } from "../../components/ui/primitives/text";
-import { CanonicalLink, jsonLdMeta, seoMeta, webPageSchema, breadcrumbSchema } from "../../lib/seo";
+import { canonicalUrl, jsonLdMeta, seoMeta, webPageSchema, breadcrumbSchema } from "../../lib/seo";
 import { privacyPageMetadata, formatMonthYear } from "../../lib/page-metadata";
 
 export const Route = createFileRoute("/(marketing)/privacy")({
   component: PrivacyPage,
   head: () => ({
+    links: [{ rel: "canonical", href: canonicalUrl("/privacy") }],
     meta: [
       ...seoMeta({
         title: "Privacy Policy",
@@ -24,7 +25,6 @@ export const Route = createFileRoute("/(marketing)/privacy")({
 function PrivacyPage() {
   return (
     <div className="flex flex-col gap-6 py-16">
-      <CanonicalLink path="/privacy" />
       <div className="flex flex-col gap-1">
         <Heading1>Privacy Policy</Heading1>
         <Text size="sm" tone="muted">Last updated: {formatMonthYear(privacyPageMetadata.updatedAt)}</Text>

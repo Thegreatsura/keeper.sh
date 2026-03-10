@@ -4,10 +4,6 @@ import { RouterProvider } from "@tanstack/react-router";
 import { RouterClient } from "@tanstack/react-router/ssr/client";
 import { createAppRouter } from "./router";
 
-if (import.meta.env.DEV) {
-  import("react-scan").then(({ scan }) => scan({ enabled: true }));
-}
-
 const rootElement = document.getElementById("root");
 const router = createAppRouter();
 

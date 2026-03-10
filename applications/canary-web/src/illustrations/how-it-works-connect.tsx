@@ -13,7 +13,7 @@ function MiniMenuRow({ icon, label }: { icon: string; label: string }) {
     <div className="flex items-center gap-3 px-4 py-3 rounded-xl">
       <img src={icon} alt="" width={18} height={18} className="shrink-0" />
       <span className="text-sm tracking-tight text-foreground-muted whitespace-nowrap">{label}</span>
-      <ArrowRightIcon size={14} className="ml-auto shrink-0 text-foreground-disabled" />
+      <ArrowRightIcon size={14} className="ml-auto shrink-0 text-foreground-muted" />
     </div>
   );
 }

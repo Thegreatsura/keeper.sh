@@ -2,12 +2,13 @@ import type { PropsWithChildren } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Heading1, Heading2 } from "../../components/ui/primitives/heading";
 import { Text } from "../../components/ui/primitives/text";
-import { CanonicalLink, jsonLdMeta, seoMeta, webPageSchema, breadcrumbSchema } from "../../lib/seo";
+import { canonicalUrl, jsonLdMeta, seoMeta, webPageSchema, breadcrumbSchema } from "../../lib/seo";
 import { termsPageMetadata, formatMonthYear } from "../../lib/page-metadata";
 
 export const Route = createFileRoute("/(marketing)/terms")({
   component: TermsPage,
   head: () => ({
+    links: [{ rel: "canonical", href: canonicalUrl("/terms") }],
     meta: [
       ...seoMeta({
         title: "Terms & Conditions",
@@ -24,7 +25,6 @@ export const Route = createFileRoute("/(marketing)/terms")({
 function TermsPage() {
   return (
     <div className="flex flex-col gap-6 py-16">
-      <CanonicalLink path="/terms" />
       <div className="flex flex-col gap-1">
         <Heading1>Terms &amp; Conditions</Heading1>
         <Text size="sm" tone="muted">Last updated: {formatMonthYear(termsPageMetadata.updatedAt)}</Text>

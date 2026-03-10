@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react-swc";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import tailwindcss from "@tailwindcss/vite";
 import svgr from "vite-plugin-svgr";
-import { visualizer } from "rollup-plugin-visualizer";
 import { blogPlugin } from "./plugins/blog";
 
 export default defineConfig(({ isSsrBuild }) => ({
@@ -17,20 +16,13 @@ export default defineConfig(({ isSsrBuild }) => ({
     }),
     react(),
     svgr(),
-    !isSsrBuild
-      ? visualizer({
-          brotliSize: true,
-          filename: "./dist/client/report.md",
-          gzipSize: true,
-          open: false,
-          template: "markdown",
-        })
-      : undefined,
   ].filter(Boolean),
   build: {
+    manifest: !isSsrBuild,
     sourcemap: process.env.ENV !== "production",
     rollupOptions: !isSsrBuild
       ? {
+          external: ["mermaid"],
           output: {
             manualChunks(id) {
               if (id.includes("/react-dom/") || id.includes("/react/")) {

@@ -18,10 +18,6 @@ export function jsonLdMeta(data: Record<string, unknown>) {
   return { "script:ld+json": data } as Record<string, unknown>;
 }
 
-export function CanonicalLink({ path }: { path: string }) {
-  return <link rel="canonical" href={canonicalUrl(path)} />;
-}
-
 export function seoMeta({
   title,
   description,
@@ -64,7 +60,12 @@ export const organizationSchema = {
       "@id": `${SITE_URL}/#organization`,
       name: SITE_NAME,
       url: SITE_URL,
-      logo: `${SITE_URL}/512x512-on-light.png`,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/512x512-on-light.png`,
+        width: 512,
+        height: 512,
+      },
       sameAs: ["https://github.com/ridafkih/keeper.sh"],
     },
     {
@@ -114,6 +115,7 @@ export function softwareApplicationSchema() {
     description:
       "Open-source calendar event syncing tool. Synchronize events between your personal, work, business and school calendars.",
     url: SITE_URL,
+    image: `${SITE_URL}/open-graph.png`,
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     offers: [
@@ -144,18 +146,23 @@ export function softwareApplicationSchema() {
   };
 }
 
-export function faqSchema(items: Array<{ question: string; answer: string }>) {
+export function collectionPageSchema(posts: Array<{ slug: string; metadata: { title: string } }>) {
   return {
     "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: items.map((item) => ({
-      "@type": "Question",
-      name: item.question,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: item.answer,
-      },
-    })),
+    "@type": "CollectionPage",
+    "@id": `${SITE_URL}/blog/#collectionpage`,
+    name: "Blog",
+    url: canonicalUrl("/blog"),
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: posts.map((post, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        url: canonicalUrl(`/blog/${post.slug}`),
+        name: post.metadata.title,
+      })),
+    },
   };
 }
 
@@ -182,6 +189,7 @@ export function blogPostingSchema(post: {
     "@id": `${url}/#blogposting`,
     headline: post.title,
     description: post.description,
+    image: `${SITE_URL}/open-graph.png`,
     url,
     datePublished: post.createdAt,
     dateModified: post.updatedAt,

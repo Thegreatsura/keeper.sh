@@ -64,8 +64,14 @@ function RootComponent() {
     <html lang="en">
       <head>
         <HeadContent />
+        {viteAssets?.inlineStyles?.map((css, index) => (
+          <style key={index} dangerouslySetInnerHTML={{ __html: css }} />
+        ))}
         {viteAssets?.stylesheets.map((href) => (
           <link key={href} rel="stylesheet" href={href} precedence="default" />
+        ))}
+        {viteAssets?.modulePreloads?.map((href) => (
+          <link key={href} rel="modulepreload" href={href} />
         ))}
         {viteAssets?.headScripts.map((script, index) => (
           <ViteScriptTag key={script.src ?? index} script={script} />

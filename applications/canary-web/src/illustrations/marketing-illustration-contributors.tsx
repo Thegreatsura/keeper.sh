@@ -31,7 +31,7 @@ const ContributorRow = memo(function ContributorRow({
   return (
     <div className="flex items-center gap-3 px-4 py-1.5">
       <img
-        src={`${contributor.avatarUrl}?s=48`}
+        src={contributor.avatarUrl}
         alt=""
         width={24}
         height={24}
@@ -39,10 +39,10 @@ const ContributorRow = memo(function ContributorRow({
         loading="lazy"
         style={{ aspectRatio: "1 / 1" }}
       />
-      <Text as="span" size="xs" tone="muted" className="truncate shrink-0">
+      <Text as="span" size="xs" className="truncate shrink-0">
         {contributor.username}
       </Text>
-      <Text as="span" size="xs" tone="disabled" className="truncate ml-auto">
+      <Text as="span" size="xs" className="truncate ml-auto">
         {contributor.name}
       </Text>
     </div>
