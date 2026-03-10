@@ -1,6 +1,6 @@
 import { calendarAccountsTable, calendarsTable } from "@keeper.sh/database/schema";
 import { fetchAndSyncSource, pullRemoteCalendar } from "@keeper.sh/calendar";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { triggerDestinationSync } from "./sync";
 import {
   SourceLimitError,
@@ -11,6 +11,8 @@ import { applySourceSyncDefaults } from "./source-sync-defaults";
 
 import { spawnBackgroundJob } from "./background-task";
 import { database, premiumService } from "../context";
+
+const USER_ACCOUNT_LOCK_NAMESPACE = 9002;
 
 const FIRST_RESULT_LIMIT = 1;
 const ICAL_CALENDAR_TYPE = "ical";
@@ -51,50 +53,57 @@ const validateSourceUrl = async (url: string): Promise<void> => {
 };
 
 const createSource = (userId: string, name: string, url: string): Promise<Source> =>
-  runCreateSource(
-    { userId, name, url },
-    {
-      canAddAccount: (userIdToCheck, existingAccountCount) =>
-        premiumService.canAddAccount(userIdToCheck, existingAccountCount),
-      countExistingAccounts: async (userIdToCount) => {
-        const existingAccounts = await database
-          .select({ id: calendarAccountsTable.id })
-          .from(calendarAccountsTable)
-          .where(eq(calendarAccountsTable.userId, userIdToCount));
-        return existingAccounts.length;
+  database.transaction((tx) =>
+    runCreateSource(
+      { userId, name, url },
+      {
+        acquireAccountLock: async (userIdToLock) => {
+          await tx.execute(
+            sql`select pg_advisory_xact_lock(${USER_ACCOUNT_LOCK_NAMESPACE}, hashtext(${userIdToLock}))`,
+          );
+        },
+        canAddAccount: (userIdToCheck, existingAccountCount) =>
+          premiumService.canAddAccount(userIdToCheck, existingAccountCount),
+        countExistingAccounts: async (userIdToCount) => {
+          const existingAccounts = await tx
+            .select({ id: calendarAccountsTable.id })
+            .from(calendarAccountsTable)
+            .where(eq(calendarAccountsTable.userId, userIdToCount));
+          return existingAccounts.length;
+        },
+        createCalendarAccount: async ({ userId: accountUserId, displayName }) => {
+          const [account] = await tx
+            .insert(calendarAccountsTable)
+            .values({
+              authType: "none",
+              displayName,
+              provider: "ics",
+              userId: accountUserId,
+            })
+            .returning({ id: calendarAccountsTable.id });
+          return account?.id;
+        },
+        createSourceCalendar: async ({ accountId, name: sourceName, url: sourceUrl, userId: sourceUserId }) => {
+          const [source] = await tx
+            .insert(calendarsTable)
+            .values(applySourceSyncDefaults({
+              accountId,
+              calendarType: ICAL_CALENDAR_TYPE,
+              name: sourceName,
+              url: sourceUrl,
+              userId: sourceUserId,
+            }))
+            .returning();
+          return source;
+        },
+        fetchAndSyncSource: async (source) => {
+          await fetchAndSyncSource(database, source);
+        },
+        spawnBackgroundJob,
+        triggerDestinationSync,
+        validateSourceUrl,
       },
-      createCalendarAccount: async ({ userId: accountUserId, displayName }) => {
-        const [account] = await database
-          .insert(calendarAccountsTable)
-          .values({
-            authType: "none",
-            displayName,
-            provider: "ics",
-            userId: accountUserId,
-          })
-          .returning({ id: calendarAccountsTable.id });
-        return account?.id;
-      },
-      createSourceCalendar: async ({ accountId, name: sourceName, url: sourceUrl, userId: sourceUserId }) => {
-        const [source] = await database
-          .insert(calendarsTable)
-          .values(applySourceSyncDefaults({
-            accountId,
-            calendarType: ICAL_CALENDAR_TYPE,
-            name: sourceName,
-            url: sourceUrl,
-            userId: sourceUserId,
-          }))
-          .returning();
-        return source;
-      },
-      fetchAndSyncSource: async (source) => {
-        await fetchAndSyncSource(database, source);
-      },
-      spawnBackgroundJob,
-      triggerDestinationSync,
-      validateSourceUrl,
-    },
+    ),
   );
 
 export {

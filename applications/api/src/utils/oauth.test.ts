@@ -1,166 +1,196 @@
-import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import type {
-  handleOAuthCallback as handleOAuthCallbackFn,
-  OAuthError as OAuthErrorClass,
+import { beforeEach, describe, expect, it } from "bun:test";
+import {
+  handleOAuthCallbackWithDependencies,
+  OAuthError,
 } from "./oauth";
 
-type SelectResult = unknown[];
-
-const createQueryable = (value: SelectResult) => ({
-  limit: () => Promise.resolve(value),
-  then: (resolve: (value: SelectResult) => unknown, reject?: (reason?: unknown) => unknown) =>
-    Promise.resolve(value).then(resolve, reject),
-});
-
-let selectResults: SelectResult[] = [];
-let canAddAccountCalls: [string, number][] = [];
-let canAddAccountResult = true;
-let exchangeCodeForTokensCalls: Array<{ callbackUrl: string; code: string; provider: string }> = [];
-let fetchUserInfoCalls: Array<{ accessToken: string; provider: string }> = [];
-let saveCalendarDestinationCalls: Array<{
+let persistCalendarDestinationCalls: {
   accessToken: string;
   accountId: string;
+  destinationId?: string;
   email: string | null;
   expiresAt: Date;
   needsReauthentication: boolean;
   provider: string;
   refreshToken: string;
   userId: string;
-}> = [];
-
-const database = {
-  select: () => ({
-    from: () => ({
-      where: () => createQueryable(selectResults.shift() ?? []),
-    }),
-  }),
-};
-
-const premiumService = {
-  canAddAccount: (userId: string, currentCount: number) => {
-    canAddAccountCalls.push([userId, currentCount]);
-    return Promise.resolve(canAddAccountResult);
-  },
-};
-
-let handleOAuthCallback: typeof handleOAuthCallbackFn = () =>
-  Promise.reject(new Error("Module not loaded"));
-let OAuthError: typeof OAuthErrorClass;
-
-beforeAll(async () => {
-  mock.module("../context", () => ({
-    baseUrl: "https://keeper.test",
-    database,
-    premiumService,
-  }));
-  mock.module("./destinations", () => ({
-    exchangeCodeForTokens: (provider: string, code: string, callbackUrl: string) => {
-      exchangeCodeForTokensCalls.push({ callbackUrl, code, provider });
-      return Promise.resolve({
-        access_token: "access-token",
-        expires_in: 3600,
-        refresh_token: "refresh-token",
-        scope: "calendar.read calendar.write",
-      });
-    },
-    fetchUserInfo: (provider: string, accessToken: string) => {
-      fetchUserInfoCalls.push({ accessToken, provider });
-      return Promise.resolve({
-        email: "person@example.com",
-        id: "external-account-1",
-      });
-    },
-    getDestinationAccountId: () => Promise.resolve(null),
-    hasRequiredScopes: () => true,
-    saveCalendarDestination: (
-      userId: string,
-      provider: string,
-      accountId: string,
-      email: string | null,
-      accessToken: string,
-      refreshToken: string,
-      expiresAt: Date,
-      needsReauthentication = false,
-    ) => {
-      saveCalendarDestinationCalls.push({
-        accessToken,
-        accountId,
-        email,
-        expiresAt,
-        needsReauthentication,
-        provider,
-        refreshToken,
-        userId,
-      });
-      return Promise.resolve();
-    },
-    validateState: () => ({ destinationId: undefined, userId: "user-1" }),
-  }));
-  mock.module("./sync", () => ({
-    triggerDestinationSync: () => null,
-  }));
-
-  ({ handleOAuthCallback, OAuthError } = await import("./oauth"));
-});
+}[] = [];
+let triggerDestinationSyncCalls: string[] = [];
 
 beforeEach(() => {
-  selectResults = [];
-  canAddAccountCalls = [];
-  canAddAccountResult = true;
-  exchangeCodeForTokensCalls = [];
-  fetchUserInfoCalls = [];
-  saveCalendarDestinationCalls = [];
+  persistCalendarDestinationCalls = [];
+  triggerDestinationSyncCalls = [];
 });
 
-describe("handleOAuthCallback", () => {
-  it("rejects new destination connections when the user is at the account limit", async () => {
-    selectResults = [
-      [],
-      [{ id: "account-1" }, { id: "account-2" }],
-    ];
-    canAddAccountResult = false;
-
-    let capturedError: unknown;
-    try {
-      await handleOAuthCallback({
+describe("handleOAuthCallbackWithDependencies", () => {
+  it("accepts validated state objects with a null destinationId", async () => {
+    const result = await handleOAuthCallbackWithDependencies(
+      {
         code: "oauth-code",
         error: null,
         provider: "google",
         state: "oauth-state",
-      });
-    } catch (error) {
-      capturedError = error;
-    }
-
-    expect(capturedError).toBeInstanceOf(OAuthError);
-    expect((capturedError as InstanceType<typeof OAuthError>).redirectUrl.searchParams.get("error")).toBe(
-      "Account limit reached. Upgrade to Pro for unlimited accounts.",
+      },
+      {
+        baseUrl: "https://keeper.test",
+        exchangeCodeForTokens: () =>
+          Promise.resolve({
+            access_token: "access-token",
+            expires_in: 3600,
+            refresh_token: "refresh-token",
+            scope: "calendar.read calendar.write",
+          }),
+        fetchUserInfo: () =>
+          Promise.resolve({
+            email: "person@example.com",
+            id: "external-account-1",
+          }),
+        getDestinationAccountId: () => Promise.resolve(null),
+        hasRequiredScopes: () => true,
+        persistCalendarDestination: (payload) => {
+          persistCalendarDestinationCalls.push(payload);
+          return Promise.resolve();
+        },
+        triggerDestinationSync: (userId) => {
+          triggerDestinationSyncCalls.push(userId);
+        },
+        validateState: () => ({ destinationId: null, sourceCredentialId: null, userId: "user-1" }),
+      },
     );
-    expect(canAddAccountCalls).toEqual([["user-1", 2]]);
-    expect(saveCalendarDestinationCalls).toHaveLength(0);
+
+    expect(result.redirectUrl.pathname).toBe("/dashboard/integrations");
+    expect(persistCalendarDestinationCalls).toHaveLength(1);
+    expect(persistCalendarDestinationCalls[0]?.destinationId).toBeUndefined();
   });
 
-  it("allows reconnecting an existing destination account without rechecking the limit", async () => {
-    selectResults = [
-      [{
-        caldavCredentialId: null,
-        id: "destination-1",
-        oauthCredentialId: "oauth-credential-1",
-        userId: "user-1",
-      }],
-    ];
-    canAddAccountResult = false;
-
-    const result = await handleOAuthCallback({
-      code: "oauth-code",
-      error: null,
-      provider: "google",
-      state: "oauth-state",
-    });
+  it("persists a new destination exactly once with the evaluated scope state", async () => {
+    const result = await handleOAuthCallbackWithDependencies(
+      {
+        code: "oauth-code",
+        error: null,
+        provider: "google",
+        state: "oauth-state",
+      },
+      {
+        baseUrl: "https://keeper.test",
+        exchangeCodeForTokens: () =>
+          Promise.resolve({
+            access_token: "access-token",
+            expires_in: 3600,
+            refresh_token: "refresh-token",
+            scope: "calendar.read",
+          }),
+        fetchUserInfo: () =>
+          Promise.resolve({
+            email: "person@example.com",
+            id: "external-account-1",
+          }),
+        getDestinationAccountId: () => Promise.resolve(null),
+        hasRequiredScopes: () => false,
+        persistCalendarDestination: (payload) => {
+          persistCalendarDestinationCalls.push(payload);
+          return Promise.resolve();
+        },
+        triggerDestinationSync: (userId) => {
+          triggerDestinationSyncCalls.push(userId);
+        },
+        validateState: () => ({ destinationId: null, sourceCredentialId: null, userId: "user-1" }),
+      },
+    );
 
     expect(result.redirectUrl.pathname).toBe("/dashboard/integrations");
     expect(result.redirectUrl.searchParams.get("destination")).toBe("connected");
-    expect(canAddAccountCalls).toHaveLength(0);
-    expect(saveCalendarDestinationCalls).toHaveLength(1);
+    expect(persistCalendarDestinationCalls).toHaveLength(1);
+    expect(persistCalendarDestinationCalls[0]).toMatchObject({
+      accountId: "external-account-1",
+      email: "person@example.com",
+      needsReauthentication: true,
+      provider: "google",
+      userId: "user-1",
+    });
+    expect(triggerDestinationSyncCalls).toEqual(["user-1"]);
+  });
+
+  it("allows reconnecting an existing destination account without duplicating persistence", async () => {
+    const result = await handleOAuthCallbackWithDependencies(
+      {
+        code: "oauth-code",
+        error: null,
+        provider: "google",
+        state: "oauth-state",
+      },
+      {
+        baseUrl: "https://keeper.test",
+        exchangeCodeForTokens: () =>
+          Promise.resolve({
+            access_token: "access-token",
+            expires_in: 3600,
+            refresh_token: "refresh-token",
+            scope: "calendar.read calendar.write",
+          }),
+        fetchUserInfo: () =>
+          Promise.resolve({
+            email: "person@example.com",
+            id: "external-account-1",
+          }),
+        getDestinationAccountId: () => Promise.resolve("external-account-1"),
+        hasRequiredScopes: () => true,
+        persistCalendarDestination: (payload) => {
+          persistCalendarDestinationCalls.push(payload);
+          return Promise.resolve();
+        },
+        triggerDestinationSync: (userId) => {
+          triggerDestinationSyncCalls.push(userId);
+        },
+        validateState: () => ({ destinationId: "destination-1", sourceCredentialId: null, userId: "user-1" }),
+      },
+    );
+
+    expect(result.redirectUrl.pathname).toBe("/dashboard/integrations");
+    expect(persistCalendarDestinationCalls).toHaveLength(1);
+    expect(persistCalendarDestinationCalls[0]).toMatchObject({
+      accountId: "external-account-1",
+      destinationId: "destination-1",
+      needsReauthentication: false,
+      provider: "google",
+      userId: "user-1",
+    });
+    expect(triggerDestinationSyncCalls).toEqual(["user-1"]);
+  });
+
+  it("rejects reauthentication with a different external account", async () => {
+    await expect(
+      handleOAuthCallbackWithDependencies(
+        {
+          code: "oauth-code",
+          error: null,
+          provider: "google",
+          state: "oauth-state",
+        },
+        {
+          baseUrl: "https://keeper.test",
+          exchangeCodeForTokens: () =>
+            Promise.resolve({
+              access_token: "access-token",
+              expires_in: 3600,
+              refresh_token: "refresh-token",
+              scope: "calendar.read calendar.write",
+            }),
+          fetchUserInfo: () =>
+            Promise.resolve({
+              email: "person@example.com",
+              id: "external-account-2",
+            }),
+          getDestinationAccountId: () => Promise.resolve("external-account-1"),
+          hasRequiredScopes: () => true,
+          persistCalendarDestination: () => Promise.resolve(),
+          triggerDestinationSync: () => null,
+          validateState: () => ({ destinationId: "destination-1", sourceCredentialId: null, userId: "user-1" }),
+        },
+      ),
+    ).rejects.toBeInstanceOf(OAuthError);
+
+    expect(persistCalendarDestinationCalls).toHaveLength(0);
+    expect(triggerDestinationSyncCalls).toHaveLength(0);
   });
 });

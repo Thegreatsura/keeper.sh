@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { Plugin } from "vite";
 import { type } from "arktype";

@@ -285,7 +285,7 @@ function MarketingPage() {
             <MarketingIllustrationCalendarCard skew={SKEW_BACK_RIGHT} />
             <MarketingIllustrationCalendarCard skew={SKEW_FRONT} />
           </MarketingIllustrationCalendar>
-          <MarketingFeatureBentoSection>
+          <MarketingFeatureBentoSection id="features">
             <MarketingFeatureBentoGrid>
               {MARKETING_FEATURES.map((feature) => (
                 <MarketingFeatureBentoCard key={feature.id} className={feature.gridClassName}>
@@ -303,7 +303,7 @@ function MarketingPage() {
             </MarketingFeatureBentoGrid>
           </MarketingFeatureBentoSection>
 
-          <MarketingPricingSection>
+          <MarketingPricingSection id="pricing">
             <MarketingPricingIntro>
               <Heading2 className="text-center">Hosted Pricing</Heading2>
               <Text size='sm' align="center">

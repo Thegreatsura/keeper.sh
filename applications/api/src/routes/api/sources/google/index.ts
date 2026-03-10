@@ -11,6 +11,7 @@ import {
   getUserOAuthSources,
   createOAuthSource,
 } from "../../../../utils/oauth-sources";
+import { premiumService } from "../../../../context";
 
 const GOOGLE_PROVIDER = "google";
 
@@ -35,10 +36,12 @@ const POST = withWideEvent(
         syncWorkingLocation,
       } = createOAuthSourceSchema.assert(body);
 
+      const canFilter = await premiumService.canUseEventFilters(userId);
+
       const source = await createOAuthSource({
-        ...(!syncFocusTime && { excludeFocusTime: true }),
-        ...(!syncOutOfOffice && { excludeOutOfOffice: true }),
-        ...(!syncWorkingLocation && { excludeWorkingLocation: true }),
+        ...(canFilter && !syncFocusTime && { excludeFocusTime: true }),
+        ...(canFilter && !syncOutOfOffice && { excludeOutOfOffice: true }),
+        ...(canFilter && !syncWorkingLocation && { excludeWorkingLocation: true }),
         externalCalendarId,
         name,
         oauthCredentialId: oauthSourceCredentialId ?? "",

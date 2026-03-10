@@ -5,15 +5,6 @@ export function canonicalUrl(path: string): string {
   return `${SITE_URL}${path}`;
 }
 
-export function JsonLd({ data }: { data: Record<string, unknown> }) {
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
-  );
-}
-
 export function jsonLdMeta(data: Record<string, unknown>) {
   return { "script:ld+json": data } as Record<string, unknown>;
 }

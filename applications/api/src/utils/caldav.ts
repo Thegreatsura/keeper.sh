@@ -3,10 +3,12 @@ import { createCalDAVClient } from "@keeper.sh/provider-caldav";
 import { encryptPassword } from "@keeper.sh/encryption";
 import { isCalDAVProvider } from "@keeper.sh/provider-registry";
 import type { CalDAVProviderId } from "@keeper.sh/provider-registry";
-import { and, eq } from "drizzle-orm";
-import { saveCalDAVDestination } from "./destinations";
+import { and, eq, sql } from "drizzle-orm";
+import { saveCalDAVDestinationWithDatabase } from "./destinations";
 import { triggerDestinationSync } from "./sync";
 import { database, encryptionKey, premiumService } from "../context";
+
+const USER_ACCOUNT_LOCK_NAMESPACE = 9002;
 
 class DestinationLimitError extends Error {
   constructor() {
@@ -87,40 +89,48 @@ const createCalDAVDestination = async (
   const encrypted = encryptPassword(credentials.password, encryptionKey);
   const serverHost = new URL(serverUrl).host;
   const accountId = `${credentials.username}@${serverHost}`;
-  const [existingAccount] = await database
-    .select({ id: calendarAccountsTable.id })
-    .from(calendarAccountsTable)
-    .where(
-      and(
-        eq(calendarAccountsTable.userId, userId),
-        eq(calendarAccountsTable.provider, provider),
-        eq(calendarAccountsTable.accountId, accountId),
-      ),
-    )
-    .limit(1);
 
-  if (!existingAccount) {
-    const existingAccounts = await database
+  await database.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(${USER_ACCOUNT_LOCK_NAMESPACE}, hashtext(${userId}))`,
+    );
+
+    const [existingAccount] = await tx
       .select({ id: calendarAccountsTable.id })
       .from(calendarAccountsTable)
-      .where(eq(calendarAccountsTable.userId, userId));
+      .where(
+        and(
+          eq(calendarAccountsTable.userId, userId),
+          eq(calendarAccountsTable.provider, provider),
+          eq(calendarAccountsTable.accountId, accountId),
+        ),
+      )
+      .limit(1);
 
-    const allowed = await premiumService.canAddAccount(userId, existingAccounts.length);
-    if (!allowed) {
-      throw new DestinationLimitError();
+    if (!existingAccount) {
+      const existingAccounts = await tx
+        .select({ id: calendarAccountsTable.id })
+        .from(calendarAccountsTable)
+        .where(eq(calendarAccountsTable.userId, userId));
+
+      const allowed = await premiumService.canAddAccount(userId, existingAccounts.length);
+      if (!allowed) {
+        throw new DestinationLimitError();
+      }
     }
-  }
 
-  await saveCalDAVDestination(
-    userId,
-    provider,
-    accountId,
-    credentials.username,
-    serverUrl,
-    calendarUrl,
-    credentials.username,
-    encrypted,
-  );
+    await saveCalDAVDestinationWithDatabase(
+      tx,
+      userId,
+      provider,
+      accountId,
+      credentials.username,
+      serverUrl,
+      calendarUrl,
+      credentials.username,
+      encrypted,
+    );
+  });
 
   triggerDestinationSync(userId);
 };

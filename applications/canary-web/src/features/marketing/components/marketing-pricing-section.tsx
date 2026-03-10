@@ -37,8 +37,8 @@ const marketingPricingCard = tv({
   },
 });
 
-export function MarketingPricingSection({ children }: PropsWithChildren) {
-  return <section className="w-full md:px-0 pt-16 pb-4">{children}</section>;
+export function MarketingPricingSection({ children, id }: PropsWithChildren<{ id?: string }>) {
+  return <section id={id} className="w-full md:px-0 pt-16 pb-4">{children}</section>;
 }
 
 export function MarketingPricingIntro({ children }: PropsWithChildren) {

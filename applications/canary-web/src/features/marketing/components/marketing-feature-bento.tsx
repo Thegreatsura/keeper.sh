@@ -3,8 +3,8 @@ import { cn } from "../../../utils/cn";
 
 type MarketingFeatureBentoCardProps = PropsWithChildren<{ className?: string }>;
 
-export function MarketingFeatureBentoSection({ children }: PropsWithChildren) {
-  return <section className="w-full md:px-0 bg-background z-20">{children}</section>;
+export function MarketingFeatureBentoSection({ children, id }: PropsWithChildren<{ id?: string }>) {
+  return <section id={id} className="w-full md:px-0 bg-background z-20">{children}</section>;
 }
 
 export function MarketingFeatureBentoGrid({ children }: PropsWithChildren) {

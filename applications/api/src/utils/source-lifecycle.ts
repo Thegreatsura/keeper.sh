@@ -11,6 +11,7 @@ interface CreateSourceInput {
 }
 
 interface CreateSourceDependencies<TSource extends SourceReference> {
+  acquireAccountLock: (userId: string) => Promise<void>;
   countExistingAccounts: (userId: string) => Promise<number>;
   canAddAccount: (userId: string, existingAccountCount: number) => Promise<boolean>;
   validateSourceUrl: (url: string) => Promise<void>;
@@ -58,6 +59,7 @@ const runCreateSource = async <TSource extends SourceReference>(
   input: CreateSourceInput,
   dependencies: CreateSourceDependencies<TSource>,
 ): Promise<TSource> => {
+  await dependencies.acquireAccountLock(input.userId);
   const existingAccountCount = await dependencies.countExistingAccounts(input.userId);
   const allowed = await dependencies.canAddAccount(input.userId, existingAccountCount);
   if (!allowed) {

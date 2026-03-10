@@ -1,9 +1,9 @@
-export interface SocketMessage {
+interface SocketMessage {
   data?: unknown;
   event: string;
 }
 
-export interface SyncAggregate {
+interface SyncAggregate {
   progressPercent: number;
   seq: number;
   syncEventsProcessed: number;
@@ -13,13 +13,18 @@ export interface SyncAggregate {
   lastSyncedAt?: string | null;
 }
 
-export function isSocketMessage(value: unknown): value is SocketMessage {
-  if (typeof value !== "object" || value === null) return false;
+const isSocketMessage = (value: unknown): value is SocketMessage => {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
   return "event" in value && typeof value.event === "string";
-}
+};
 
-export function isSyncAggregate(value: unknown): value is SyncAggregate {
-  if (typeof value !== "object" || value === null) return false;
+const isSyncAggregate = (value: unknown): value is SyncAggregate => {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
   return (
     "progressPercent" in value &&
     typeof value.progressPercent === "number" &&
@@ -34,4 +39,6 @@ export function isSyncAggregate(value: unknown): value is SyncAggregate {
     "syncing" in value &&
     typeof value.syncing === "boolean"
   );
-}
+};
+
+export { type SocketMessage, type SyncAggregate, isSocketMessage, isSyncAggregate };

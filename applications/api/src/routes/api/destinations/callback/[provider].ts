@@ -8,6 +8,7 @@ import {
   parseOAuthCallback,
 } from "../../../../utils/oauth";
 import { providerParamSchema } from "../../../../utils/request-query";
+import { baseUrl } from "../../../../context";
 
 const GET = withWideEvent(async ({ request, params }) => {
   if (!params.provider || !providerParamSchema.allows(params)) {
@@ -24,7 +25,7 @@ const GET = withWideEvent(async ({ request, params }) => {
       return respondWithLoggedError(error, Response.redirect(error.redirectUrl.toString()));
     }
 
-    const errorUrl = buildRedirectUrl("/dashboard/integrations", {
+    const errorUrl = buildRedirectUrl("/dashboard/integrations", baseUrl, {
       destination: "error",
       error: "Failed to connect",
     });

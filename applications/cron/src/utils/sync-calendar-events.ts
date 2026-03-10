@@ -44,7 +44,7 @@ const createSyncUserSourcesDependencies = async (): Promise<{
         await fetchAndSyncSource(database, source);
       },
       reportError,
-      syncDestinationsForUser: async (userId) =>
+      syncDestinationsForUser: (userId) =>
         syncDestinationsForUserAcrossCalendars(
           userId,
           destinationProviders,

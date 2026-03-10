@@ -1,191 +1,177 @@
-import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import type {
-  createOAuthSource as createOAuthSourceFn,
-  importOAuthAccountCalendars as importOAuthAccountCalendarsFn,
+import { beforeEach, describe, expect, it } from "bun:test";
+import {
+  createOAuthSourceWithDependencies,
+  importOAuthAccountCalendarsWithDependencies,
 } from "./oauth-sources";
 
-type SelectResponse =
-  | { kind: "direct"; value: unknown[] }
-  | { kind: "limited"; value: unknown[] };
-
-type InsertResponse =
-  | { kind: "direct" }
-  | { kind: "returning"; value: unknown[] };
-
-let selectResponses: SelectResponse[] = [];
-let insertResponses: InsertResponse[] = [];
-let insertValuesCalls: unknown[] = [];
 let canAddAccountCalls: [string, number][] = [];
 let canAddAccountResult = true;
-let listedCalendars: { id: string; summary: string }[] = [];
-let spawnBackgroundJobCalls: { jobName: string; fields: Record<string, unknown> }[] = [];
-
-const database = {
-  insert: () => ({
-    values: (values: unknown) => {
-      insertValuesCalls.push(values);
-      const response = insertResponses.shift() ?? { kind: "direct" };
-
-      if (response.kind === "returning") {
-        return {
-          returning: () => Promise.resolve(response.value),
-        };
-      }
-
-      return Promise.resolve();
-    },
-  }),
-  select: () => ({
-    from: () => {
-      const resolveWhere = () => {
-        const response = selectResponses.shift() ?? { kind: "direct", value: [] };
-
-        if (response.kind === "limited") {
-          return {
-            limit: () => Promise.resolve(response.value),
-          };
-        }
-
-        return Promise.resolve(response.value);
-      };
-
-      const chain = {
-        innerJoin: () => chain,
-        where: resolveWhere,
-      };
-
-      return chain;
-    },
-  }),
-};
-
-const premiumService = {
-  canAddAccount: (userId: string, currentCount: number) => {
-    canAddAccountCalls.push([userId, currentCount]);
-    return Promise.resolve(canAddAccountResult);
-  },
-};
-
-let importOAuthAccountCalendars: typeof importOAuthAccountCalendarsFn = () =>
-  Promise.reject(new Error("Module not loaded"));
-let createOAuthSource: typeof createOAuthSourceFn = () =>
-  Promise.reject(new Error("Module not loaded"));
-
-beforeAll(async () => {
-  mock.module("../context", () => ({
-    database,
-    oauthProviders: {},
-    premiumService,
-  }));
-  mock.module("./background-task", () => ({
-    spawnBackgroundJob: (jobName: string, fields: Record<string, unknown>) => {
-      spawnBackgroundJobCalls.push({ fields, jobName });
-    },
-  }));
-  mock.module("./sync", () => ({
-    triggerDestinationSync: () => null,
-  }));
-  mock.module("@keeper.sh/provider-registry/server", () => ({
-    getSourceProvider: () => null,
-  }));
-  mock.module("@keeper.sh/provider-google-calendar", () => ({
-    listUserCalendars: () => Promise.resolve(listedCalendars),
-  }));
-  mock.module("@keeper.sh/provider-outlook", () => ({
-    listUserCalendars: () => Promise.resolve(listedCalendars),
-  }));
-
-  ({ createOAuthSource, importOAuthAccountCalendars } = await import("./oauth-sources"));
-});
+let createAccountCalls: unknown[] = [];
+let createSourceCalls: unknown[] = [];
+let insertCalendarsCalls: unknown[] = [];
+let triggerSyncCalls: { provider: string; userId: string }[] = [];
+let listedCalendars: { externalId: string; name: string }[] = [];
 
 beforeEach(() => {
-  selectResponses = [];
-  insertResponses = [];
-  insertValuesCalls = [];
   canAddAccountCalls = [];
   canAddAccountResult = true;
+  createAccountCalls = [];
+  createSourceCalls = [];
+  insertCalendarsCalls = [];
+  triggerSyncCalls = [];
   listedCalendars = [];
-  spawnBackgroundJobCalls = [];
 });
 
-describe("importOAuthAccountCalendars", () => {
+describe("importOAuthAccountCalendarsWithDependencies", () => {
   it("rejects creating a new OAuth account when the user is at the account limit", async () => {
-    selectResponses = [
-      { kind: "limited", value: [] },
-      { kind: "direct", value: [{ id: "account-1" }, { id: "account-2" }] },
-    ];
     canAddAccountResult = false;
 
     await expect(
-      importOAuthAccountCalendars({
+      importOAuthAccountCalendarsWithDependencies(
+        {
+          accessToken: "token",
+          email: "person@example.com",
+          oauthCredentialId: "credential-1",
+          provider: "google",
+          userId: "user-1",
+        },
+        {
+          canAddAccount: (userId, currentCount) => {
+            canAddAccountCalls.push([userId, currentCount]);
+            return Promise.resolve(canAddAccountResult);
+          },
+          countUserAccounts: () => Promise.resolve(2),
+          createAccountId: () => Promise.resolve("account-1"),
+          findExistingAccountId: () => Promise.resolve(null),
+          getUnimportedExternalCalendars: () => Promise.resolve([]),
+          insertCalendars: () => Promise.resolve(),
+          listCalendars: () => Promise.resolve([]),
+          triggerSync: () => null,
+        },
+      ),
+    ).rejects.toThrow("Account limit reached");
+
+    expect(canAddAccountCalls).toEqual([["user-1", 2]]);
+    expect(insertCalendarsCalls).toHaveLength(0);
+    expect(triggerSyncCalls).toHaveLength(0);
+  });
+
+  it("reuses an existing OAuth account without checking the account limit", async () => {
+    listedCalendars = [{ externalId: "external-1", name: "Team Calendar" }];
+
+    const accountId = await importOAuthAccountCalendarsWithDependencies(
+      {
         accessToken: "token",
         email: "person@example.com",
         oauthCredentialId: "credential-1",
         provider: "google",
         userId: "user-1",
-      }),
-    ).rejects.toThrow("Account limit reached");
-
-    expect(canAddAccountCalls).toEqual([["user-1", 2]]);
-    expect(insertValuesCalls).toHaveLength(0);
-    expect(spawnBackgroundJobCalls).toHaveLength(0);
-  });
-
-  it("reuses an existing OAuth account without checking the account limit", async () => {
-    selectResponses = [
-      { kind: "limited", value: [{ id: "account-1" }] },
-      { kind: "direct", value: [] },
-    ];
-    listedCalendars = [{ id: "external-1", summary: "Team Calendar" }];
-
-    const accountId = await importOAuthAccountCalendars({
-      accessToken: "token",
-      email: "person@example.com",
-      oauthCredentialId: "credential-1",
-      provider: "google",
-      userId: "user-1",
-    });
+      },
+      {
+        canAddAccount: (userId, currentCount) => {
+          canAddAccountCalls.push([userId, currentCount]);
+          return Promise.resolve(false);
+        },
+        countUserAccounts: () => Promise.resolve(2),
+        createAccountId: () => Promise.resolve("new-account"),
+        findExistingAccountId: () => Promise.resolve("account-1"),
+        getUnimportedExternalCalendars: (_userId, _accountId, calendars) => Promise.resolve(calendars),
+        insertCalendars: (_userId, _accountId, calendars) => {
+          insertCalendarsCalls.push(calendars);
+          return Promise.resolve();
+        },
+        listCalendars: () => Promise.resolve(listedCalendars),
+        triggerSync: (userId, provider) => {
+          triggerSyncCalls.push({ provider, userId });
+        },
+      },
+    );
 
     expect(accountId).toBe("account-1");
     expect(canAddAccountCalls).toHaveLength(0);
-    expect(insertValuesCalls).toEqual([
-      [
-        expect.objectContaining({
-          accountId: "account-1",
-          externalCalendarId: "external-1",
-          name: "Team Calendar",
-          userId: "user-1",
-        }),
-      ],
-    ]);
-    expect(spawnBackgroundJobCalls).toEqual([
-      {
-        fields: { provider: "google", userId: "user-1" },
-        jobName: "oauth-account-import",
-      },
-    ]);
+    expect(insertCalendarsCalls).toEqual([[{ externalId: "external-1", name: "Team Calendar" }]]);
+    expect(triggerSyncCalls).toEqual([{ provider: "google", userId: "user-1" }]);
   });
 });
 
-describe("createOAuthSource", () => {
-  it("reuses an existing OAuth account without checking the account limit", async () => {
-    selectResponses = [
-      { kind: "limited", value: [{ email: "person@example.com" }] },
-      { kind: "limited", value: [{ id: "account-1" }] },
-      { kind: "limited", value: [] },
-    ];
-    canAddAccountResult = false;
-    insertResponses = [
-      { kind: "returning", value: [{ id: "source-1", name: "Team Calendar" }] },
-    ];
+describe("createOAuthSourceWithDependencies", () => {
+  it("allows source credentials whose email is null", async () => {
+    const source = await createOAuthSourceWithDependencies(
+      {
+        externalCalendarId: "external-1",
+        name: "Team Calendar",
+        oauthCredentialId: "credential-1",
+        provider: "google",
+        userId: "user-1",
+      },
+      {
+        canAddAccount: (userId, currentCount) => {
+          canAddAccountCalls.push([userId, currentCount]);
+          return Promise.resolve(true);
+        },
+        countUserAccounts: () => Promise.resolve(0),
+        createCalendarAccount: (payload) => {
+          createAccountCalls.push(payload);
+          return Promise.resolve("account-1");
+        },
+        createSource: (payload) => {
+          createSourceCalls.push(payload);
+          return Promise.resolve({ id: "source-1", name: "Team Calendar" });
+        },
+        findCredentialEmail: () => Promise.resolve({ email: null, exists: true }),
+        findExistingAccountId: () => Promise.resolve(null),
+        hasExistingCalendar: () => Promise.resolve(false),
+        triggerSync: (userId, provider) => {
+          triggerSyncCalls.push({ provider, userId });
+        },
+      },
+    );
 
-    const source = await createOAuthSource({
-      externalCalendarId: "external-1",
+    expect(source).toEqual({
+      email: null,
+      id: "source-1",
       name: "Team Calendar",
-      oauthCredentialId: "credential-1",
       provider: "google",
-      userId: "user-1",
     });
+    expect(createAccountCalls).toEqual([
+      expect.objectContaining({
+        displayName: null,
+        email: null,
+      }),
+    ]);
+  });
+
+  it("reuses an existing OAuth account without checking the account limit", async () => {
+    const source = await createOAuthSourceWithDependencies(
+      {
+        externalCalendarId: "external-1",
+        name: "Team Calendar",
+        oauthCredentialId: "credential-1",
+        provider: "google",
+        userId: "user-1",
+      },
+      {
+        canAddAccount: (userId, currentCount) => {
+          canAddAccountCalls.push([userId, currentCount]);
+          return Promise.resolve(false);
+        },
+        countUserAccounts: () => Promise.resolve(2),
+        createCalendarAccount: (payload) => {
+          createAccountCalls.push(payload);
+          return Promise.resolve("new-account");
+        },
+        createSource: (payload) => {
+          createSourceCalls.push(payload);
+          return Promise.resolve({ id: "source-1", name: "Team Calendar" });
+        },
+        findCredentialEmail: () => Promise.resolve({ email: "person@example.com", exists: true }),
+        findExistingAccountId: () => Promise.resolve("account-1"),
+        hasExistingCalendar: () => Promise.resolve(false),
+        triggerSync: (userId, provider) => {
+          triggerSyncCalls.push({ provider, userId });
+        },
+      },
+    );
 
     expect(source).toEqual({
       email: "person@example.com",
@@ -194,7 +180,8 @@ describe("createOAuthSource", () => {
       provider: "google",
     });
     expect(canAddAccountCalls).toHaveLength(0);
-    expect(insertValuesCalls).toEqual([
+    expect(createAccountCalls).toHaveLength(0);
+    expect(createSourceCalls).toEqual([
       expect.objectContaining({
         accountId: "account-1",
         externalCalendarId: "external-1",
@@ -202,35 +189,40 @@ describe("createOAuthSource", () => {
         userId: "user-1",
       }),
     ]);
-    expect(spawnBackgroundJobCalls).toEqual([
-      {
-        fields: { provider: "google", userId: "user-1" },
-        jobName: "oauth-source-sync",
-      },
-    ]);
+    expect(triggerSyncCalls).toEqual([{ provider: "google", userId: "user-1" }]);
   });
 
   it("checks the account limit before creating a new OAuth account", async () => {
-    selectResponses = [
-      { kind: "limited", value: [{ email: "person@example.com" }] },
-      { kind: "limited", value: [] },
-      { kind: "limited", value: [] },
-      { kind: "direct", value: [{ id: "account-1" }, { id: "account-2" }] },
-    ];
     canAddAccountResult = false;
 
     await expect(
-      createOAuthSource({
-        externalCalendarId: "external-1",
-        name: "Team Calendar",
-        oauthCredentialId: "credential-1",
-        provider: "google",
-        userId: "user-1",
-      }),
+      createOAuthSourceWithDependencies(
+        {
+          externalCalendarId: "external-1",
+          name: "Team Calendar",
+          oauthCredentialId: "credential-1",
+          provider: "google",
+          userId: "user-1",
+        },
+        {
+          canAddAccount: (userId, currentCount) => {
+            canAddAccountCalls.push([userId, currentCount]);
+            return Promise.resolve(canAddAccountResult);
+          },
+          countUserAccounts: () => Promise.resolve(2),
+          createCalendarAccount: () => Promise.resolve("new-account"),
+          createSource: () => Promise.resolve({ id: "source-1", name: "Team Calendar" }),
+          findCredentialEmail: () => Promise.resolve({ email: "person@example.com", exists: true }),
+          findExistingAccountId: () => Promise.resolve(null),
+          hasExistingCalendar: () => Promise.resolve(false),
+          triggerSync: () => null,
+        },
+      ),
     ).rejects.toThrow("Account limit reached");
 
     expect(canAddAccountCalls).toEqual([["user-1", 2]]);
-    expect(insertValuesCalls).toHaveLength(0);
-    expect(spawnBackgroundJobCalls).toHaveLength(0);
+    expect(createAccountCalls).toHaveLength(0);
+    expect(createSourceCalls).toHaveLength(0);
+    expect(triggerSyncCalls).toHaveLength(0);
   });
 });

@@ -21,7 +21,7 @@ const GET = withWideEvent(async ({ request, params }) => {
 
   const { provider } = params;
 
-  const errorUrl = buildRedirectUrl("/dashboard/integrations", {
+  const errorUrl = buildRedirectUrl("/dashboard/integrations", baseUrl, {
     error: "Failed to connect source",
     source: "error",
   });
@@ -78,7 +78,7 @@ const GET = withWideEvent(async ({ request, params }) => {
       userId,
     });
 
-    const successUrl = buildRedirectUrl(`/dashboard/accounts/${accountId}/setup`, {});
+    const successUrl = buildRedirectUrl(`/dashboard/accounts/${accountId}/setup`, baseUrl);
     return Response.redirect(successUrl.toString());
   } catch (error) {
     if (error instanceof OAuthError) {

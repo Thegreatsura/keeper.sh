@@ -37,6 +37,7 @@ describe("runCreateSource", () => {
           userId: "user-1",
         },
         {
+          acquireAccountLock: () => Promise.resolve(),
           canAddAccount: () => Promise.resolve(false),
           countExistingAccounts: () => Promise.resolve(3),
           createCalendarAccount: () => Promise.resolve("account-1"),
@@ -61,6 +62,7 @@ describe("runCreateSource", () => {
           userId: "user-1",
         },
         {
+          acquireAccountLock: () => Promise.resolve(),
           canAddAccount: () => Promise.resolve(true),
           countExistingAccounts: () => Promise.resolve(0),
           createCalendarAccount: () => Promise.resolve("account-1"),
@@ -96,6 +98,7 @@ describe("runCreateSource", () => {
         userId: "user-42",
       },
       {
+        acquireAccountLock: () => Promise.resolve(),
         canAddAccount: () => Promise.resolve(true),
         countExistingAccounts: () => Promise.resolve(2),
         createCalendarAccount: () => Promise.resolve("account-42"),
@@ -140,6 +143,7 @@ describe("runCreateSource", () => {
           userId: "user-1",
         },
         {
+          acquireAccountLock: () => Promise.resolve(),
           canAddAccount: () => Promise.resolve(true),
           countExistingAccounts: () => Promise.resolve(0),
           createCalendarAccount: () => Promise.resolve(""),
@@ -162,6 +166,7 @@ describe("runCreateSource", () => {
           userId: "user-1",
         },
         {
+          acquireAccountLock: () => Promise.resolve(),
           canAddAccount: () => Promise.resolve(true),
           countExistingAccounts: () => Promise.resolve(0),
           createCalendarAccount: () => Promise.resolve("account-1"),
