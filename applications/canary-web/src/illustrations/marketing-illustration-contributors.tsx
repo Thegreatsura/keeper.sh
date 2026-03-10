@@ -84,7 +84,7 @@ export function MarketingIllustrationContributors() {
             <m.div
               key={contributorIndex}
               initial={{
-                y: rowHeight * VISIBLE_COUNT,
+                y: rowHeight * (VISIBLE_COUNT - 1) + (rowHeight * 2) / 3,
                 opacity: 0,
                 scale: 0.7,
                 filter: "blur(3px)",
@@ -96,7 +96,7 @@ export function MarketingIllustrationContributors() {
                 filter: SLOT_STYLES[slot].filter,
               }}
               exit={{
-                y: -rowHeight,
+                y: -(rowHeight * 2) / 3,
                 opacity: 0,
                 scale: 0.7,
                 filter: "blur(3px)",
