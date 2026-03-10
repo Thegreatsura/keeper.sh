@@ -1,6 +1,6 @@
 import { useSetAtom } from 'jotai'
 import { createFileRoute } from '@tanstack/react-router'
-import { CanonicalLink, jsonLdMeta, seoMeta, softwareApplicationSchema, faqSchema } from '../../lib/seo'
+import { CanonicalLink, jsonLdMeta, seoMeta, softwareApplicationSchema, faqSchema, breadcrumbSchema } from '../../lib/seo'
 import { Heading1, Heading2, Heading3 } from '../../components/ui/primitives/heading'
 import { Text } from '../../components/ui/primitives/text'
 import {
@@ -192,12 +192,12 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'How often do calendars sync?',
     answer:
-      'On the free plan, calendars sync every 30 minutes. Users who upgrade to the Pro plan get syncs every single minute.',
+      'On the free plan, calendars sync every 30 minutes. Users who upgrade to the Pro plan get syncs every 60 seconds.',
   },
   {
     question: 'Are my event details visible to others?',
     answer:
-      'Only if you want them to be. Shared iCal feeds anonymize event details by default, showing only busy/free time blocks to protect your privacy.',
+      'Only if you want them to be. You can choose whether events display details, or just show a generic event summary. You can customize the title, and choose to hide the details you want to keep private. These are configurable per-calendar.',
   },
   {
     question: 'Can I control how synced events appear?',
@@ -224,6 +224,7 @@ export const Route = createFileRoute('/(marketing)/')({
       }),
       jsonLdMeta(softwareApplicationSchema()),
       jsonLdMeta(faqSchema(FAQ_ITEMS)),
+      jsonLdMeta(breadcrumbSchema([{ name: "Home", path: "/" }])),
     ],
   }),
 })
@@ -235,11 +236,11 @@ function MarketingPage() {
     <div className="flex flex-col gap-2 pt-8">
       <CanonicalLink path="/" />
       <Heading1 className="text-center">All of your calendars in-sync.</Heading1>
-      <Text align="center" className="max-w-[42ch] mx-auto">
-        Synchronize events between your personal, work, business and school calendars. Open-source under AGPL-3.0.
+      <Text align="center" className="max-w-[48ch] mx-auto">
+        Synchronize events between your personal, work, business and school calendars automatically. Works with Google Calendar, Outlook, iCloud, CalDAV, and ICS/iCal feeds. Open-source under AGPL-3.0.
       </Text>
       <div className="contents *:z-20">
-        <div className="flex items-center gap-2 mx-auto">
+        <div className="flex items-center gap-2 mx-auto pt-1">
           <LinkButton
             to="/register"
             size="compact"
@@ -383,7 +384,7 @@ function MarketingPage() {
           <MarketingCtaSection>
             <MarketingCtaCard>
               <Heading2 className="text-center text-white">Ready to sync your calendars?</Heading2>
-              <Text size="sm" align="center" className="text-white/80 max-w-[46ch]">
+              <Text size="sm" align="center" tone="highlight" className="max-w-[46ch]">
                 Start syncing your calendars in seconds. Free to use, no credit card required.
               </Text>
               <div className="flex items-center gap-2 mt-2">
