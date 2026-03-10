@@ -1,6 +1,6 @@
 import { useSetAtom } from 'jotai'
 import { createFileRoute } from '@tanstack/react-router'
-import { CanonicalLink, JsonLd, seoMeta, softwareApplicationSchema } from '../../lib/seo'
+import { CanonicalLink, jsonLdMeta, seoMeta, softwareApplicationSchema } from '../../lib/seo'
 import { Heading1, Heading2, Heading3 } from '../../components/ui/primitives/heading'
 import { Text } from '../../components/ui/primitives/text'
 import { ButtonIcon, ButtonText, ExternalLinkButton, LinkButton } from '../../components/ui/primitives/button'
@@ -68,7 +68,7 @@ const MARKETING_FEATURES: MarketingFeature[] = [
     id: 2,
     title: 'Universal Calendar Sync',
     description:
-      'Google Calendar, Outlook, Apple Calendar, and more. Automatically sync events between your all your calendars no matter the provider.',
+      'Google Calendar, Outlook, Apple Calendar, and more. Automatically sync events between all your calendars no matter the provider.',
     gridClassName: 'lg:col-start-5 lg:col-span-6 lg:row-start-1',
   },
   {
@@ -136,12 +136,16 @@ const PRICING_FEATURES: PricingFeature[] = [
 export const Route = createFileRoute('/(marketing)/')({
   component: MarketingPage,
   head: () => ({
-    meta: seoMeta({
-      title: "Open-Source Calendar Event Syncing",
-      description:
-        "Synchronize events between your personal, work, business and school calendars. Open-source under AGPL-3.0. Supports Google Calendar, Outlook, iCloud, FastMail, and CalDAV.",
-      path: "/",
-    }),
+    meta: [
+      ...seoMeta({
+        title: "Open-Source Calendar Syncing for Google, Outlook & iCloud",
+        description:
+          "Keep your personal, work, and school calendars in sync automatically. Open-source (AGPL-3.0) calendar syncing for Google Calendar, Outlook, iCloud, FastMail, and CalDAV.",
+        path: "/",
+        brandPosition: "before",
+      }),
+      jsonLdMeta(softwareApplicationSchema()),
+    ],
   }),
 })
 
@@ -151,7 +155,6 @@ function MarketingPage() {
   return (
     <div className="flex flex-col gap-2 pt-8">
       <CanonicalLink path="/" />
-      <JsonLd data={softwareApplicationSchema()} />
       <Heading1 className="text-center">All of your calendars in-sync.</Heading1>
       <Text align="center" className="max-w-[42ch] mx-auto">
         Synchronize events between your personal, work, business and school calendars. Open-source under AGPL-3.0.

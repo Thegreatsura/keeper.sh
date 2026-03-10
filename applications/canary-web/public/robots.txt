@@ -22,6 +22,14 @@ Disallow: /forgot-password
 
 User-agent: ChatGPT-User
 Allow: /
+Disallow: /dashboard
+Disallow: /auth
+Disallow: /login
+Disallow: /register
+Disallow: /verify-email
+Disallow: /verify-authentication
+Disallow: /reset-password
+Disallow: /forgot-password
 
 User-agent: ClaudeBot
 Allow: /

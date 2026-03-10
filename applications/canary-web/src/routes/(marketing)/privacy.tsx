@@ -2,18 +2,22 @@ import type { PropsWithChildren } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Heading1, Heading2, Heading3 } from "../../components/ui/primitives/heading";
 import { Text } from "../../components/ui/primitives/text";
-import { CanonicalLink, JsonLd, seoMeta, webPageSchema, breadcrumbSchema } from "../../lib/seo";
+import { CanonicalLink, jsonLdMeta, seoMeta, webPageSchema, breadcrumbSchema } from "../../lib/seo";
 import { privacyPageMetadata, formatMonthYear } from "../../lib/page-metadata";
 
 export const Route = createFileRoute("/(marketing)/privacy")({
   component: PrivacyPage,
   head: () => ({
-    meta: seoMeta({
-      title: "Privacy Policy",
-      description:
-        "Privacy policy for Keeper.sh, the open-source calendar syncing service. Learn how we collect, use, and protect your data.",
-      path: "/privacy",
-    }),
+    meta: [
+      ...seoMeta({
+        title: "Privacy Policy",
+        description:
+          "How Keeper.sh collects, uses, and protects your calendar data. Privacy-first design with event anonymization and minimal data retention.",
+        path: "/privacy",
+      }),
+      jsonLdMeta(webPageSchema("Privacy Policy", "Privacy policy for Keeper.sh, the open-source calendar syncing service.", "/privacy")),
+      jsonLdMeta(breadcrumbSchema([{ name: "Home", path: "/" }, { name: "Privacy Policy", path: "/privacy" }])),
+    ],
   }),
 });
 
@@ -21,8 +25,6 @@ function PrivacyPage() {
   return (
     <div className="flex flex-col gap-6 py-16">
       <CanonicalLink path="/privacy" />
-      <JsonLd data={webPageSchema("Privacy Policy", "Privacy policy for Keeper.sh, the open-source calendar syncing service.", "/privacy")} />
-      <JsonLd data={breadcrumbSchema([{ name: "Home", path: "/" }, { name: "Privacy Policy", path: "/privacy" }])} />
       <div className="flex flex-col gap-1">
         <Heading1>Privacy Policy</Heading1>
         <Text size="sm" tone="muted">Last updated: {formatMonthYear(privacyPageMetadata.updatedAt)}</Text>

@@ -7,7 +7,7 @@ export function isApiRequest(url: URL): boolean {
 }
 
 export function isDocumentRequest(request: Request): boolean {
-  if (request.method !== "GET") {
+  if (request.method !== "GET" && request.method !== "HEAD") {
     return false;
   }
 

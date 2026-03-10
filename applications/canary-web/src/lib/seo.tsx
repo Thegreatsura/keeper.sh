@@ -14,6 +14,10 @@ export function JsonLd({ data }: { data: Record<string, unknown> }) {
   );
 }
 
+export function jsonLdMeta(data: Record<string, unknown>) {
+  return { "script:ld+json": data } as Record<string, unknown>;
+}
+
 export function CanonicalLink({ path }: { path: string }) {
   return <link rel="canonical" href={canonicalUrl(path)} />;
 }
@@ -23,14 +27,19 @@ export function seoMeta({
   description,
   path,
   type = "website",
+  brandPosition = "after",
 }: {
   title: string;
   description: string;
   path: string;
   type?: string;
+  brandPosition?: "before" | "after";
 }) {
+  const fullTitle = brandPosition === "before"
+    ? `${SITE_NAME} — ${title}`
+    : `${title} · ${SITE_NAME}`;
   return [
-    { title: `${title} · ${SITE_NAME}` },
+    { title: fullTitle },
     { content: description, name: "description" },
     { content: type, property: "og:type" },
     { content: title, property: "og:title" },
@@ -131,6 +140,14 @@ export function softwareApplicationSchema() {
   };
 }
 
+export const authorPersonSchema = {
+  "@type": "Person",
+  "@id": `${SITE_URL}/#author`,
+  name: "Rida F'kih",
+  url: "https://rida.dev",
+  sameAs: ["https://github.com/ridafkih"],
+};
+
 export function blogPostingSchema(post: {
   title: string;
   description: string;
@@ -150,7 +167,7 @@ export function blogPostingSchema(post: {
     datePublished: post.createdAt,
     dateModified: post.updatedAt,
     keywords: post.tags,
-    author: { "@id": `${SITE_URL}/#organization` },
+    author: authorPersonSchema,
     publisher: { "@id": `${SITE_URL}/#organization` },
     isPartOf: { "@id": `${SITE_URL}/#website` },
     mainEntityOfPage: { "@type": "WebPage", "@id": url },

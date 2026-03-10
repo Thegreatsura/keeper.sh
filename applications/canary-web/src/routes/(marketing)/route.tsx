@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
-import { JsonLd, organizationSchema } from '../../lib/seo'
+import { jsonLdMeta, organizationSchema } from '../../lib/seo'
 import { Layout, LayoutItem } from '../../components/ui/shells/layout'
 import { MarketingHeader, MarketingHeaderActions, MarketingHeaderBranding } from '../../features/marketing/components/marketing-header'
 import { MarketingFooter, MarketingFooterTagline, MarketingFooterNav, MarketingFooterNavGroup, MarketingFooterNavGroupLabel, MarketingFooterNavItem } from '../../features/marketing/components/marketing-footer'
@@ -26,6 +26,9 @@ export const Route = createFileRoute('/(marketing)')({
       } satisfies GithubStarsLoaderData;
     }
   },
+  head: () => ({
+    meta: [jsonLdMeta(organizationSchema)],
+  }),
   component: MarketingLayout,
 })
 
@@ -34,7 +37,6 @@ function MarketingLayout() {
 
   return (
     <>
-      <JsonLd data={organizationSchema} />
       <MarketingHeader>
         <MarketingHeaderBranding label="Keeper.sh home">
           <KeeperLogo className="w-full max-w-6" aria-hidden="true" />
