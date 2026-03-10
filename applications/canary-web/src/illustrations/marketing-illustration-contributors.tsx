@@ -1,12 +1,13 @@
 import { AnimatePresence, LazyMotion } from "motion/react";
 import * as m from "motion/react-m";
-import { loadMotionFeaturesMax } from "../lib/motion-features";
-import { memo, useEffect, useState } from "react";
+import { loadMotionFeatures } from "../lib/motion-features";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Text } from "../components/ui/primitives/text";
 import CONTRIBUTORS from "../features/marketing/contributors.json";
 
 const VISIBLE_COUNT = 3;
 const ROTATE_INTERVAL_MS = 1800;
+const FALLBACK_ROW_HEIGHT = 36;
 
 const SLOT_STYLES = [
   { scale: 0.92, opacity: 0.35, filter: "blur(1px)" },
@@ -50,6 +51,14 @@ const ContributorRow = memo(function ContributorRow({
 
 export function MarketingIllustrationContributors() {
   const [offset, setOffset] = useState(0);
+  const [rowHeight, setRowHeight] = useState(FALLBACK_ROW_HEIGHT);
+  const measureRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (measureRef.current) {
+      setRowHeight(measureRef.current.getBoundingClientRect().height);
+    }
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -65,21 +74,35 @@ export function MarketingIllustrationContributors() {
   });
 
   return (
-    <LazyMotion features={loadMotionFeaturesMax}>
-      <div className="flex flex-col w-full pt-3 px-4 overflow-hidden">
-        <AnimatePresence initial={false} mode="popLayout">
+    <LazyMotion features={loadMotionFeatures}>
+      <div className="relative w-full pt-3 px-4 overflow-hidden" style={{ height: rowHeight * VISIBLE_COUNT + 12 }}>
+        <div ref={measureRef} className="absolute inset-x-0 invisible pointer-events-none" aria-hidden="true">
+          <ContributorRow contributor={CONTRIBUTORS[0]} />
+        </div>
+        <AnimatePresence initial={false}>
           {visibleContributors.map(({ contributor, slot, contributorIndex }) => (
             <m.div
               key={contributorIndex}
-              layout
-              initial={{ opacity: 0, scale: 0.7, filter: "blur(3px)" }}
+              initial={{
+                y: rowHeight * VISIBLE_COUNT,
+                opacity: 0,
+                scale: 0.7,
+                filter: "blur(3px)",
+              }}
               animate={{
+                y: rowHeight * slot,
                 opacity: SLOT_STYLES[slot].opacity,
                 scale: SLOT_STYLES[slot].scale,
                 filter: SLOT_STYLES[slot].filter,
               }}
-              exit={{ opacity: 0, scale: 0.7, filter: "blur(3px)", transition: { ...TRANSITION, layout: { duration: 0 } } }}
+              exit={{
+                y: -rowHeight,
+                opacity: 0,
+                scale: 0.7,
+                filter: "blur(3px)",
+              }}
               transition={TRANSITION}
+              className="absolute inset-x-0"
             >
               <ContributorRow contributor={contributor} />
             </m.div>
