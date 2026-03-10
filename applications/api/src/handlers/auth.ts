@@ -1,5 +1,5 @@
 import type { MaybePromise } from "bun";
-import { auth } from "../context";
+import { auth, authCapabilities } from "../context";
 import { runWideEvent, setLogFields, trackStatusError } from "../utils/logging";
 
 const HTTP_INTERNAL_SERVER_ERROR = 500;
@@ -104,6 +104,10 @@ const processAuthResponse = async (pathname: string, response: Response): Promis
 const handleAuthRequest = (pathname: string, request: Request): MaybePromise<Response> =>
   runWideEvent(extractAuthContext(request, pathname), async () => {
     try {
+      if (pathname === "/api/auth/capabilities") {
+        return Response.json(authCapabilities);
+      }
+
       const response = await auth.handler(request);
       handleAuthResponseStatus(response);
       return processAuthResponse(pathname, response);

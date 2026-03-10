@@ -13,7 +13,12 @@ import {
   type AuthFormStatus,
 } from "../../../state/auth-form";
 import { authClient } from "../../../lib/auth-client";
-import { signInWithEmail, signUpWithEmail } from "../../../lib/auth";
+import {
+  getEnabledSocialProviders,
+  resolveCredentialField,
+  type AuthCapabilities,
+} from "../../../lib/auth-capabilities";
+import { signInWithCredential, signUpWithCredential } from "../../../lib/auth";
 import { Button, LinkButton, ButtonText, ButtonIcon } from "../../../components/ui/primitives/button";
 import { Divider } from "../../../components/ui/primitives/divider";
 import { TextLink } from "../../../components/ui/primitives/text-link";
@@ -24,8 +29,8 @@ import { resolveErrorMessage } from "../../../utils/errors";
 import { AuthSwitchPrompt } from "./auth-switch-prompt";
 
 function resolveAuthenticator(action: "signIn" | "signUp") {
-  if (action === "signIn") return signInWithEmail;
-  return signUpWithEmail;
+  if (action === "signIn") return signInWithCredential;
+  return signUpWithCredential;
 }
 
 function resolveInputTone(active: boolean | undefined): "error" | "neutral" {
@@ -45,7 +50,7 @@ export type AuthScreenCopy = {
 };
 
 type SocialAuthProvider = {
-  id: string;
+  id: "google" | "microsoft";
   label: string;
   to: "/auth/google" | "/auth/outlook";
   iconSrc: string;
@@ -53,7 +58,7 @@ type SocialAuthProvider = {
 
 const SOCIAL_AUTH_PROVIDERS: readonly SocialAuthProvider[] = [
   { id: "google", label: "Google", to: "/auth/google", iconSrc: "/integrations/icon-google.svg" },
-  { id: "outlook", label: "Outlook", to: "/auth/outlook", iconSrc: "/integrations/icon-outlook.svg" },
+  { id: "microsoft", label: "Outlook", to: "/auth/outlook", iconSrc: "/integrations/icon-outlook.svg" },
 ];
 
 const submitTextVariants: Record<AuthFormStatus, Variants[string]> = {
@@ -66,17 +71,29 @@ const backButtonVariants: Variants = {
   visible: { width: "auto", opacity: 1, filter: "blur(0px)" },
 };
 
-export function AuthForm({ copy }: { copy: AuthScreenCopy }) {
+export function AuthForm({
+  capabilities,
+  copy,
+}: {
+  capabilities: AuthCapabilities;
+  copy: AuthScreenCopy;
+}) {
+  const hasSocialProviders = getEnabledSocialProviders(capabilities).length > 0;
+
   return (
     <>
-      {copy.action === "signIn" && <PasskeyAutoFill />}
+      {copy.action === "signIn" && capabilities.supportsPasskeys && <PasskeyAutoFill />}
       <div className="flex flex-col py-2">
         <Heading2 as="span" className="text-center">{copy.heading}</Heading2>
         <Text size="sm" tone="muted" align="center">{copy.subtitle}</Text>
       </div>
-      <SocialAuthButtons oauthActionLabel={copy.oauthActionLabel} />
-      <Divider>or</Divider>
-      <EmailForm submitLabel={copy.submitLabel} action={copy.action} />
+      {hasSocialProviders && (
+        <>
+          <SocialAuthButtons capabilities={capabilities} oauthActionLabel={copy.oauthActionLabel} />
+          <Divider>or</Divider>
+        </>
+      )}
+      <CredentialForm capabilities={capabilities} submitLabel={copy.submitLabel} action={copy.action} />
       <div className="flex flex-col gap-1.5">
         <AuthError />
         <AuthSwitchPrompt>
@@ -112,10 +129,24 @@ function PasskeyAutoFill() {
   return null;
 }
 
-function SocialAuthButtons({ oauthActionLabel }: { oauthActionLabel: string }) {
+function SocialAuthButtons({
+  capabilities,
+  oauthActionLabel,
+}: {
+  capabilities: AuthCapabilities;
+  oauthActionLabel: string;
+}) {
+  const enabledSocialProviders = new Set(getEnabledSocialProviders(capabilities));
+  const visibleProviders = SOCIAL_AUTH_PROVIDERS.filter((provider) =>
+    enabledSocialProviders.has(provider.id));
+
+  if (visibleProviders.length === 0) {
+    return null;
+  }
+
   return (
     <>
-      {SOCIAL_AUTH_PROVIDERS.map((provider) => (
+      {visibleProviders.map((provider) => (
         <LinkButton key={provider.id} to={provider.to} className="w-full justify-center" variant="border">
           <ButtonIcon>
             <img src={provider.iconSrc} alt="" width={16} height={16} />
@@ -132,8 +163,14 @@ function FormBackButton({ step, onBack }: { step: "email" | "password"; onBack: 
   return <BackButton />;
 }
 
-function ForgotPasswordLink({ action }: { action: "signIn" | "signUp" }) {
-  if (action !== "signIn") return null;
+function ForgotPasswordLink({
+  action,
+  capabilities,
+}: {
+  action: "signIn" | "signUp";
+  capabilities: AuthCapabilities;
+}) {
+  if (action !== "signIn" || !capabilities.supportsPasswordReset) return null;
   return (
     <div className="flex justify-end">
       <TextLink to="/forgot-password" size="xs">Forgot password?</TextLink>
@@ -141,8 +178,14 @@ function ForgotPasswordLink({ action }: { action: "signIn" | "signUp" }) {
   );
 }
 
-function resolveAutoComplete(action: "signIn" | "signUp", base: string): string {
-  if (action === "signIn" && base === "email") return `${base} webauthn`;
+function resolveAutoComplete(
+  action: "signIn" | "signUp",
+  base: string,
+  capabilities: AuthCapabilities,
+): string {
+  if (action === "signIn" && base === "email" && capabilities.supportsPasskeys) {
+    return `${base} webauthn`;
+  }
   return base;
 }
 
@@ -152,21 +195,30 @@ function readFormFieldValue(formData: FormData, fieldName: string): string {
   return "";
 }
 
-function EmailForm({ submitLabel, action }: { submitLabel: string; action: "signIn" | "signUp" }) {
+function CredentialForm({
+  capabilities,
+  submitLabel,
+  action,
+}: {
+  capabilities: AuthCapabilities;
+  submitLabel: string;
+  action: "signIn" | "signUp";
+}) {
   const navigate = useNavigate();
   const step = useAtomValue(authFormStepAtom);
   const setStep = useSetAtom(authFormStepAtom);
   const setStatus = useSetAtom(authFormStatusAtom);
   const setError = useSetAtom(authFormErrorAtom);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const credentialField = resolveCredentialField(capabilities);
 
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const email = readFormFieldValue(formData, "email");
+    const credential = readFormFieldValue(formData, "credential");
 
     if (step === "email") {
-      if (!email) return;
+      if (!credential) return;
       setStep("password");
       requestAnimationFrame(() => passwordRef.current?.focus());
       return;
@@ -180,7 +232,7 @@ function EmailForm({ submitLabel, action }: { submitLabel: string; action: "sign
     const authenticate = resolveAuthenticator(action);
 
     try {
-      await authenticate(email, password);
+      await authenticate(credential, password, capabilities);
     } catch (error) {
       setStatus("idle");
       setError({
@@ -190,8 +242,8 @@ function EmailForm({ submitLabel, action }: { submitLabel: string; action: "sign
       return;
     }
 
-    if (action === "signUp") {
-      sessionStorage.setItem("pendingVerificationEmail", email);
+    if (action === "signUp" && capabilities.requiresEmailVerification) {
+      sessionStorage.setItem("pendingVerificationEmail", credential);
       navigate({ to: "/verify-email" });
       return;
     }
@@ -207,7 +259,13 @@ function EmailForm({ submitLabel, action }: { submitLabel: string; action: "sign
   return (
     <form onSubmit={handleSubmit} className="contents">
       <div className="flex flex-col gap-1.5">
-        <EmailInput readOnly={step === "password"} autoComplete={resolveAutoComplete(action, "email")} />
+        <CredentialInput
+          readOnly={step === "password"}
+          autoComplete={resolveAutoComplete(action, credentialField.autoComplete, capabilities)}
+          label={credentialField.label}
+          placeholder={credentialField.placeholder}
+          type={credentialField.type}
+        />
         <LazyMotion features={loadMotionFeatures}>
           <AnimatePresence>
             {step === "password" && (
@@ -217,7 +275,10 @@ function EmailForm({ submitLabel, action }: { submitLabel: string; action: "sign
                 exit={{ height: 0, opacity: 0, overflow: "hidden" }}
                 transition={{ duration: 0.2 }}
               >
-                <PasswordInput ref={passwordRef} autoComplete={resolveAutoComplete(action, "current-password")} />
+                <PasswordInput
+                  ref={passwordRef}
+                  autoComplete={resolveAutoComplete(action, "current-password", capabilities)}
+                />
               </m.div>
             )}
           </AnimatePresence>
@@ -227,7 +288,7 @@ function EmailForm({ submitLabel, action }: { submitLabel: string; action: "sign
         <FormBackButton step={step} onBack={handleBack} />
         <SubmitButton>{submitLabel}</SubmitButton>
       </div>
-      <ForgotPasswordLink action={action} />
+      <ForgotPasswordLink action={action} capabilities={capabilities} />
     </form>
   );
 }
@@ -257,7 +318,19 @@ function AuthError() {
   );
 }
 
-function EmailInput({ readOnly, autoComplete }: { readOnly?: boolean; autoComplete?: string }) {
+function CredentialInput({
+  readOnly,
+  autoComplete,
+  label,
+  placeholder,
+  type,
+}: {
+  readOnly?: boolean;
+  autoComplete?: string;
+  label: string;
+  placeholder: string;
+  type: "email" | "text";
+}) {
   const status = useAtomValue(authFormStatusAtom);
   const error = useAtomValue(authFormErrorAtom);
   const setError = useSetAtom(authFormErrorAtom);
@@ -268,11 +341,12 @@ function EmailInput({ readOnly, autoComplete }: { readOnly?: boolean; autoComple
 
   return (
     <Input
-      name="email"
+      aria-label={label}
+      name="credential"
       readOnly={readOnly}
       disabled={status === "loading"}
-      type="email"
-      placeholder="johndoe+keeper@example.com"
+      type={type}
+      placeholder={placeholder}
       autoComplete={autoComplete}
       tone={resolveInputTone(error?.active)}
       onChange={clearError}

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import Mail from "lucide-react/dist/esm/icons/mail";
 import { forgotPassword } from "../../lib/auth";
+import { fetchAuthCapabilitiesWithApi } from "../../lib/auth-capabilities";
 import { resolveErrorMessage } from "../../utils/errors";
 import { Button, ButtonText } from "../../components/ui/primitives/button";
 import { Heading2 } from "../../components/ui/primitives/heading";
@@ -11,6 +12,13 @@ import { TextLink } from "../../components/ui/primitives/text-link";
 import { AuthSwitchPrompt } from "../../features/auth/components/auth-switch-prompt";
 
 export const Route = createFileRoute("/(auth)/forgot-password")({
+  loader: async ({ context }) => {
+    const capabilities = await fetchAuthCapabilitiesWithApi(context.fetchApi);
+    if (!capabilities.supportsPasswordReset) {
+      throw redirect({ to: "/login" });
+    }
+    return capabilities;
+  },
   component: ForgotPasswordPage,
 });
 

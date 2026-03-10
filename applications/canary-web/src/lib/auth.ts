@@ -1,4 +1,5 @@
 import { authClient } from "./auth-client";
+import type { AuthCapabilities } from "./auth-capabilities";
 
 async function authPost(url: string, body: Record<string, unknown> = {}): Promise<void> {
   const response = await fetch(url, {
@@ -13,16 +14,59 @@ async function authPost(url: string, body: Record<string, unknown> = {}): Promis
   }
 }
 
-export const signInWithEmail = async (email: string, password: string): Promise<void> => {
-  const { error } = await authClient.signIn.email({ email, password });
+async function authJsonPost(url: string, body: Record<string, unknown>): Promise<void> {
+  const response = await fetch(url, {
+    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    const message =
+      typeof data === "object" && data !== null && "message" in data && typeof data.message === "string"
+        ? data.message
+        : typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
+          ? data.error
+          : "Request failed";
+    throw new Error(message);
+  }
+}
+
+export const signInWithCredential = async (
+  credential: string,
+  password: string,
+  capabilities: AuthCapabilities,
+): Promise<void> => {
+  if (capabilities.credentialMode === "username") {
+    await authJsonPost("/api/auth/username-only/sign-in", {
+      password,
+      username: credential,
+    });
+    return;
+  }
+
+  const { error } = await authClient.signIn.email({ email: credential, password });
   if (error) throw new Error(error.message ?? "Sign in failed");
 };
 
-export const signUpWithEmail = async (email: string, password: string): Promise<void> => {
+export const signUpWithCredential = async (
+  credential: string,
+  password: string,
+  capabilities: AuthCapabilities,
+): Promise<void> => {
+  if (capabilities.credentialMode === "username") {
+    await authJsonPost("/api/auth/username-only/sign-up", {
+      password,
+      username: credential,
+    });
+    return;
+  }
+
   const { error } = await authClient.signUp.email({
     callbackURL: "/dashboard",
-    email,
-    name: email.split("@")[0] ?? email,
+    email: credential,
+    name: credential.split("@")[0] ?? credential,
     password,
   });
   if (!error) return;

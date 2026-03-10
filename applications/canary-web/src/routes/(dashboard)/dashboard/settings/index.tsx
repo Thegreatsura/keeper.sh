@@ -31,19 +31,26 @@ import {
 } from "../../../../components/ui/composites/navigation-menu/navigation-menu-items";
 import { Text } from "../../../../components/ui/primitives/text";
 import { resolveErrorMessage } from "../../../../utils/errors";
+import { fetchAuthCapabilitiesWithApi } from "../../../../lib/auth-capabilities";
 import { useSubscription } from "../../../../hooks/use-subscription";
 import { openCustomerPortal } from "../../../../utils/checkout";
 
 export const Route = createFileRoute("/(dashboard)/dashboard/settings/")({
+  loader: ({ context }) => fetchAuthCapabilitiesWithApi(context.fetchApi),
   component: SettingsPage,
 });
 
 function SettingsPage() {
+  const authCapabilities = Route.useLoaderData();
   const { user } = useSession();
   const navigate = useNavigate();
   const passwordRef = useRef<HTMLInputElement>(null);
-  const email = user?.email ?? "";
-  const { data: passkeys = [] } = usePasskeys();
+  const accountLabel = authCapabilities.credentialMode === "username" ? "Username" : "Email";
+  const accountValue =
+    authCapabilities.credentialMode === "username"
+      ? (user?.username ?? user?.name ?? "")
+      : (user?.email ?? "");
+  const { data: passkeys = [] } = usePasskeys(authCapabilities.supportsPasskeys);
   const { data: subscription, isLoading: subscriptionLoading } = useSubscription();
   const isPro = subscription?.plan === "pro";
   const [isManaging, setIsManaging] = useState(false);
@@ -88,31 +95,35 @@ function SettingsPage() {
           <NavigationMenuItemIcon>
             <Mail size={15} />
           </NavigationMenuItemIcon>
-          <NavigationMenuItemLabel>Email</NavigationMenuItemLabel>
+          <NavigationMenuItemLabel>{accountLabel}</NavigationMenuItemLabel>
           <NavigationMenuItemTrailing>
-            <Text size="sm" tone="muted" className="truncate">{email}</Text>
+            <Text size="sm" tone="muted" className="truncate">{accountValue}</Text>
           </NavigationMenuItemTrailing>
         </NavigationMenuItem>
       </NavigationMenu>
       <NavigationMenu>
-        <NavigationMenuLinkItem to="/dashboard/settings/change-password">
-          <NavigationMenuItemIcon>
-            <Lock size={15} />
-          </NavigationMenuItemIcon>
-          <NavigationMenuItemLabel>Change Password</NavigationMenuItemLabel>
-          <NavigationMenuItemTrailing />
-        </NavigationMenuLinkItem>
-        <NavigationMenuLinkItem to="/dashboard/settings/passkeys">
-          <NavigationMenuItemIcon>
-            <KeyRound size={15} />
-          </NavigationMenuItemIcon>
-          <NavigationMenuItemLabel>Passkeys</NavigationMenuItemLabel>
-          <NavigationMenuItemTrailing>
-            <Text size="sm" tone="muted">
-              {pluralize(passkeys.length, "passkey", "passkeys")}
-            </Text>
-          </NavigationMenuItemTrailing>
-        </NavigationMenuLinkItem>
+        {authCapabilities.supportsChangePassword && (
+          <NavigationMenuLinkItem to="/dashboard/settings/change-password">
+            <NavigationMenuItemIcon>
+              <Lock size={15} />
+            </NavigationMenuItemIcon>
+            <NavigationMenuItemLabel>Change Password</NavigationMenuItemLabel>
+            <NavigationMenuItemTrailing />
+          </NavigationMenuLinkItem>
+        )}
+        {authCapabilities.supportsPasskeys && (
+          <NavigationMenuLinkItem to="/dashboard/settings/passkeys">
+            <NavigationMenuItemIcon>
+              <KeyRound size={15} />
+            </NavigationMenuItemIcon>
+            <NavigationMenuItemLabel>Passkeys</NavigationMenuItemLabel>
+            <NavigationMenuItemTrailing>
+              <Text size="sm" tone="muted">
+                {pluralize(passkeys.length, "passkey", "passkeys")}
+              </Text>
+            </NavigationMenuItemTrailing>
+          </NavigationMenuLinkItem>
+        )}
       </NavigationMenu>
       <NavigationMenu variant={isPro ? "default" : "highlight"}>
         <NavigationMenuButtonItem onClick={handleManagePlan} disabled={isManaging || subscriptionLoading}>

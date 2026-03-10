@@ -7,6 +7,7 @@ import { Polar } from "@polar-sh/sdk";
 import { Resend } from "resend";
 import { usernameOnly } from "@keeper.sh/auth-plugin-username-only";
 import { deletePolarCustomerByExternalId } from "./polar-customer-delete";
+import { resolveAuthCapabilities } from "./capabilities";
 import {
   user as userTable,
   session as sessionTable,
@@ -37,6 +38,8 @@ interface AuthConfig {
   polarMode?: "sandbox" | "production";
   googleClientId?: string;
   googleClientSecret?: string;
+  microsoftClientId?: string;
+  microsoftClientSecret?: string;
   resendApiKey?: string;
   passkeyRpId?: string;
   passkeyRpName?: string;
@@ -46,6 +49,7 @@ interface AuthConfig {
 
 interface AuthResult {
   auth: ReturnType<typeof betterAuth>;
+  capabilities: ReturnType<typeof resolveAuthCapabilities>;
   polarClient: Polar | null;
 }
 
@@ -71,6 +75,8 @@ const createAuth = (config: AuthConfig): AuthResult => {
     polarMode,
     googleClientId,
     googleClientSecret,
+    microsoftClientId,
+    microsoftClientSecret,
     resendApiKey,
     passkeyRpId,
     passkeyRpName,
@@ -86,6 +92,15 @@ const createAuth = (config: AuthConfig): AuthResult => {
   };
 
   const resend = buildResendClient();
+  const capabilities = resolveAuthCapabilities({
+    commercialMode,
+    googleClientId,
+    googleClientSecret,
+    microsoftClientId,
+    microsoftClientSecret,
+    passkeyOrigin,
+    passkeyRpId,
+  });
 
   const plugins: BetterAuthPlugin[] = [];
 
@@ -148,6 +163,15 @@ const createAuth = (config: AuthConfig): AuthResult => {
       clientSecret: googleClientSecret,
       prompt: "consent",
       scope: ["https://www.googleapis.com/auth/calendar.events"],
+    };
+  }
+
+  if (microsoftClientId && microsoftClientSecret) {
+    socialProviders.microsoft = {
+      clientId: microsoftClientId,
+      clientSecret: microsoftClientSecret,
+      prompt: "consent",
+      scope: ["offline_access", "User.Read", "Calendars.ReadWrite"],
     };
   }
 
@@ -258,8 +282,9 @@ const createAuth = (config: AuthConfig): AuthResult => {
     },
   });
 
-  return { auth, polarClient: polarClient ?? null };
+  return { auth, capabilities, polarClient: polarClient ?? null };
 };
 
 export { createAuth };
+export { resolveAuthCapabilities } from "./capabilities";
 export type { AuthConfig, AuthResult };

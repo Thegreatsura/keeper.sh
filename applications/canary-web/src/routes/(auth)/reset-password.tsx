@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import CircleCheck from "lucide-react/dist/esm/icons/circle-check";
 import { resetPassword } from "../../lib/auth";
+import { fetchAuthCapabilitiesWithApi } from "../../lib/auth-capabilities";
 import { resolveErrorMessage } from "../../utils/errors";
 import { Button, ButtonText } from "../../components/ui/primitives/button";
 import { Heading2 } from "../../components/ui/primitives/heading";
@@ -13,6 +14,13 @@ import { AuthSwitchPrompt } from "../../features/auth/components/auth-switch-pro
 type SearchParams = { token?: string };
 
 export const Route = createFileRoute("/(auth)/reset-password")({
+  loader: async ({ context }) => {
+    const capabilities = await fetchAuthCapabilitiesWithApi(context.fetchApi);
+    if (!capabilities.supportsPasswordReset) {
+      throw redirect({ to: "/login" });
+    }
+    return capabilities;
+  },
   component: ResetPasswordPage,
   validateSearch: (search: Record<string, unknown>): SearchParams => ({
     token: typeof search.token === "string" ? search.token : undefined,

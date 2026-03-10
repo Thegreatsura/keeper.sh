@@ -20,6 +20,6 @@ export const deletePasskey = async (id: string) => {
   await authClient.passkey.deletePasskey({ id });
 };
 
-export const usePasskeys = () => {
-  return useSWR("auth/passkeys", fetchPasskeys);
+export const usePasskeys = (enabled = true) => {
+  return useSWR(enabled ? "auth/passkeys" : null, fetchPasskeys);
 };

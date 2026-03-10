@@ -30,7 +30,7 @@ const parseTrustedOrigins = (origins?: string): string[] => {
 
 const trustedOrigins = parseTrustedOrigins(env.TRUSTED_ORIGINS);
 
-const { auth } = createAuth({
+const { auth, capabilities: authCapabilities } = createAuth({
   database,
   secret: env.BETTER_AUTH_SECRET,
   baseUrl: env.BETTER_AUTH_URL,
@@ -40,6 +40,8 @@ const { auth } = createAuth({
   polarMode: env.POLAR_MODE,
   googleClientId: env.GOOGLE_CLIENT_ID,
   googleClientSecret: env.GOOGLE_CLIENT_SECRET,
+  microsoftClientId: env.MICROSOFT_CLIENT_ID,
+  microsoftClientSecret: env.MICROSOFT_CLIENT_SECRET,
   resendApiKey: env.RESEND_API_KEY,
   passkeyRpId: env.PASSKEY_RP_ID,
   passkeyRpName: env.PASSKEY_RP_NAME,
@@ -149,6 +151,7 @@ export {
   env,
   trustedOrigins,
   auth,
+  authCapabilities,
   broadcastService,
   premiumService,
   oauthProviders,

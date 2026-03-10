@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import KeyRound from "lucide-react/dist/esm/icons/key-round";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import { Button, ButtonText } from "../../../../components/ui/primitives/button";
@@ -24,10 +24,18 @@ import {
 import { ErrorState } from "../../../../components/ui/primitives/error-state";
 import { Text } from "../../../../components/ui/primitives/text";
 import { resolveErrorMessage } from "../../../../utils/errors";
+import { fetchAuthCapabilitiesWithApi } from "../../../../lib/auth-capabilities";
 
 export const Route = createFileRoute(
   "/(dashboard)/dashboard/settings/passkeys",
 )({
+  loader: async ({ context }) => {
+    const capabilities = await fetchAuthCapabilitiesWithApi(context.fetchApi);
+    if (!capabilities.supportsPasskeys) {
+      throw redirect({ to: "/dashboard/settings" });
+    }
+    return capabilities;
+  },
   component: PasskeysPage,
 });
 

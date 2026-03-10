@@ -116,6 +116,24 @@ const microsoftApiErrorSchema = type({
 });
 type MicrosoftApiError = typeof microsoftApiErrorSchema.infer;
 
+const authSocialProvidersSchema = type({
+  google: "boolean",
+  microsoft: "boolean",
+  "+": "reject",
+});
+type AuthSocialProviders = typeof authSocialProvidersSchema.infer;
+
+const authCapabilitiesSchema = type({
+  credentialMode: "'email' | 'username'",
+  requiresEmailVerification: "boolean",
+  socialProviders: authSocialProvidersSchema,
+  supportsChangePassword: "boolean",
+  supportsPasskeys: "boolean",
+  supportsPasswordReset: "boolean",
+  "+": "reject",
+});
+type AuthCapabilities = typeof authCapabilitiesSchema.infer;
+
 const socketMessageSchema = type({
   "data?": "unknown",
   event: "string",
@@ -292,6 +310,8 @@ export {
   outlookEventSchema,
   outlookEventListSchema,
   microsoftApiErrorSchema,
+  authSocialProvidersSchema,
+  authCapabilitiesSchema,
   socketMessageSchema,
   syncOperationSchema,
   syncStatusSchema,
@@ -328,6 +348,8 @@ export type {
   OutlookEvent,
   OutlookEventList,
   MicrosoftApiError,
+  AuthSocialProviders,
+  AuthCapabilities,
   SocketMessage,
   SyncOperation,
   SyncStatus,
