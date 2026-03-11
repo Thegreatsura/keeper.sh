@@ -2,7 +2,7 @@ import { generateIcsCalendar } from "ts-ics";
 import { parseIcsCalendar } from "@keeper.sh/calendar";
 import type { IcsCalendar, IcsDuration, IcsEvent } from "ts-ics";
 import type { SyncableEvent } from "@keeper.sh/provider-core";
-import { isKeeperEvent } from "@keeper.sh/provider-core";
+import { isKeeperEvent, resolveIsAllDayEvent } from "@keeper.sh/provider-core";
 import {
   MS_PER_DAY,
   MS_PER_HOUR,
@@ -44,13 +44,15 @@ const getEventEndTime = (event: IcsEvent, startTime: Date): Date => {
 };
 
 const eventToICalString = (event: SyncableEvent, uid: string): string => {
+  const isAllDay = resolveIsAllDayEvent(event);
   const icsEvent: IcsEvent = {
     description: event.description,
-    end: { date: event.endTime },
+    end: { date: event.endTime, ...(isAllDay && { type: "DATE" }) },
     location: event.location,
     stamp: { date: new Date() },
-    start: { date: event.startTime },
+    start: { date: event.startTime, ...(isAllDay && { type: "DATE" }) },
     summary: event.summary,
+    ...(event.availability === "free" && { timeTransparent: "TRANSPARENT" }),
     uid,
   };
 
@@ -64,9 +66,11 @@ const eventToICalString = (event: SyncableEvent, uid: string): string => {
 };
 
 interface ParsedCalendarEvent {
+  availability?: SyncableEvent["availability"];
   deleteId: string;
   endTime: Date;
   isKeeperEvent: boolean;
+  isAllDay?: boolean;
   startTime: Date;
   uid: string;
   title?: string;
@@ -76,6 +80,13 @@ interface ParsedCalendarEvent {
   recurrenceRule?: object;
   exceptionDates?: object;
 }
+
+const mapAvailability = (transparency: "TRANSPARENT" | "OPAQUE" | undefined) => {
+  if (transparency === "TRANSPARENT") {
+    return "free";
+  }
+  return "busy";
+};
 
 const parseICalToRemoteEvent = (icsString: string): ParsedCalendarEvent | null => {
   const calendar = parseIcsCalendar({ icsString });
@@ -89,11 +100,13 @@ const parseICalToRemoteEvent = (icsString: string): ParsedCalendarEvent | null =
   const endTime = getEventEndTime(event, startTime);
 
   return {
+    availability: mapAvailability(event.timeTransparent),
     deleteId: event.uid,
     description: event.description,
     endTime,
     exceptionDates: event.exceptionDates,
     isKeeperEvent: isKeeperEvent(event.uid),
+    isAllDay: event.start.type === "DATE",
     location: event.location,
     recurrenceRule: event.recurrenceRule,
     startTime,

@@ -46,6 +46,16 @@ const isKeeperEvent = (uid: string | undefined): boolean =>
 const getEventStartTimeZone = (event: IcsEvent): string | undefined =>
   event.start.local?.timezone;
 
+const getEventAvailability = (event: IcsEvent) => {
+  if (event.timeTransparent === "TRANSPARENT") {
+    return "free";
+  }
+
+  if (event.timeTransparent === "OPAQUE") {
+    return "busy";
+  }
+};
+
 const parseIcsEvents = (calendar: IcsCalendar): EventTimeSlot[] => {
   const result: EventTimeSlot[] = [];
 
@@ -59,9 +69,11 @@ const parseIcsEvents = (calendar: IcsCalendar): EventTimeSlot[] => {
 
     const startTime = event.start.date;
     result.push({
+      availability: getEventAvailability(event),
       description: event.description,
       endTime: getEventEndTime(event, startTime),
       exceptionDates: event.exceptionDates,
+      isAllDay: event.start.type === "DATE",
       location: event.location,
       recurrenceRule: event.recurrenceRule,
       startTime,
