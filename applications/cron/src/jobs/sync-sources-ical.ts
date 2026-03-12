@@ -6,7 +6,7 @@ import { and, desc, eq, lte } from "drizzle-orm";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
 import { countSettledResults } from "../utils/count-settled-results";
-import { endTiming, reportError, startTiming } from "../utils/logging";
+import { widelog } from "../utils/logging";
 
 const ICAL_CALENDAR_TYPE = "ical";
 
@@ -88,10 +88,8 @@ const processSnapshot = async (
     }
     return { error: false, skipped: false };
   } catch (error) {
-    reportError(error, {
-      "operation.name": "ical-snapshot:process",
-      "source.calendar_id": calendarId,
-    });
+    widelog.set("ical.snapshot.error.calendar_id", calendarId);
+    widelog.errorFields(error, { prefix: "ical.snapshot" });
     return { error: true, skipped: false };
   }
 };
@@ -101,7 +99,6 @@ interface IcalSnapshotJobDependencies {
   fetchRemoteCalendar: (calendarId: string, url: string) => Promise<FetchResult>;
   processSnapshot: (calendarId: string, ical: string) => Promise<SnapshotResult>;
   setCronEventFields: (fields: Record<string, unknown>) => void;
-  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
 }
 
 interface IcalSnapshotJobHooks {
@@ -125,7 +122,6 @@ const createDefaultJobDependencies = (): IcalSnapshotJobDependencies => ({
     const { database } = await import("../context");
     return processSnapshot(database, calendarId, ical);
   },
-  reportError,
   setCronEventFields,
 });
 
@@ -157,16 +153,6 @@ const runIcalSnapshotSyncJob = async (
     "fetch.succeeded.count": fetchSucceeded,
   });
 
-  for (const [index, settlement] of settlements.entries()) {
-    if (settlement.status === "rejected") {
-      const source = remoteSources[index];
-      dependencies.reportError?.(settlement.reason, {
-        "operation.name": "ical-snapshot:fetch",
-        ...(source && { "source.calendar_id": source.id }),
-      });
-    }
-  }
-
   hooks.startTiming?.("processSnapshots");
   const insertionTasks: { calendarId: string; run: Promise<SnapshotResult> }[] = [];
   for (const settlement of settlements) {
@@ -188,14 +174,9 @@ const runIcalSnapshotSyncJob = async (
   let insertErrorCount = 0;
   let insertedCount = 0;
 
-  for (const [index, insertionSettlement] of insertionSettlements.entries()) {
+  for (const [, insertionSettlement] of insertionSettlements.entries()) {
     if (insertionSettlement.status === "rejected") {
       insertErrorCount += 1;
-      const insertionTask = insertionTasks[index];
-      dependencies.reportError?.(insertionSettlement.reason, {
-        ...(insertionTask && { "source.calendar_id": insertionTask.calendarId }),
-        "operation.name": "ical-snapshot:process",
-      });
       continue;
     }
 
@@ -224,10 +205,10 @@ export default withCronWideEvent({
     const dependencies = createDefaultJobDependencies();
     await runIcalSnapshotSyncJob(dependencies, {
       endTiming: (name) => {
-        endTiming(name);
+        widelog.time.stop(name);
       },
       startTiming: (name) => {
-        startTiming(name);
+        widelog.time.start(name);
       },
     });
   },

@@ -3,11 +3,11 @@ import {
   buildSourceEventsToAdd,
   insertEventStatesWithConflictResolution,
   isKeeperEvent,
-  reportError,
 } from "@keeper.sh/provider-core";
 import type { SourceEvent } from "@keeper.sh/provider-core";
 import { calendarAccountsTable, calendarsTable, eventStatesTable } from "@keeper.sh/database/schema";
 import { and, eq, inArray } from "drizzle-orm";
+import { widelogger } from "widelogger";
 import { CalDAVClient } from "../shared/client";
 import { parseICalToRemoteEvent } from "../shared/ics";
 import { isCalDAVAuthenticationError } from "./auth-error-classification";
@@ -19,6 +19,14 @@ import type {
   CalDAVSourceProviderConfig,
   CalDAVSourceSyncResult,
 } from "../types";
+
+const { widelog } = widelogger({
+  service: "keeper",
+  defaultEventName: "wide_event",
+  commitHash: process.env.COMMIT_SHA,
+  environment: process.env.NODE_ENV,
+  version: process.env.npm_package_version,
+});
 
 const stringifyIfPresent = (value: unknown) => {
   if (!value) {
@@ -191,34 +199,37 @@ const createCalDAVSourceProvider = (
       .where(eq(calendarsTable.id, account.calendarId));
   };
 
-  const syncSingleSource = async (
+  const syncSingleSource = (
     account: CalDAVSourceAccount,
-  ): Promise<CalDAVSourceSyncResult> => {
-    try {
-      await refreshOriginalName(account);
-      const events = await fetchEventsFromCalDAV(account);
-      return processEvents(account.calendarId, events);
-    } catch (error) {
-      if (isCalDAVAuthenticationError(error)) {
-        await database
-          .update(calendarAccountsTable)
-          .set({ needsReauthentication: true })
-          .where(eq(calendarAccountsTable.id, account.calendarAccountId));
-      }
+  ): Promise<CalDAVSourceSyncResult> =>
+    widelog.context(async () => {
+      widelog.set("operation.name", "caldav-source:sync");
+      widelog.set("source.calendar_id", account.calendarId);
+      widelog.set("source.provider", options.providerId);
+      widelog.set("user.id", account.userId);
 
-      reportError(error, {
-        "operation.name": "caldav-source:sync",
-        "source.calendar_id": account.calendarId,
-        "source.provider": options.providerId,
-        "user.id": account.userId,
-      });
-      return {
-        eventsAdded: EMPTY_COUNT,
-        eventsRemoved: EMPTY_COUNT,
-        syncToken: null,
-      };
-    }
-  };
+      try {
+        await refreshOriginalName(account);
+        const events = await fetchEventsFromCalDAV(account);
+        return processEvents(account.calendarId, events);
+      } catch (error) {
+        if (isCalDAVAuthenticationError(error)) {
+          await database
+            .update(calendarAccountsTable)
+            .set({ needsReauthentication: true })
+            .where(eq(calendarAccountsTable.id, account.calendarAccountId));
+        }
+
+        widelog.errorFields(error);
+        return {
+          eventsAdded: EMPTY_COUNT,
+          eventsRemoved: EMPTY_COUNT,
+          syncToken: null,
+        };
+      } finally {
+        widelog.flush();
+      }
+    });
 
   const getSourcesToSync = (): Promise<CalDAVSourceAccount[]> => {
     if (options.providerId === "caldav") {

@@ -1,9 +1,17 @@
 import { broadcastMessageSchema } from "@keeper.sh/data-schemas";
 import type { BroadcastMessage } from "@keeper.sh/data-schemas";
-import { emitWideEvent, reportError, runWideEvent } from "@keeper.sh/provider-core";
+import { widelogger } from "widelogger";
 import { connections } from "./state";
 import type { Socket } from "./types";
 import type { RedisClient } from "bun";
+
+const { widelog } = widelogger({
+  service: "keeper-broadcast",
+  defaultEventName: "wide_event",
+  commitHash: process.env.COMMIT_SHA,
+  environment: process.env.NODE_ENV,
+  version: process.env.npm_package_version,
+});
 
 const EMPTY_CONNECTIONS_COUNT = 0;
 const IDLE_TIMEOUT_SECONDS = 60;
@@ -42,34 +50,49 @@ const createBroadcastService = (config: BroadcastConfig): BroadcastService => {
   const { redis } = config;
 
   const emit = (userId: string, eventName: string, data: unknown): void => {
-    const message: BroadcastMessage = { data, event: eventName, userId };
-    try {
-      redis.publish(CHANNEL, JSON.stringify(message));
-    } catch (error) {
-      reportError(error, {
-        "operation.type": "broadcast",
-        "operation.name": "broadcast:publish",
-        "user.id": userId,
-      });
-    }
-  };
+    widelog.context(() => {
+      widelog.set("operation.type", "broadcast");
+      widelog.set("operation.name", "broadcast:publish");
+      widelog.set("user.id", userId);
 
-  const startSubscriber = async (): Promise<void> => {
-    const subscriber = await redis.duplicate();
-
-    await subscriber.subscribe(CHANNEL, (message: string) => {
-      const parsed = JSON.parse(message);
-      if (!broadcastMessageSchema.allows(parsed)) {
-        return;
+      try {
+        const message: BroadcastMessage = { data, event: eventName, userId };
+        redis.publish(CHANNEL, JSON.stringify(message));
+        widelog.set("outcome", "success");
+      } catch (error) {
+        widelog.set("outcome", "error");
+        widelog.errorFields(error);
+      } finally {
+        widelog.flush();
       }
-      sendToUser(parsed.userId, parsed.event, parsed.data);
-    });
-
-    await emitWideEvent({
-      "operation.type": "lifecycle",
-      "operation.name": "broadcast:subscriber:start",
     });
   };
+
+  const startSubscriber = (): Promise<void> =>
+    widelog.context(async () => {
+      widelog.set("operation.type", "lifecycle");
+      widelog.set("operation.name", "broadcast:subscriber:start");
+
+      try {
+        const subscriber = await redis.duplicate();
+
+        await subscriber.subscribe(CHANNEL, (message: string) => {
+          const parsed = JSON.parse(message);
+          if (!broadcastMessageSchema.allows(parsed)) {
+            return;
+          }
+          sendToUser(parsed.userId, parsed.event, parsed.data);
+        });
+
+        widelog.set("outcome", "success");
+      } catch (error) {
+        widelog.set("outcome", "error");
+        widelog.errorFields(error);
+        throw error;
+      } finally {
+        widelog.flush();
+      }
+    });
 
   return { emit, startSubscriber };
 };
@@ -98,34 +121,6 @@ const removeConnection = (userId: string, socket: Socket): void => {
 const getConnectionCount = (userId: string): number =>
   connections.get(userId)?.size ?? EMPTY_CONNECTIONS_COUNT;
 
-const emitWebSocketEvent = (userId: string, operationName: string, error?: unknown): void => {
-  const fields = {
-    "user.id": userId,
-    "operation.type": "connection",
-    "operation.name": operationName,
-  };
-
-  if (!error) {
-    emitWideEvent(fields).catch((error) => {
-      reportError(error, {
-        ...fields,
-        "operation.name": `${operationName}:emit`,
-      });
-    });
-    return;
-  }
-
-  runWideEvent(fields, () => {
-    reportError(error, fields);
-    return globalThis.undefined;
-  }).catch((error) => {
-    reportError(error, {
-      ...fields,
-      "operation.name": `${operationName}:run`,
-    });
-  });
-};
-
 const createWebsocketHandler = (
   options?: WebsocketHandlerOptions,
 ): {
@@ -135,31 +130,44 @@ const createWebsocketHandler = (
   open: (socket: Socket) => Promise<void>;
 } => ({
   close(socket: Socket): void {
-    const { userId } = socket.data;
-    removeConnection(userId, socket);
-    emitWebSocketEvent(userId, "websocket:close");
+    widelog.context(() => {
+      const { userId } = socket.data;
+      widelog.set("operation.type", "connection");
+      widelog.set("operation.name", "websocket:close");
+      widelog.set("user.id", userId);
+
+      removeConnection(userId, socket);
+
+      widelog.set("outcome", "success");
+      widelog.flush();
+    });
   },
   idleTimeout: IDLE_TIMEOUT_SECONDS,
   message: (): null => null,
-  async open(socket: Socket): Promise<void> {
-    const { userId } = socket.data;
-    addConnection(userId, socket);
+  open(socket: Socket): Promise<void> {
+    return widelog.context(async () => {
+      const { userId } = socket.data;
+      widelog.set("operation.type", "connection");
+      widelog.set("operation.name", "websocket:open");
+      widelog.set("user.id", userId);
 
-    try {
-      await options?.onConnect?.(userId, socket);
-      emitWebSocketEvent(userId, "websocket:open");
-    } catch (error) {
-      emitWebSocketEvent(userId, "websocket:open", error);
       try {
-        socket.close();
+        addConnection(userId, socket);
+        await options?.onConnect?.(userId, socket);
+        widelog.set("outcome", "success");
       } catch (error) {
-        reportError(error, {
-          "operation.name": "websocket:close:failed",
-          "operation.type": "connection",
-          "user.id": userId,
-        });
+        widelog.set("outcome", "error");
+        widelog.errorFields(error);
+        try {
+          socket.close();
+        } catch (error) {
+          widelog.set("close.failed", true);
+          widelog.errorFields(error);
+        }
+      } finally {
+        widelog.flush();
       }
-    }
+    });
   },
 });
 

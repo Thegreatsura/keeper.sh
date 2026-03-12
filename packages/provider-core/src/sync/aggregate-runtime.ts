@@ -3,7 +3,15 @@ import type { RedisClient } from "bun";
 import type { DestinationSyncResult, SyncProgressUpdate } from "./coordinator";
 import { SyncAggregateTracker } from "./aggregate-tracker";
 import type { SyncAggregateMessage, SyncAggregateSnapshot } from "./aggregate-tracker";
-import { reportError } from "../utils/wide-logging";
+import { widelogger } from "widelogger";
+
+const { widelog } = widelogger({
+  service: "keeper",
+  defaultEventName: "wide_event",
+  commitHash: process.env.COMMIT_SHA,
+  environment: process.env.NODE_ENV,
+  version: process.env.npm_package_version,
+});
 
 const SYNC_AGGREGATE_LATEST_KEY_PREFIX = "sync:aggregate:latest:";
 const SYNC_AGGREGATE_SEQUENCE_KEY_PREFIX = "sync:aggregate:seq:";
@@ -62,33 +70,36 @@ const isSyncAggregateMessage = (value: unknown): value is SyncAggregateMessage =
 const createSyncAggregateRuntime = (config: SyncAggregateRuntimeConfig): SyncAggregateRuntime => {
   const tracker = config.tracker ?? new SyncAggregateTracker();
 
-  const emitSyncAggregate = async (
+  const emitSyncAggregate = (
     userId: string,
     aggregate: SyncAggregateMessage,
-  ): Promise<void> => {
-    try {
-      const sequenceKey = getSyncAggregateSequenceKey(userId);
-      const sequence = await config.redis.incr(sequenceKey);
-      await config.redis.expire(sequenceKey, SYNC_TTL_SECONDS);
+  ): Promise<void> =>
+    widelog.context(async () => {
+      widelog.set("operation.name", "sync:aggregate:emit");
+      widelog.set("operation.type", "sync-aggregate");
+      widelog.set("user.id", userId);
 
-      const payload: SyncAggregateMessage = { ...aggregate, seq: sequence };
+      try {
+        const sequenceKey = getSyncAggregateSequenceKey(userId);
+        const sequence = await config.redis.incr(sequenceKey);
+        await config.redis.expire(sequenceKey, SYNC_TTL_SECONDS);
 
-      if (!payload.syncing) {
-        const latestKey = getSyncAggregateLatestKey(userId);
-        await config.redis.set(latestKey, JSON.stringify(payload));
-        await config.redis.expire(latestKey, SYNC_TTL_SECONDS);
+        const payload: SyncAggregateMessage = { ...aggregate, seq: sequence };
+
+        if (!payload.syncing) {
+          const latestKey = getSyncAggregateLatestKey(userId);
+          await config.redis.set(latestKey, JSON.stringify(payload));
+          await config.redis.expire(latestKey, SYNC_TTL_SECONDS);
+        }
+
+        config.broadcast(userId, "sync:aggregate", payload);
+      } catch (error) {
+        widelog.errorFields(error);
+        config.broadcast(userId, "sync:aggregate", aggregate);
+      } finally {
+        widelog.flush();
       }
-
-      config.broadcast(userId, "sync:aggregate", payload);
-    } catch (error) {
-      reportError(error, {
-        "operation.name": "sync:aggregate:emit",
-        "operation.type": "sync-aggregate",
-        "user.id": userId,
-      });
-      config.broadcast(userId, "sync:aggregate", aggregate);
-    }
-  };
+    });
 
   const onDestinationSync = async (result: DestinationSyncResult): Promise<void> => {
     if (result.broadcast === false) {
@@ -107,13 +118,8 @@ const createSyncAggregateRuntime = (config: SyncAggregateRuntimeConfig): SyncAgg
   const onSyncProgress = (update: SyncProgressUpdate): void => {
     const aggregate = tracker.trackProgress(update);
     if (aggregate) {
-      emitSyncAggregate(update.userId, aggregate).catch((error) => {
-        reportError(error, {
-          "operation.name": "sync:aggregate:progress",
-          "operation.type": "sync-aggregate",
-          "user.id": update.userId,
-        });
-      });
+      // Error handling is internal to emitSyncAggregate
+      const _pending = emitSyncAggregate(update.userId, aggregate);
     }
   };
 
@@ -122,29 +128,32 @@ const createSyncAggregateRuntime = (config: SyncAggregateRuntimeConfig): SyncAgg
     fallback?: Omit<SyncAggregateSnapshot, "syncing">,
   ): SyncAggregateMessage => tracker.getCurrentAggregate(userId, fallback);
 
-  const getCachedSyncAggregate = async (
+  const getCachedSyncAggregate = (
     userId: string,
-  ): Promise<SyncAggregateMessage | null> => {
-    const value = await config.redis.get(getSyncAggregateLatestKey(userId));
-    if (!value) {
-      return null;
-    }
+  ): Promise<SyncAggregateMessage | null> =>
+    widelog.context(async () => {
+      widelog.set("operation.name", "sync:aggregate:cached:parse");
+      widelog.set("operation.type", "sync-aggregate");
+      widelog.set("user.id", userId);
 
-    try {
-      const parsed: unknown = JSON.parse(value);
-      if (isSyncAggregateMessage(parsed)) {
-        return parsed;
+      try {
+        const value = await config.redis.get(getSyncAggregateLatestKey(userId));
+        if (!value) {
+          return null;
+        }
+
+        const parsed: unknown = JSON.parse(value);
+        if (isSyncAggregateMessage(parsed)) {
+          return parsed;
+        }
+        return null;
+      } catch (error) {
+        widelog.errorFields(error);
+        return null;
+      } finally {
+        widelog.flush();
       }
-      return null;
-    } catch (error) {
-      reportError(error, {
-        "operation.name": "sync:aggregate:cached:parse",
-        "operation.type": "sync-aggregate",
-        "user.id": userId,
-      });
-      return null;
-    }
-  };
+    });
 
   return {
     emitSyncAggregate,

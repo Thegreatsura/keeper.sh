@@ -4,7 +4,7 @@ import { createOutlookSourceProvider } from "@keeper.sh/provider-outlook";
 import { createGoogleOAuthService } from "@keeper.sh/oauth-google";
 import { createMicrosoftOAuthService } from "@keeper.sh/oauth-microsoft";
 import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
-import { endTiming, reportError, startTiming } from "../utils/logging";
+import { widelog } from "../utils/logging";
 
 interface ProviderSyncResult {
   eventsAdded: number;
@@ -22,7 +22,6 @@ interface OAuthSyncJobDependencies {
   syncGoogleSources: () => Promise<ProviderSyncResult | null>;
   syncOutlookSources: () => Promise<ProviderSyncResult | null>;
   setCronEventFields: (fields: Record<string, unknown>) => void;
-  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
 }
 
 const deduplicateMessages = (messages: string[]): string[] => [...new Set(messages)];
@@ -110,20 +109,10 @@ const runOAuthSourceSyncJob = async (dependencies: OAuthSyncJobDependencies): Pr
 
   if (googleSettlement?.status === "fulfilled" && googleSettlement.value) {
     publishProviderMetrics("google", googleSettlement.value, dependencies);
-  } else if (googleSettlement?.status === "rejected") {
-    dependencies.reportError?.(googleSettlement.reason, {
-      "operation.name": "oauth-source-sync:google",
-      "source.provider": "google",
-    });
   }
 
   if (outlookSettlement?.status === "fulfilled" && outlookSettlement.value) {
     publishProviderMetrics("outlook", outlookSettlement.value, dependencies);
-  } else if (outlookSettlement?.status === "rejected") {
-    dependencies.reportError?.(outlookSettlement.reason, {
-      "operation.name": "oauth-source-sync:outlook",
-      "source.provider": "outlook",
-    });
   }
 };
 
@@ -149,7 +138,7 @@ const createDefaultJobDependencies = async (): Promise<OAuthSyncJobDependencies>
       refreshLockStore,
     });
 
-    startTiming("syncGoogleSources");
+    widelog.time.start("syncGoogleSources");
 
     try {
       const result = await googleSourceProvider.syncAllSources();
@@ -165,13 +154,11 @@ const createDefaultJobDependencies = async (): Promise<OAuthSyncJobDependencies>
         syncTokenResetCount: result.syncTokenResetCount,
       };
     } catch (error) {
-      reportError(error, {
-        "operation.name": "oauth-source-sync:google",
-        "source.provider": "google",
-      });
+      widelog.set("google.error", true);
+      widelog.errorFields(error, { prefix: "google" });
       return null;
     } finally {
-      endTiming("syncGoogleSources");
+      widelog.time.stop("syncGoogleSources");
     }
   };
 
@@ -191,7 +178,7 @@ const createDefaultJobDependencies = async (): Promise<OAuthSyncJobDependencies>
       refreshLockStore,
     });
 
-    startTiming("syncOutlookSources");
+    widelog.time.start("syncOutlookSources");
 
     try {
       const result = await outlookSourceProvider.syncAllSources();
@@ -207,18 +194,15 @@ const createDefaultJobDependencies = async (): Promise<OAuthSyncJobDependencies>
         syncTokenResetCount: result.syncTokenResetCount,
       };
     } catch (error) {
-      reportError(error, {
-        "operation.name": "oauth-source-sync:outlook",
-        "source.provider": "outlook",
-      });
+      widelog.set("outlook.error", true);
+      widelog.errorFields(error, { prefix: "outlook" });
       return null;
     } finally {
-      endTiming("syncOutlookSources");
+      widelog.time.stop("syncOutlookSources");
     }
   };
 
   return {
-    reportError,
     setCronEventFields,
     syncGoogleSources,
     syncOutlookSources,

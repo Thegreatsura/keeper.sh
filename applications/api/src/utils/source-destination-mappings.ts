@@ -6,7 +6,7 @@ import {
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { database as databaseInstance } from "../context";
 import { triggerDestinationSync } from "./sync";
-import { reportError } from "./logging";
+import { widelog } from "./logging";
 
 const EMPTY_LIST_COUNT = 0;
 const USER_MAPPING_LOCK_NAMESPACE = 9001;
@@ -46,7 +46,6 @@ interface SetDestinationsDependencies {
   ) => Promise<TResult>;
   isMappingCountAllowed?: (userId: string, nextMappingCount: number) => Promise<boolean>;
   triggerDestinationSync: (userId: string) => void;
-  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
 }
 
 interface SetSourcesTransaction {
@@ -68,7 +67,6 @@ interface SetSourcesDependencies {
   ) => Promise<TResult>;
   isMappingCountAllowed?: (userId: string, nextMappingCount: number) => Promise<boolean>;
   triggerDestinationSync: (userId: string) => void;
-  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
 }
 
 const assertAllIdsOwned = (
@@ -270,7 +268,6 @@ const createSetDestinationsDependencies = async (): Promise<SetDestinationsDepen
       const mappingLimit = premiumService.getMappingLimit(userPlan);
       return nextMappingCount <= mappingLimit;
     },
-    reportError,
     triggerDestinationSync,
     withTransaction: (callback) =>
       database.transaction((transactionClient) =>
@@ -287,7 +284,6 @@ const createSetSourcesDependencies = async (): Promise<SetSourcesDependencies> =
       const mappingLimit = premiumService.getMappingLimit(userPlan);
       return nextMappingCount <= mappingLimit;
     },
-    reportError,
     triggerDestinationSync,
     withTransaction: (callback) =>
       database.transaction((transactionClient) =>
@@ -352,11 +348,7 @@ const runSetDestinationsForSource = async (
   try {
     dependencies.triggerDestinationSync(userId);
   } catch (error) {
-    dependencies.reportError?.(error, {
-      "operation.name": "mappings:set-destinations:trigger-sync",
-      "source.calendar_id": sourceCalendarId,
-      "user.id": userId,
-    });
+    widelog.errorFields(error);
   }
 };
 
@@ -413,11 +405,7 @@ const runSetSourcesForDestination = async (
   try {
     dependencies.triggerDestinationSync(userId);
   } catch (error) {
-    dependencies.reportError?.(error, {
-      "destination.calendar_id": destinationCalendarId,
-      "operation.name": "mappings:set-sources:trigger-sync",
-      "user.id": userId,
-    });
+    widelog.errorFields(error);
   }
 };
 

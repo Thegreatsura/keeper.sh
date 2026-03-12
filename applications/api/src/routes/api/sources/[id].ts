@@ -9,7 +9,6 @@ import {
   getDestinationsForSource,
   getSourcesForDestination,
 } from "../../../utils/source-destination-mappings";
-import { reportError } from "../../../utils/logging";
 import { withProviderMetadata } from "../../../utils/provider-display";
 import { handlePatchSourceRoute } from "./[id]/source-item-routes";
 
@@ -75,7 +74,6 @@ const PATCH = withWideEvent(
       { body: payload, params, userId },
       {
         canUseEventFilters: (userId) => premiumService.canUseEventFilters(userId),
-        reportError,
         triggerDestinationSync,
         updateSource: async (userIdToUpdate, sourceCalendarId, updates) => {
           const [updated] = await database

@@ -6,7 +6,7 @@ import { createICloudSourceProvider } from "@keeper.sh/provider-icloud";
 import { getCalDAVProviders } from "@keeper.sh/provider-registry";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
-import { endTiming, reportError, startTiming } from "../utils/logging";
+import { widelog } from "../utils/logging";
 
 interface SourceProviderConfig {
   database: BunSQLDatabase;
@@ -36,7 +36,6 @@ interface CaldavSyncJobDependencies {
   providers: CaldavProvider[];
   syncProvider: (provider: CaldavProvider) => Promise<ProviderSyncResult | null>;
   setCronEventFields: (fields: Record<string, unknown>) => void;
-  reportError?: (error: unknown, fields?: Record<string, unknown>) => void;
 }
 
 const runCaldavSourceSyncJob = async (dependencies: CaldavSyncJobDependencies): Promise<void> => {
@@ -45,17 +44,8 @@ const runCaldavSourceSyncJob = async (dependencies: CaldavSyncJobDependencies): 
       Promise.resolve().then(() => dependencies.syncProvider(provider))),
   );
 
-  for (const [index, settlement] of settlements.entries()) {
-    if (settlement.status === "rejected") {
-      const provider = dependencies.providers[index];
-      dependencies.reportError?.(settlement.reason, {
-        "operation.name": "caldav-source-sync:provider",
-        ...(provider && { "source.provider": provider.id }),
-      });
-      continue;
-    }
-
-    if (!settlement.value) {
+  for (const settlement of settlements) {
+    if (settlement.status !== "fulfilled" || !settlement.value) {
       continue;
     }
 
@@ -88,7 +78,7 @@ const createDefaultJobDependencies = async (): Promise<CaldavSyncJobDependencies
     });
 
     const timingKey = `sync_${provider.id}`;
-    startTiming(timingKey);
+    widelog.time.start(timingKey);
 
     try {
       const result = await sourceProvider.syncAllSources();
@@ -98,19 +88,16 @@ const createDefaultJobDependencies = async (): Promise<CaldavSyncJobDependencies
         providerId: provider.id,
       };
     } catch (error) {
-      reportError(error, {
-        "operation.name": "caldav-source-sync:provider",
-        "source.provider": provider.id,
-      });
+      widelog.set(`${provider.id}.error`, true);
+      widelog.errorFields(error, { prefix: provider.id });
       return null;
     } finally {
-      endTiming(timingKey);
+      widelog.time.stop(timingKey);
     }
   };
 
   return {
     providers: getCalDAVProviders(),
-    reportError,
     setCronEventFields,
     syncProvider,
   };
