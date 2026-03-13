@@ -1,5 +1,5 @@
 {
-  "name": "canary-web",
+  "name": "@keeper.sh/web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -30,24 +30,27 @@
     "streamdown": "^2.4.0",
     "swr": "^2.4.1",
     "tailwind-variants": "^3.2.2",
-    "widelogger": "^0.2.1",
+    "widelogger": "^0.4.0",
     "yaml": "^2.8.2"
   },
   "devDependencies": {
+    "@babel/preset-typescript": "^7.28.5",
     "@eslint/js": "^10.0.1",
+    "@rolldown/plugin-babel": "^0.2.0",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/router-plugin": "^1.164.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
-    "@vitejs/plugin-react-swc": "^4.2.3",
+    "@vitejs/plugin-react": "^6.0.0",
+    "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^10.0.2",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1",
+    "vite": "^8.0.0",
     "vite-plugin-svgr": "^4.5.0"
   }
 }

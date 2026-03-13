@@ -18,16 +18,8 @@ import {
 import type { EventMapping } from "../events/mappings";
 import { createSyncEventContentHash } from "../events/content-hash";
 import type { SyncContext, SyncStage } from "./coordinator";
-import { buildRemoveOperations } from "./operations";
-import { widelogger } from "widelogger";
-
-const { widelog } = widelogger({
-  service: "keeper",
-  defaultEventName: "wide_event",
-  commitHash: process.env.COMMIT_SHA,
-  environment: process.env.ENV ?? process.env.NODE_ENV,
-  version: process.env.npm_package_version,
-});
+import { buildRemoveOperations, computeSyncOperations } from "./operations";
+import { widelog } from "widelogger";
 
 const INITIAL_REMOTE_EVENT_COUNT = 0;
 const EMPTY_STALE_MAPPINGS_COUNT = 0;
@@ -43,32 +35,34 @@ const MIN_REMOTE_COUNT = 0;
 abstract class CalendarProvider<TConfig extends ProviderConfig = ProviderConfig> {
   abstract readonly name: string;
   abstract readonly id: string;
+  protected config: TConfig;
 
-  constructor(protected config: TConfig) {}
+  constructor(config: TConfig) {
+    this.config = config;
+  }
 
   abstract pushEvents(events: SyncableEvent[]): Promise<PushResult[]>;
   abstract deleteEvents(eventIds: string[]): Promise<DeleteResult[]>;
   abstract listRemoteEvents(options: ListRemoteEventsOptions): Promise<RemoteEvent[]>;
 
-  sync(localEvents: SyncableEvent[], context: SyncContext): Promise<SyncResult> {
-    return widelog.context(async () => {
-      const { database, userId, calendarId } = this.config;
+  async sync(localEvents: SyncableEvent[], context: SyncContext): Promise<SyncResult> {
+    const { database, userId, calendarId } = this.config;
 
-      widelog.set("operation.name", "sync:provider");
-      widelog.set("operation.type", "sync");
-      widelog.set("destination.calendar_id", calendarId);
-      widelog.set("destination.provider", this.id);
-      widelog.set("user.id", userId);
-      widelog.set("local_events.count", localEvents.length);
-      if (context.jobName) {
-        widelog.set("job.name", context.jobName);
-      }
-      if (context.jobType) {
-        widelog.set("job.type", context.jobType);
-      }
-      widelog.time.start("duration_ms");
+    widelog.set("operation.name", "sync:provider");
+    widelog.set("operation.type", "sync");
+    widelog.set("destination.calendar_id", calendarId);
+    widelog.set("destination.provider", this.id);
+    widelog.set("user.id", userId);
+    widelog.set("local_events.count", localEvents.length);
+    if (context.jobName) {
+      widelog.set("job.name", context.jobName);
+    }
+    if (context.jobType) {
+      widelog.set("job.type", context.jobType);
+    }
 
-      try {
+    try {
+      return await widelog.time.measure("sync.provider.duration_ms", async () => {
         this.emitProgress(context, {
           localEventCount: localEvents.length,
           remoteEventCount: INITIAL_REMOTE_EVENT_COUNT,
@@ -94,18 +88,14 @@ abstract class CalendarProvider<TConfig extends ProviderConfig = ProviderConfig>
           return CalendarProvider.emptySyncResult();
         }
 
-        const { operations, staleMappingIds } = CalendarProvider.computeSyncOperations(
+        const { operations, staleMappingIds } = computeSyncOperations(
           localEvents,
           existingMappings,
           remoteEvents,
         );
 
-        const addCount = operations.filter(
-          (operation) => operation.type === "add",
-        ).length;
-        const removeCount = operations.filter(
-          (operation) => operation.type === "remove",
-        ).length;
+        const addCount = operations.filter((operation) => operation.type === "add").length;
+        const removeCount = operations.filter((operation) => operation.type === "remove").length;
 
         widelog.set("operations.add_count", addCount);
         widelog.set("operations.remove_count", removeCount);
@@ -116,7 +106,9 @@ abstract class CalendarProvider<TConfig extends ProviderConfig = ProviderConfig>
           const staleMappings = existingMappings.filter((mapping: EventMapping) =>
             staleMappingIds.includes(mapping.id),
           );
-          await Promise.all(staleMappings.map((mapping: EventMapping) => deleteEventMapping(database, mapping.id)));
+          await Promise.all(
+            staleMappings.map((mapping: EventMapping) => deleteEventMapping(database, mapping.id)),
+          );
         }
 
         if (operations.length === EMPTY_OPERATIONS_COUNT) {
@@ -162,36 +154,28 @@ abstract class CalendarProvider<TConfig extends ProviderConfig = ProviderConfig>
         widelog.set("outcome", "success");
         widelog.set("final_remote_count", finalRemoteCount);
         return processed;
-      } catch (error) {
-        widelog.set("outcome", "error");
-        widelog.errorFields(error);
+      });
+    } catch (error) {
+      widelog.set("outcome", "error");
+      widelog.errorFields(error);
 
-        let shouldEmitError = false;
-        try {
-          shouldEmitError = await context.isCurrent();
-        } catch {
-          shouldEmitError = false;
-        }
+      const shouldEmitError = await context.isCurrent().catch(() => false);
 
-        if (shouldEmitError) {
-          context.onSyncProgress?.({
-            calendarId: this.config.calendarId,
-            error: String(error),
-            inSync: false,
-            localEventCount: localEvents.length,
-            remoteEventCount: INITIAL_REMOTE_EVENT_COUNT,
-            stage: "error",
-            status: "error",
-            userId: this.config.userId,
-          });
-        }
-
-        throw error;
-      } finally {
-        widelog.time.stop("duration_ms");
-        widelog.flush();
+      if (shouldEmitError) {
+        context.onSyncProgress?.({
+          calendarId: this.config.calendarId,
+          error: String(error),
+          inSync: false,
+          localEventCount: localEvents.length,
+          remoteEventCount: INITIAL_REMOTE_EVENT_COUNT,
+          stage: "error",
+          status: "error",
+          userId: this.config.userId,
+        });
       }
-    });
+
+      throw error;
+    }
   }
 
   private static emptySyncResult(): SyncResult {
@@ -335,21 +319,20 @@ abstract class CalendarProvider<TConfig extends ProviderConfig = ProviderConfig>
   ): Promise<PushResult | undefined> {
     const { database, calendarId } = this.config;
 
-    return widelog.context(async () => {
-      widelog.set("operation.name", "sync:push-event");
-      widelog.set("operation.type", "sync");
-      widelog.set("destination.calendar_id", calendarId);
-      widelog.set("destination.provider", this.id);
-      widelog.set("user.id", this.config.userId);
-      widelog.set("event.start_time", operation.event.startTime.toISOString());
-      widelog.set("event.end_time", operation.event.endTime.toISOString());
-      widelog.set("event.summary", operation.event.summary);
-      widelog.set("event.source_uid", operation.event.sourceEventUid);
-      widelog.set("event.state_id", operation.event.id);
-      widelog.set("progress.current", progress.current);
-      widelog.set("progress.total", progress.total);
-      widelog.time.start("duration_ms");
+    widelog.set("operation.name", "sync:push-event");
+    widelog.set("operation.type", "sync");
+    widelog.set("destination.calendar_id", calendarId);
+    widelog.set("destination.provider", this.id);
+    widelog.set("user.id", this.config.userId);
+    widelog.set("event.start_time", operation.event.startTime.toISOString());
+    widelog.set("event.end_time", operation.event.endTime.toISOString());
+    widelog.set("event.summary", operation.event.summary);
+    widelog.set("event.source_uid", operation.event.sourceEventUid);
+    widelog.set("event.state_id", operation.event.id);
+    widelog.set("progress.current", progress.current);
+    widelog.set("progress.total", progress.total);
 
+    return widelog.time.measure("sync.push_event.duration_ms", async () => {
       const [result] = await this.pushEvents([operation.event]);
 
       widelog.set("push.success", result?.success ?? false);
@@ -379,9 +362,6 @@ abstract class CalendarProvider<TConfig extends ProviderConfig = ProviderConfig>
         widelog.set("mapping.created", true);
       }
 
-      widelog.time.stop("duration_ms");
-      widelog.flush();
-
       return result;
     });
   }
@@ -392,19 +372,18 @@ abstract class CalendarProvider<TConfig extends ProviderConfig = ProviderConfig>
   ): Promise<DeleteResult | undefined> {
     const { database, calendarId } = this.config;
 
-    return widelog.context(async () => {
-      widelog.set("operation.name", "sync:delete-event");
-      widelog.set("operation.type", "sync");
-      widelog.set("destination.calendar_id", calendarId);
-      widelog.set("destination.provider", this.id);
-      widelog.set("user.id", this.config.userId);
-      widelog.set("event.uid", operation.uid);
-      widelog.set("event.start_time", operation.startTime.toISOString());
-      widelog.set("event.delete_id", operation.deleteId);
-      widelog.set("progress.current", progress.current);
-      widelog.set("progress.total", progress.total);
-      widelog.time.start("duration_ms");
+    widelog.set("operation.name", "sync:delete-event");
+    widelog.set("operation.type", "sync");
+    widelog.set("destination.calendar_id", calendarId);
+    widelog.set("destination.provider", this.id);
+    widelog.set("user.id", this.config.userId);
+    widelog.set("event.uid", operation.uid);
+    widelog.set("event.start_time", operation.startTime.toISOString());
+    widelog.set("event.delete_id", operation.deleteId);
+    widelog.set("progress.current", progress.current);
+    widelog.set("progress.total", progress.total);
 
+    return widelog.time.measure("sync.delete_event.duration_ms", async () => {
       const [result] = await this.deleteEvents([operation.deleteId]);
 
       widelog.set("delete.success", result?.success ?? false);
@@ -419,9 +398,6 @@ abstract class CalendarProvider<TConfig extends ProviderConfig = ProviderConfig>
         await deleteEventMappingByDestinationUid(database, calendarId, operation.uid);
         widelog.set("mapping.deleted", true);
       }
-
-      widelog.time.stop("duration_ms");
-      widelog.flush();
 
       return result;
     });
