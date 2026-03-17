@@ -15,11 +15,11 @@ let persistCalendarDestinationCalls: {
   refreshToken: string;
   userId: string;
 }[] = [];
-let triggerDestinationSyncCalls: string[] = [];
+let enqueuePushSyncCalls: string[] = [];
 
 beforeEach(() => {
   persistCalendarDestinationCalls = [];
-  triggerDestinationSyncCalls = [];
+  enqueuePushSyncCalls = [];
 });
 
 describe("handleOAuthCallbackWithDependencies", () => {
@@ -51,8 +51,9 @@ describe("handleOAuthCallbackWithDependencies", () => {
           persistCalendarDestinationCalls.push(payload);
           return Promise.resolve();
         },
-        triggerDestinationSync: (userId) => {
-          triggerDestinationSyncCalls.push(userId);
+        enqueuePushSync: (userId: string) => {
+          enqueuePushSyncCalls.push(userId)
+          return Promise.resolve();
         },
         validateState: () => Promise.resolve({ destinationId: null, sourceCredentialId: null, userId: "user-1" }),
       },
@@ -91,8 +92,9 @@ describe("handleOAuthCallbackWithDependencies", () => {
           persistCalendarDestinationCalls.push(payload);
           return Promise.resolve();
         },
-        triggerDestinationSync: (userId) => {
-          triggerDestinationSyncCalls.push(userId);
+        enqueuePushSync: (userId: string) => {
+          enqueuePushSyncCalls.push(userId);
+          return Promise.resolve();
         },
         validateState: () => Promise.resolve({ destinationId: null, sourceCredentialId: null, userId: "user-1" }),
       },
@@ -108,7 +110,7 @@ describe("handleOAuthCallbackWithDependencies", () => {
       provider: "google",
       userId: "user-1",
     });
-    expect(triggerDestinationSyncCalls).toEqual(["user-1"]);
+    expect(enqueuePushSyncCalls).toEqual(["user-1"]);
   });
 
   it("allows reconnecting an existing destination account without duplicating persistence", async () => {
@@ -139,8 +141,9 @@ describe("handleOAuthCallbackWithDependencies", () => {
           persistCalendarDestinationCalls.push(payload);
           return Promise.resolve();
         },
-        triggerDestinationSync: (userId) => {
-          triggerDestinationSyncCalls.push(userId);
+        enqueuePushSync: (userId: string) => {
+          enqueuePushSyncCalls.push(userId);
+          return Promise.resolve();
         },
         validateState: () => Promise.resolve({ destinationId: "destination-1", sourceCredentialId: null, userId: "user-1" }),
       },
@@ -155,7 +158,7 @@ describe("handleOAuthCallbackWithDependencies", () => {
       provider: "google",
       userId: "user-1",
     });
-    expect(triggerDestinationSyncCalls).toEqual(["user-1"]);
+    expect(enqueuePushSyncCalls).toEqual(["user-1"]);
   });
 
   it("rejects reauthentication with a different external account", () => {
@@ -184,13 +187,13 @@ describe("handleOAuthCallbackWithDependencies", () => {
           getDestinationAccountId: () => Promise.resolve("external-account-1"),
           hasRequiredScopes: () => true,
           persistCalendarDestination: () => Promise.resolve(),
-          triggerDestinationSync: () => null,
+          enqueuePushSync: () => Promise.resolve(),
           validateState: () => Promise.resolve({ destinationId: "destination-1", sourceCredentialId: null, userId: "user-1" }),
         },
       ),
     ).rejects.toBeInstanceOf(OAuthError);
 
     expect(persistCalendarDestinationCalls).toHaveLength(0);
-    expect(triggerDestinationSyncCalls).toHaveLength(0);
+    expect(enqueuePushSyncCalls).toHaveLength(0);
   });
 });
