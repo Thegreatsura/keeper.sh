@@ -9,5 +9,5 @@ await build({
   outdir: "./dist",
   root: "src",
   target: "bun",
-  external: ["msgpackr-extract", "pino-opentelemetry-transport", "digest-fetch"],
+  external: ["msgpackr-extract", "pino-opentelemetry-transport"],
 });
