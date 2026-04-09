@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   handleOAuthCallbackWithDependencies,
   OAuthError,
@@ -161,8 +161,8 @@ describe("handleOAuthCallbackWithDependencies", () => {
     expect(enqueuePushSyncCalls).toEqual(["user-1"]);
   });
 
-  it("rejects reauthentication with a different external account", () => {
-    expect(
+  it("rejects reauthentication with a different external account", async () => {
+    await expect(
       handleOAuthCallbackWithDependencies(
         {
           code: "oauth-code",
