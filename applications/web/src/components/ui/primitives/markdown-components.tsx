@@ -10,8 +10,8 @@ type MarkdownElementProps<Tag extends keyof JSX.IntrinsicElements> =
 
 const SITE_ORIGIN = "https://keeper.sh";
 const HTTP_PROTOCOLS = ["http:", "https:"];
-const LABEL_COLUMN_MIN_WIDTH = "7rem";
-const COLUMN_MIN_WIDTH = "4.5rem";
+const LABEL_COLUMN_MIN_WIDTH = "18ch";
+const COLUMN_MIN_WIDTH = "13ch";
 
 function isExternalHttpLink(href: string): boolean {
   if (!URL.canParse(href)) return false;
@@ -166,7 +166,7 @@ export function MarkdownTable({
   ].join(" ");
 
   return (
-    <div className="my-4 overflow-x-auto rounded-2xl border border-interactive-border">
+    <div className="my-4 overflow-x-auto rounded-2xl border border-interactive-border [contain:inline-size]">
       <table
         className="grid w-full text-sm tracking-tight text-foreground-muted [&_tbody_tr:last-child_:is(td,th)]:border-b-0 [&_tr_:is(td,th):last-child]:border-r-0"
         style={{ gridTemplateColumns }}
