@@ -62,6 +62,12 @@ const eventPatchBodySchema = type({
 });
 type EventPatchBody = typeof eventPatchBodySchema.infer;
 
+const calendarPausePatchBodySchema = type({
+  paused: "boolean",
+  "+": "reject",
+});
+type CalendarPausePatchBody = typeof calendarPausePatchBodySchema.infer;
+
 const tokenCreateBodySchema = type({
   name: "string",
   "+": "reject",
@@ -70,6 +76,7 @@ type TokenCreateBody = typeof tokenCreateBodySchema.infer;
 
 export {
   calendarIdsBodySchema,
+  calendarPausePatchBodySchema,
   sourcePatchBodySchema,
   icalSettingsPatchBodySchema,
   eventCreateBodySchema,
@@ -78,6 +85,7 @@ export {
 };
 export type {
   CalendarIdsBody,
+  CalendarPausePatchBody,
   SourcePatchBody,
   IcalSettingsPatchBody,
   EventCreateBody,
