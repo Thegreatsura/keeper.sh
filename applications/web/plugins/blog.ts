@@ -23,7 +23,7 @@ const blogPostMetadataSchema = type({
 
 type BlogPostMetadata = typeof blogPostMetadataSchema.infer;
 
-interface ProcessedBlogPost {
+export interface ProcessedBlogPost {
   content: string;
   metadata: BlogPostMetadata;
   slug: string;
@@ -165,7 +165,7 @@ function removeRedundantLeadingHeading(
   return lines.slice(nextIndex).join("\n");
 }
 
-function processBlogDirectory(
+export function processBlogDirectory(
   blogDir: string,
   publicDir: string,
 ): ProcessedBlogPost[] {
