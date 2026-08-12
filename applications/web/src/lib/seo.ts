@@ -150,11 +150,41 @@ export function softwareApplicationSchema() {
   };
 }
 
-export function faqSchema(items: Array<{ question: string; answer: string }>) {
+export function offerCatalogSchema(
+  path: string,
+  offers: Array<{ name: string; price: string; description: string }>,
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "OfferCatalog",
+    "@id": `${canonicalUrl(path)}/#offercatalog`,
+    name: `${SITE_NAME} Plans`,
+    url: canonicalUrl(path),
+    itemListElement: offers.map((offer) => ({
+      "@type": "Offer",
+      name: offer.name,
+      price: offer.price,
+      priceCurrency: "USD",
+      priceSpecification: {
+        "@type": "UnitPriceSpecification",
+        price: offer.price,
+        priceCurrency: "USD",
+        billingDuration: "P1M",
+      },
+      description: offer.description,
+      itemOffered: { "@id": `${SITE_URL}/#software` },
+    })),
+  };
+}
+
+export function faqSchema(
+  path: string,
+  items: Array<{ question: string; answer: string }>,
+) {
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "@id": `${SITE_URL}/#faq`,
+    "@id": `${canonicalUrl(path)}/#faq`,
     isPartOf: { "@id": `${SITE_URL}/#website` },
     mainEntity: items.map((item) => {
       const question = item.question.trim();
