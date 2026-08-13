@@ -33,7 +33,6 @@ import {
   CalDAVIncompleteMultiGetError,
   CalDAVUnreadableResourceError,
   createCalDAVSourceFetcher,
-  isCalDAVAuthenticationError,
 } from "@keeper.sh/calendar/caldav";
 import { decryptPassword, resolveDatabaseErrorClassification } from "@keeper.sh/database";
 import {
@@ -50,7 +49,10 @@ import { context, widelog } from "@/utils/logging";
 import { database, refreshLockRedis, refreshLockStore } from "@/context";
 import env from "@/env";
 import { safeFetchOptions } from "@/utils/safe-fetch-options";
-import { resolveMissingCalendarFailure } from "@/utils/provider-ingest-failure";
+import {
+  resolveMissingCalendarFailure,
+  shouldTreatAsProviderAuthFailure,
+} from "@/utils/provider-ingest-failure";
 import { hasErrorFlag, requiresReauthentication } from "@/utils/error-flags";
 import { resolveOAuthIngestionState } from "@/utils/oauth-ingestion-state";
 import { withAbortTimeout } from "@/utils/with-abort-timeout";
@@ -899,7 +901,7 @@ const ingestCalDAVSources = async (): Promise<IngestionBatchResult> => {
                     || ingestionResult.eventsRemoved > 0,
                   userId: currentSource.userId,
                 };
-              }, (error) => !isCalDAVAuthenticationError(error)),
+              }, (error) => !shouldTreatAsProviderAuthFailure(error)),
             );
             if (!result) {
               widelog.set("outcome", "skipped");
@@ -916,7 +918,7 @@ const ingestCalDAVSources = async (): Promise<IngestionBatchResult> => {
 
             widelog.set("outcome", "error");
 
-            if (isCalDAVAuthenticationError(error)) {
+            if (shouldTreatAsProviderAuthFailure(error)) {
               widelog.errorFields(error, { slug: "provider-auth-failed", retriable: false, requiresReauth: true });
 
               return createRejectedIngestionResult(source.userId, source.accountId, "request-rejected");
