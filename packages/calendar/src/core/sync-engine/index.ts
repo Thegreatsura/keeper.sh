@@ -81,11 +81,12 @@ const createTimedProvider = (
   provider: CalendarSyncProvider,
   timer: ReturnType<typeof createPhaseTimer>,
 ): CalendarSyncProvider => {
-  const { getThrottleMetrics } = provider;
+  const { getSyncDiagnostics, getThrottleMetrics } = provider;
   return {
     deleteEvents: (eventIds) => timer.measure("provider_delete", () => provider.deleteEvents(eventIds)),
     listRemoteEvents: (options) => provider.listRemoteEvents(options),
     pushEvents: (events) => timer.measure("provider_push", () => provider.pushEvents(events)),
+    ...(getSyncDiagnostics && { getSyncDiagnostics: () => getSyncDiagnostics() }),
     ...(getThrottleMetrics && { getThrottleMetrics: () => getThrottleMetrics() }),
   };
 };
@@ -720,6 +721,15 @@ const appendThrottleFields = (
   event["provider.retry_after_ms"] = metrics.retryAfterMs;
 };
 
+const appendProviderDiagnostics = (
+  event: Record<string, unknown>,
+  diagnostics?: Record<string, number | string>,
+): void => {
+  for (const [field, value] of Object.entries(diagnostics ?? {})) {
+    event[field] = value;
+  }
+};
+
 const syncCalendar = async (options: SyncCalendarOptions): Promise<SyncCalendarResult> => {
   const {
     userId,
@@ -887,6 +897,7 @@ const syncCalendar = async (options: SyncCalendarOptions): Promise<SyncCalendarR
     wideEvent["duration_ms"] = Date.now() - startTime;
     timer.appendFields(wideEvent, performance.now() - reconcileStartedAt);
     appendThrottleFields(wideEvent, provider.getThrottleMetrics?.());
+    appendProviderDiagnostics(wideEvent, provider.getSyncDiagnostics?.());
     onSyncEvent?.(wideEvent);
   }
 };
