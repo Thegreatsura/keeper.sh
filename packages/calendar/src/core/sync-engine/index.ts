@@ -22,10 +22,7 @@ import type { CalendarSyncProvider, PendingChanges } from "./types";
  */
 const OPERATION_ERROR_SAMPLE_SIZE = 20;
 
-const resolveOutcome = (superseded: boolean, invalidated: boolean): string => {
-  if (invalidated) {
-    return "invalidated";
-  }
+const resolveOutcome = (superseded: boolean): string => {
   if (superseded) {
     return "superseded";
   }
@@ -492,7 +489,6 @@ interface SyncCalendarOptions {
     remoteEvents: RemoteEvent[];
   }>;
   isCurrent: () => Promise<boolean>;
-  isInvalidated?: () => Promise<boolean>;
   flush: (changes: PendingChanges) => Promise<void>;
   onSyncEvent?: (event: Record<string, unknown>) => void;
   onProgress?: (update: SyncProgressUpdate) => void;
@@ -555,7 +551,6 @@ const syncCalendar = async (options: SyncCalendarOptions): Promise<SyncCalendarR
     provider,
     readState,
     isCurrent,
-    isInvalidated,
     flush,
     onSyncEvent,
     onProgress,
@@ -570,7 +565,6 @@ const syncCalendar = async (options: SyncCalendarOptions): Promise<SyncCalendarR
 
   const startTime = Date.now();
   let flushed = false;
-  let checkpointInvalidated = false;
 
   const emitProgress = (stage: SyncProgressUpdate["stage"], localEventCount: number, remoteEventCount: number, progress?: { current: number; total: number }): void => {
     if (!onProgress) {
@@ -655,11 +649,6 @@ const syncCalendar = async (options: SyncCalendarOptions): Promise<SyncCalendarR
         emitProgress("processing", state.localEvents.length, state.remoteEvents.length, { current: processed, total });
       },
       async (changes) => {
-        const invalidated = await isInvalidated?.() ?? false;
-        if (invalidated) {
-          checkpointInvalidated = true;
-          return false;
-        }
         await flush(changes);
         flushed = true;
         return true;
@@ -679,15 +668,12 @@ const syncCalendar = async (options: SyncCalendarOptions): Promise<SyncCalendarR
       wideEvent["operation_errors.truncated"] = outcome.errors.length > OPERATION_ERROR_SAMPLE_SIZE;
     }
 
-    const invalidated = checkpointInvalidated || outcome.checkpointRejected || (await isInvalidated?.() ?? false);
-
-    if (!invalidated && mappingUpdates.length > 0) {
+    if (mappingUpdates.length > 0) {
       await flush({ deletes: [], inserts: [], updates: mappingUpdates });
       flushed = true;
     }
 
-    wideEvent["invalidated"] = invalidated;
-    wideEvent["outcome"] = resolveOutcome(outcome.superseded, invalidated);
+    wideEvent["outcome"] = resolveOutcome(outcome.superseded);
     wideEvent["flushed"] = flushed;
     wideEvent["flush.inserts"] = outcome.changes.inserts.length;
     wideEvent["flush.deletes"] = outcome.changes.deletes.length;
