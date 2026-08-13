@@ -21,7 +21,7 @@ import {
   PROVIDER_INGEST_REQUEST_TIMEOUT_MS,
   REAUTHENTICATION_SOURCE_INGEST,
 } from "@keeper.sh/constants";
-import type { CalendarBackoffState, IngestionFetchEventsResult, IngestionPersistenceWork, RedisRateLimiter, RequiredSourceRanges, TokenState } from "@keeper.sh/calendar";
+import type { CalendarBackoffState, IngestWideEventFields, IngestionFetchEventsResult, IngestionPersistenceWork, RedisRateLimiter, RequiredSourceRanges, TokenState } from "@keeper.sh/calendar";
 import {
   createIcsSourceFetcher,
   interpretFullDayTimedEventsAsAllDay,
@@ -57,6 +57,7 @@ import { withAbortTimeout } from "@/utils/with-abort-timeout";
 import { createSyncLock } from "@keeper.sh/sync";
 import { enqueueDestinationSyncsForUsers } from "@/utils/enqueue-destination-syncs";
 import { deleteEventStatesInChunks } from "@/utils/delete-event-states";
+import { selectIngestWideEventFields } from "@/utils/ingest-wide-event";
 
 const SOURCE_TIMEOUT_MS = INGEST_SOURCE_TIMEOUT_MS;
 const SOURCE_TIMEOUT_DATABASE_GRACE_MS = 5000;
@@ -434,7 +435,6 @@ const resolveRecordedDemandSource = (needsReauthentication: boolean): string | n
 interface IngestionSourceResult {
   eventsAdded: number;
   eventsRemoved: number;
-  ingestEvents: Record<string, unknown>[];
   reauthentication: ReauthenticationDemandRecord | null;
   shouldPush: boolean;
   userId: string;
@@ -499,18 +499,22 @@ interface IngestionBatchResult {
   added: number;
   affectedUserIds: string[];
   errors: number;
-  ingestEvents: Record<string, unknown>[];
   removed: number;
 }
 
 const createSkippedIngestionResult = (userId: string): IngestionSourceResult => ({
   eventsAdded: 0,
   eventsRemoved: 0,
-  ingestEvents: [],
   reauthentication: null,
   shouldPush: false,
   userId,
 });
+
+const recordIngestWideEvent = (event: IngestWideEventFields): void => {
+  for (const [key, value] of Object.entries(selectIngestWideEventFields(event))) {
+    widelog.set(key, value);
+  }
+};
 
 const createRejectedIngestionResult = (
   userId: string,
@@ -568,7 +572,6 @@ const summariseIngestionSettlements = async (
       ...new Set(results.filter(({ shouldPush }) => shouldPush).map(({ userId }) => userId)),
     ],
     errors: settlements.length - results.length,
-    ingestEvents: results.flatMap(({ ingestEvents }) => ingestEvents),
     removed: results.reduce((total, { eventsRemoved }) => total + eventsRemoved, 0),
   };
 };
@@ -702,24 +705,17 @@ const ingestOAuthSources = async (): Promise<IngestionBatchResult> => {
                 if (!fetcher) {
                   return createSkippedIngestionResult(currentSource.userId);
                 }
-                const ingestEvents: Record<string, unknown>[] = [];
                 const ingestionResult = await ingestSource({
                   calendarId: source.calendarId,
                   fetchEvents: () => fetcher.fetchEvents(),
                   isCurrent,
                   withPersistenceTransaction:
                     createIngestionPersistenceTransaction(source.calendarId, signal, deadlineAt),
-                  onIngestEvent: (event) => {
-                    ingestEvents.push({
-                      ...event,
-                      "source.provider": currentSource.provider,
-                    });
-                  },
+                  onIngestEvent: recordIngestWideEvent,
                 });
                 return {
                   eventsAdded: ingestionResult.eventsAdded,
                   eventsRemoved: ingestionResult.eventsRemoved,
-                  ingestEvents,
                   reauthentication: {
                     accountId: currentSource.accountId,
                     demand: "authenticated" as const,
@@ -789,7 +785,7 @@ const ingestOAuthSources = async (): Promise<IngestionBatchResult> => {
 
 const ingestCalDAVSources = async (): Promise<IngestionBatchResult> => {
   if (!env.ENCRYPTION_KEY) {
-    return { added: 0, affectedUserIds: [], removed: 0, errors: 0, ingestEvents: [] };
+    return { added: 0, affectedUserIds: [], removed: 0, errors: 0 };
   }
 
   const encryptionKey = env.ENCRYPTION_KEY;
@@ -876,7 +872,6 @@ const ingestCalDAVSources = async (): Promise<IngestionBatchResult> => {
                     ranges.futureRange,
                   ),
                 });
-                const ingestEvents: Record<string, unknown>[] = [];
                 const ingestionResult = await ingestSource({
                   calendarId: source.calendarId,
                   fetchEvents: async () => {
@@ -890,17 +885,11 @@ const ingestCalDAVSources = async (): Promise<IngestionBatchResult> => {
                   isCurrent,
                   withPersistenceTransaction:
                     createIngestionPersistenceTransaction(source.calendarId, signal, deadlineAt),
-                  onIngestEvent: (event) => {
-                    ingestEvents.push({
-                      ...event,
-                      "source.provider": currentSource.provider,
-                    });
-                  },
+                  onIngestEvent: recordIngestWideEvent,
                 });
                 return {
                   eventsAdded: ingestionResult.eventsAdded,
                   eventsRemoved: ingestionResult.eventsRemoved,
-                  ingestEvents,
                   reauthentication: {
                     accountId: source.accountId,
                     demand: "authenticated" as const,
@@ -1026,7 +1015,6 @@ const ingestIcsSources = async (): Promise<IngestionBatchResult> => {
                     ranges.futureRange,
                   ),
                 });
-                const ingestEvents: Record<string, unknown>[] = [];
                 const ingestionResult = await ingestSource({
                   calendarId: source.calendarId,
                   fetchEvents: () =>
@@ -1040,17 +1028,11 @@ const ingestIcsSources = async (): Promise<IngestionBatchResult> => {
                   isCurrent,
                   withPersistenceTransaction:
                     createIngestionPersistenceTransaction(source.calendarId, signal, deadlineAt),
-                  onIngestEvent: (event) => {
-                    ingestEvents.push({
-                      ...event,
-                      "source.provider": "ical",
-                    });
-                  },
+                  onIngestEvent: recordIngestWideEvent,
                 });
                 return {
                   eventsAdded: ingestionResult.eventsAdded,
                   eventsRemoved: ingestionResult.eventsRemoved,
-                  ingestEvents,
                   reauthentication: null,
                   shouldPush: hasSourceAuthorityChanged(currentSource, ranges)
                     || ingestionResult.eventsAdded > 0
