@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import useSWR, { preload, useSWRConfig } from "swr";
 import Calendar from "lucide-react/dist/esm/icons/calendar";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import { BackButton } from "@/components/ui/primitives/back-button";
 import { Pagination, PaginationPrevious, PaginationNext } from "@/components/ui/primitives/pagination";
 import { RouteShell } from "@/components/ui/shells/route-shell";
@@ -48,7 +49,9 @@ function CalendarList({ calendars, accountId }: { calendars: CalendarSource[]; a
       <NavigationMenuItemLabel>
         {calendar.name}
       </NavigationMenuItemLabel>
-      <NavigationMenuItemTrailing />
+      <NavigationMenuItemTrailing>
+        {calendar.unavailableSince && <Text size="sm" tone="muted">Unavailable</Text>}
+      </NavigationMenuItemTrailing>
     </NavigationMenuLinkItem>
   ));
 }
@@ -114,11 +117,9 @@ function AccountDetailPage() {
         <MetadataRow label="Provider" value={account.providerName} />
         <MetadataRow label="Authenticated" value={account.authType} />
         <MetadataRow label="Connected" value={formatDate(account.createdAt)} />
-      </NavigationMenu>
-      <NavigationMenu>
-        <NavigationMenuButtonItem onClick={() => setDeleteOpen(true)}>
-          <Text size="sm" tone="danger">Delete Account</Text>
-        </NavigationMenuButtonItem>
+        {account.calendarsRefreshedAt && (
+          <MetadataRow label="Calendars Checked" value={formatDate(account.calendarsRefreshedAt)} />
+        )}
       </NavigationMenu>
       <DashboardSection
         title="Account Calendars"
@@ -126,6 +127,14 @@ function AccountDetailPage() {
       />
       <NavigationMenu>
         <CalendarList calendars={calendars} accountId={accountId} />
+      </NavigationMenu>
+      <NavigationMenu>
+        <NavigationMenuButtonItem onClick={() => setDeleteOpen(true)}>
+          <NavigationMenuItemIcon>
+            <Trash2 size={15} className="text-destructive" />
+          </NavigationMenuItemIcon>
+          <Text size="sm" tone="danger">Delete Account</Text>
+        </NavigationMenuButtonItem>
       </NavigationMenu>
       {deleteError && <Text size="sm" tone="danger">{deleteError}</Text>}
       <DeleteConfirmation

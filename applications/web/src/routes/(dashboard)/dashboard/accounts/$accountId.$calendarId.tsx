@@ -842,6 +842,13 @@ function CalendarInfoSection({ account, accountId }: { account: CalendarAccount;
         <MetadataRow label="Resource Type" value="Calendar" />
         <MetadataRow label="Type" value={calendar.calendarType} />
         <MetadataRow label="Capabilities" value={calendar.capabilities.join(", ")} />
+        {calendar.unavailableSince && (
+          <MetadataRow
+            label="Availability"
+            value={`Unavailable since ${formatDate(calendar.unavailableSince)}`}
+            truncate
+          />
+        )}
         {calendar.originalName && (
           <MetadataRow label="Original Source Name" value={calendar.originalName} truncate />
         )}
