@@ -144,7 +144,7 @@ The two limits that bite first are counted separately. A linked account is one c
 
 # Self Hosted
 
-By hosting Keeper.sh yourself, you get all premium features for free, can guarantee data governance and autonomy, and it's fun. What it costs instead is a server, a domain, upgrades, backups, your own Google and Microsoft OAuth apps, and being the person paged when it stops. If you'll be self-hosting, please consider supporting me and development of the project by sponsoring me on GitHub.
+By hosting Keeper.sh yourself, you are on the Pro tier by default — every Pro feature, no subscription — and you can guarantee data governance and autonomy, and it's fun. What it costs instead is a server, a domain, upgrades, backups, your own Google and Microsoft OAuth apps, and being the person paged when it stops. If you'll be self-hosting, please consider supporting me and development of the project by sponsoring me on GitHub.
 
 There are seven images currently available: two designed for convenience, and five that serve the granular underlying services. If you have no reason to prefer otherwise, start with `keeper-standalone` behind a reverse proxy — it is the path with the fewest moving parts to get wrong.
 
@@ -639,6 +639,14 @@ MCP is **not** bundled in `keeper-services` or the individual service images. To
 1. Run the `keeper-mcp` container with `MCP_PORT`, `MCP_PUBLIC_URL`, `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL`.
 2. Set `MCP_PUBLIC_URL` on the `api` service to the same value (e.g. `https://keeper.example.com/mcp`).
 3. Set `VITE_MCP_URL` on the `web` service to the internal URL of the MCP container (e.g. `http://mcp:3002`).
+
+## Registry Manifest
+
+[`server.json`](./server.json) at the repository root describes the hosted server for the [official MCP Registry](https://registry.modelcontextprotocol.io). It carries a single `streamable-http` remote pointing at `https://www.keeper.sh/mcp`, and takes the `sh.keeper` namespace, which is authenticated by proving ownership of `keeper.sh` rather than by a GitHub account.
+
+Publishing is a manual step run with the `mcp-publisher` CLI and is deliberately not automated: a published version is permanent, so the manifest is reviewed here first and the `version` it carries can never be reused. Self-hosted instances do not need this file — it describes the hosted instance only.
+
+Because the entry is permanent, publish only after every URL it names resolves in production — `websiteUrl`, both `icons[].src`, and the `streamable-http` remote. A `websiteUrl` pointing at a page that has not shipped yet is stuck at a 404 until the next version bump.
 
 # Modules
 

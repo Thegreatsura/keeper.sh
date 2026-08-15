@@ -22,6 +22,12 @@ type MarketingPricingPlanCardProps = {
   period: string;
   description: string;
   ctaLabel: string;
+  /**
+   * Short differentiating bullets, rendered below `md` only. Above `md` the
+   * feature matrix does the comparing, so the two never appear together. Omit
+   * to render the card without a list at any width.
+   */
+  features?: string[];
 };
 
 const marketingPricingCard = tv({
@@ -106,17 +112,33 @@ const pricingPlanButton = tv({
   },
 });
 
-const pricingFeatureValueDisplay = tv({
+const pricingPlanFeatureIcon = tv({
+  base: "shrink-0 mt-[3px]",
   variants: {
     tone: {
-      default: "text-foreground",
-      muted: "text-foreground-muted",
+      default: "text-foreground-muted",
+      inverse: "text-foreground-inverse-muted",
     },
   },
   defaultVariants: {
     tone: "default",
   },
 });
+
+const pricingFeatureValueDisplay = tv({
+  variants: {
+    tone: {
+      default: "text-foreground",
+      muted: "text-foreground-muted",
+      inverse: "text-foreground-inverse",
+      inverseMuted: "text-foreground-inverse-muted",
+    },
+  },
+  defaultVariants: {
+    tone: "default",
+  },
+});
+
 
 function resolveCopyTone(tone: "default" | "inverse"): "inverseMuted" | "muted" {
   if (tone === "inverse") return "inverseMuted";
@@ -130,6 +152,7 @@ export function MarketingPricingPlanCard({
   period,
   description,
   ctaLabel,
+  features,
 }: MarketingPricingPlanCardProps) {
   const copyTone = resolveCopyTone(tone);
 
@@ -138,7 +161,7 @@ export function MarketingPricingPlanCard({
       <MarketingPricingCardBody>
         <Heading3 className={pricingPlanHeading({ tone })}>{name}</Heading3>
         <div className="flex items-baseline gap-1">
-          <Heading2 className={pricingPlanHeading({ tone })}>{price}</Heading2>
+          <Heading2 as="p" className={pricingPlanHeading({ tone })}>{price}</Heading2>
           <Text size="sm" tone={copyTone} align="left">
             {period}
           </Text>
@@ -148,6 +171,22 @@ export function MarketingPricingPlanCard({
             {description}
           </Text>
         </MarketingPricingCardCopy>
+        {features && features.length > 0 && (
+          <ul className="flex flex-col gap-2 pb-6 md:hidden">
+            {features.map((feature) => (
+              <li key={feature} className="flex items-start gap-2">
+                <CheckIcon
+                  size={14}
+                  aria-hidden="true"
+                  className={pricingPlanFeatureIcon({ tone: tone === "inverse" ? "inverse" : "default" })}
+                />
+                <Text as="span" size="sm" tone={copyTone} align="left">
+                  {feature}
+                </Text>
+              </li>
+            ))}
+          </ul>
+        )}
       </MarketingPricingCardBody>
       <MarketingPricingCardAction>
         <LinkButton variant="border" className={pricingPlanButton({ tone })} to="/register">
@@ -183,7 +222,7 @@ export function MarketingPricingFeatureDisplay({
   tone = "default",
 }: {
   value: MarketingPricingFeatureValueKind;
-  tone?: "muted" | "default";
+  tone?: "muted" | "default" | "inverse" | "inverseMuted";
 }) {
   const className = pricingFeatureValueDisplay({ tone });
 

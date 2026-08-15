@@ -2,14 +2,17 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import type { AllowedTags, Components } from "streamdown";
 import { Heading1 } from "@/components/ui/primitives/heading";
 import { Prose } from "@/components/ui/primitives/prose";
-import { ExternalTextLink } from "@/components/ui/primitives/text-link";
+import { TextLink } from "@/components/ui/primitives/text-link";
 import { Text } from "@/components/ui/primitives/text";
-import { NotFoundState } from "@/components/ui/shells/not-found";
+import { MarketingNotFound } from "@/features/marketing/components/marketing-not-found";
 import { ArticleCta } from "@/features/marketing/components/article-cta";
 import { MarkdownFaq, MarkdownFaqItem } from "@/features/marketing/components/markdown-faq";
+import { RelatedArticles } from "@/features/marketing/components/related-articles";
+import { articleLibrary } from "@/lib/article-library";
 import { findBlogPostBySlug } from "@/lib/blog-posts";
+import { selectRelatedArticles } from "@/lib/related-articles";
 import { formatIsoDate } from "@/utils/date";
-import { canonicalUrl, jsonLdScript, seoMeta, blogPostingSchema, breadcrumbSchema, breadcrumbTrail, faqPageSchema } from "@/lib/seo";
+import { jsonLdScript, notFoundHead, seoHead, blogPostingSchema, breadcrumbSchema, breadcrumbTrail, faqPageSchema } from "@/lib/seo";
 import { Breadcrumb } from "@/components/ui/primitives/breadcrumb";
 
 const MARKDOWN_FAQ_TAGS: AllowedTags = {
@@ -32,29 +35,21 @@ export const Route = createFileRoute("/(marketing)/blog/$slug")({
     }
   },
   component: BlogPostPage,
-  notFoundComponent: NotFoundState,
+  notFoundComponent: MarketingNotFound,
   head: ({ params }) => {
     const blogPost = findBlogPostBySlug(params.slug);
     if (!blogPost) {
-      return {
-        meta: [
-          { title: "Blog Post · Keeper.sh" },
-          { content: "noindex", name: "robots" },
-        ],
-      };
+      return notFoundHead();
     }
 
     const postUrl = `/blog/${params.slug}`;
-    return {
-      links: [{ rel: "canonical", href: canonicalUrl(postUrl) }],
+    return seoHead({
+      title: blogPost.metadata.title,
+      description: blogPost.metadata.description,
+      path: postUrl,
+      type: "article",
+      imagePath: blogPost.metadata.image,
       meta: [
-        ...seoMeta({
-          title: blogPost.metadata.title,
-          description: blogPost.metadata.description,
-          path: postUrl,
-          type: "article",
-          imagePath: blogPost.metadata.image,
-        }),
         { content: blogPost.metadata.tags.join(", "), name: "keywords" },
         { content: blogPost.metadata.createdAt, property: "article:published_time" },
         { content: blogPost.metadata.updatedAt, property: "article:modified_time" },
@@ -67,7 +62,7 @@ export const Route = createFileRoute("/(marketing)/blog/$slug")({
         jsonLdScript(blogPostingSchema({
           title: blogPost.metadata.title,
           description: blogPost.metadata.description,
-          slug: params.slug,
+          path: postUrl,
           createdAt: blogPost.metadata.createdAt,
           updatedAt: blogPost.metadata.updatedAt,
           tags: blogPost.metadata.tags,
@@ -78,7 +73,7 @@ export const Route = createFileRoute("/(marketing)/blog/$slug")({
           ? [jsonLdScript(faqPageSchema(postUrl, blogPost.faq))]
           : []),
       ],
-    };
+    });
   },
 });
 
@@ -101,16 +96,9 @@ function BlogPostPage() {
         <div className="flex flex-col">
           <Text size="sm" tone="muted" align="left">
             By{" "}
-            <ExternalTextLink
-              align="left"
-              href="https://rida.dev"
-              rel="noopener noreferrer"
-              size="sm"
-              target="_blank"
-              tone="default"
-            >
+            <TextLink align="left" size="sm" to="/about" tone="default">
               Rida F&apos;kih
-            </ExternalTextLink>
+            </TextLink>
             {" · "}{createdDate}
             {showUpdated && <> · Updated {updatedDate}</>}
           </Text>
@@ -120,6 +108,8 @@ function BlogPostPage() {
       <Prose allowedTags={MARKDOWN_FAQ_TAGS} components={MARKDOWN_FAQ_COMPONENTS}>
         {blogPost.content}
       </Prose>
+
+      <RelatedArticles articles={selectRelatedArticles(`/blog/${slug}`, articleLibrary)} />
 
       <ArticleCta />
     </div>

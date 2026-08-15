@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  BRAND_DISAMBIGUATION,
   blogPostingSchema,
   canonicalUrl,
   collectionPageSchema,
+  jsonLdScript,
+  organizationSchema,
+  personSchema,
+  seoHead,
   seoMeta,
   webPageSchema,
 } from "@/lib/seo";
@@ -12,7 +17,7 @@ const GENERIC_IMAGE_URL = "https://www.keeper.sh/open-graph.png";
 const post = {
   title: "How Calendar Sync Actually Works",
   description: "A long-form explainer.",
-  slug: "how-calendar-sync-actually-works",
+  path: "/blog/how-calendar-sync-actually-works",
   createdAt: "2026-08-01",
   updatedAt: "2026-08-02",
   tags: ["calendar"],
@@ -39,6 +44,28 @@ describe("canonicalUrl", () => {
 
   it("collapses duplicate leading slashes", () => {
     expect(canonicalUrl("//pricing")).toBe("https://www.keeper.sh/pricing");
+  });
+});
+
+describe("organizationSchema", () => {
+  it("publishes the brand under both the domain name and the bare word", () => {
+    expect(organizationSchema["@graph"]).toContainEqual(
+      expect.objectContaining({
+        "@type": "Organization",
+        name: "Keeper.sh",
+        alternateName: "Keeper",
+      }),
+    );
+  });
+
+  it("keeps the brand disambiguation in structured data only", () => {
+    expect(organizationSchema["@graph"]).toContainEqual(
+      expect.objectContaining({
+        "@type": "Organization",
+        disambiguatingDescription: BRAND_DISAMBIGUATION,
+      }),
+    );
+    expect(BRAND_DISAMBIGUATION).toContain("Keeper Security");
   });
 });
 
@@ -97,6 +124,66 @@ describe("seoMeta", () => {
   });
 });
 
+describe("seoHead", () => {
+  it("derives the canonical link from the page path", () => {
+    const head = seoHead({
+      title: "Pricing",
+      description: "Plans and pricing.",
+      path: "/pricing",
+    });
+
+    expect(head.links).toEqual([
+      { rel: "canonical", href: "https://www.keeper.sh/pricing" },
+    ]);
+  });
+
+  it("keeps the canonical alongside the links a page adds", () => {
+    const head = seoHead({
+      title: "Blog",
+      description: "Posts.",
+      path: "/blog",
+      links: [{ rel: "alternate", href: "https://www.keeper.sh/rss.xml", type: "application/rss+xml" }],
+    });
+
+    expect(head.links.filter((link) => link.rel === "canonical")).toHaveLength(1);
+    expect(head.links).toHaveLength(2);
+  });
+
+  it("appends the page's own meta tags after the shared ones", () => {
+    const head = seoHead({
+      title: "How Calendar Sync Actually Works",
+      description: "A long-form explainer.",
+      path: "/blog/how-calendar-sync-actually-works",
+      type: "article",
+      meta: [{ content: "calendar", property: "article:tag" }],
+    });
+
+    expect(findMeta(head.meta, "og:type")).toEqual({ content: "article", property: "og:type" });
+    expect(head.meta[head.meta.length - 1]).toEqual({
+      content: "calendar",
+      property: "article:tag",
+    });
+  });
+
+  it("passes the page's structured data through untouched", () => {
+    const script = jsonLdScript(webPageSchema("Pricing", "Plans and pricing.", "/pricing"));
+    const head = seoHead({
+      title: "Pricing",
+      description: "Plans and pricing.",
+      path: "/pricing",
+      scripts: [script],
+    });
+
+    expect(head.scripts).toEqual([script]);
+  });
+
+  it("emits no structured data when a page declares none", () => {
+    const head = seoHead({ title: "Terms", description: "Terms.", path: "/terms" });
+
+    expect(head.scripts).toEqual([]);
+  });
+});
+
 describe("webPageSchema", () => {
   it("builds a fragment identifier without a double slash", () => {
     expect(webPageSchema("Home", "Home page", "/")["@id"]).toBe("https://www.keeper.sh/#webpage");
@@ -130,7 +217,7 @@ describe("blogPostingSchema", () => {
     const schema = blogPostingSchema({
       title: "Why Keeper",
       description: "A post",
-      slug: "why-keeper",
+      path: "/blog/why-keeper",
       createdAt: "2026-01-01",
       updatedAt: "2026-01-02",
       tags: ["calendar"],
@@ -140,8 +227,53 @@ describe("blogPostingSchema", () => {
   });
 });
 
+describe("personSchema", () => {
+  const PERSON_ID = "https://www.keeper.sh/about/#person";
+
+  it("is identified by the about page", () => {
+    const schema = personSchema("The maintainer.");
+    expect(schema["@id"]).toBe(PERSON_ID);
+    expect(schema.url).toBe("https://www.keeper.sh/about");
+    expect(schema.mainEntityOfPage).toEqual({ "@id": "https://www.keeper.sh/about/#webpage" });
+  });
+
+  it("claims both author profiles", () => {
+    expect(personSchema("The maintainer.").sameAs).toEqual([
+      "https://github.com/ridafkih",
+      "https://rida.dev",
+    ]);
+  });
+
+  it("is the author a blog post points at and the organization's founder", () => {
+    const reference = { "@id": PERSON_ID, "@type": "Person", name: "Rida F'kih" };
+
+    expect(blogPostingSchema(post).author).toEqual(reference);
+    expect(organizationSchema["@graph"][0]).toMatchObject({ founder: reference });
+  });
+
+  it("names the person everywhere it is referenced, because the node itself is only on /about", () => {
+    const { author } = blogPostingSchema(post);
+
+    expect(author["@type"]).toBe("Person");
+    expect(author.name).toBe(personSchema("The maintainer.").name);
+  });
+});
+
 describe("collectionPageSchema", () => {
   it("keeps the published identifier", () => {
-    expect(collectionPageSchema([])["@id"]).toBe("https://www.keeper.sh/blog/#collectionpage");
+    expect(collectionPageSchema("/blog", "Blog", [])["@id"]).toBe(
+      "https://www.keeper.sh/blog/#collectionpage",
+    );
+  });
+
+  it("lists every entry under the collection it belongs to", () => {
+    const schema = collectionPageSchema("/compare", "Compare", [
+      { slug: "onecal-alternative", metadata: { title: "OneCal Alternative" } },
+    ]);
+
+    expect(schema.name).toBe("Compare");
+    expect(schema.mainEntity.itemListElement[0].url).toBe(
+      "https://www.keeper.sh/compare/onecal-alternative",
+    );
   });
 });

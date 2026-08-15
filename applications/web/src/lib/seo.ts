@@ -1,5 +1,11 @@
 const SITE_URL = "https://www.keeper.sh";
 const SITE_NAME = "Keeper.sh";
+const SITE_ALTERNATE_NAME = "Keeper";
+
+// Search engines only. This must never appear in visible page copy — it reads as a
+// defensive aside about a competitor the reader was not thinking about.
+export const BRAND_DISAMBIGUATION =
+  "Keeper.sh is a calendar syncing tool. It is not affiliated with Keeper Security, the password manager.";
 const DEFAULT_IMAGE_PATH = "/open-graph.png";
 
 export function canonicalUrl(path: string): string {
@@ -15,6 +21,15 @@ export function jsonLdScript(data: Record<string, unknown>) {
   return { type: "application/ld+json", children: JSON.stringify(data) };
 }
 
+export interface SeoMetaOptions {
+  title: string;
+  description: string;
+  path: string;
+  type?: string;
+  brandPosition?: "before" | "after";
+  imagePath?: string;
+}
+
 export function seoMeta({
   title,
   description,
@@ -22,14 +37,7 @@ export function seoMeta({
   type = "website",
   brandPosition = "after",
   imagePath = DEFAULT_IMAGE_PATH,
-}: {
-  title: string;
-  description: string;
-  path: string;
-  type?: string;
-  brandPosition?: "before" | "after";
-  imagePath?: string;
-}) {
+}: SeoMetaOptions) {
   const fullTitle = brandPosition === "before"
     ? `${SITE_NAME} — ${title}`
     : `${title} · ${SITE_NAME}`;
@@ -52,6 +60,40 @@ export function seoMeta({
   ];
 }
 
+export type SeoMetaTag = ReturnType<typeof seoMeta>[number];
+
+/**
+ * Builds a route `head` from the page's SEO options, so the self-referencing
+ * canonical is derived from `path` rather than restated by every route.
+ */
+export function seoHead({
+  meta = [],
+  links = [],
+  scripts = [],
+  ...seo
+}: SeoMetaOptions & {
+  meta?: SeoMetaTag[];
+  links?: Array<{ rel: string; href: string; type?: string; title?: string }>;
+  scripts?: Array<ReturnType<typeof jsonLdScript>>;
+}) {
+  return {
+    links: [{ rel: "canonical", href: canonicalUrl(seo.path) }, ...links],
+    meta: [...seoMeta(seo), ...meta],
+    scripts,
+  };
+}
+
+export function notFoundHead() {
+  return { meta: [{ title: `Page not found · ${SITE_NAME}` }] };
+}
+const AUTHOR_NAME = "Rida F'kih";
+const PERSON_ID = entityId("/about", "person");
+
+// Consumers resolve @id within one page's graph, not across pages, and the Person
+// node itself is only emitted on /about. Carrying the type and name alongside the
+// id keeps the reference meaningful everywhere else it appears.
+export const authorReference = { "@id": PERSON_ID, "@type": "Person", name: AUTHOR_NAME };
+
 export const organizationSchema = {
   "@context": "https://schema.org",
   "@graph": [
@@ -59,6 +101,7 @@ export const organizationSchema = {
       "@type": "Organization",
       "@id": `${SITE_URL}/#organization`,
       name: SITE_NAME,
+      alternateName: SITE_ALTERNATE_NAME,
       url: SITE_URL,
       logo: {
         "@type": "ImageObject",
@@ -66,7 +109,9 @@ export const organizationSchema = {
         width: 512,
         height: 512,
       },
+      disambiguatingDescription: BRAND_DISAMBIGUATION,
       sameAs: ["https://github.com/ridafkih/keeper.sh"],
+      founder: authorReference,
     },
     {
       "@type": "WebSite",
@@ -133,7 +178,7 @@ export function softwareApplicationSchema() {
     "@id": `${SITE_URL}/#software`,
     name: SITE_NAME,
     description:
-      "Open-source calendar event syncing tool. Synchronize events between your personal, work, business and school calendars.",
+      "Keeper.sh keeps your personal, work and school calendars in sync, so a booking on one shows you as busy on the others. Your event titles stay private.",
     url: SITE_URL,
     image: `${SITE_URL}/open-graph.png`,
     applicationCategory: "BusinessApplication",
@@ -145,7 +190,7 @@ export function softwareApplicationSchema() {
         price: "0",
         priceCurrency: "USD",
         description:
-          "For users that just want to get basic calendar syncing up and running.",
+          "For keeping two calendar accounts from double-booking each other.",
       },
       {
         "@type": "Offer",
@@ -159,7 +204,7 @@ export function softwareApplicationSchema() {
           billingDuration: "P1M",
         },
         description:
-          "For power users who want minutely syncs and unlimited linked accounts.",
+          "For more than two calendar accounts, or when you need updates within the minute.",
       },
     ],
     provider: { "@id": `${SITE_URL}/#organization` },
@@ -219,48 +264,108 @@ export function faqSchema(
   };
 }
 
-export function collectionPageSchema(posts: Array<{ slug: string; metadata: { title: string } }>) {
+export function collectionPageSchema(
+  path: string,
+  name: string,
+  entries: Array<{ slug: string; metadata: { title: string } }>,
+) {
   return {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    "@id": entityId("/blog", "collectionpage"),
-    name: "Blog",
-    url: canonicalUrl("/blog"),
+    "@id": entityId(path, "collectionpage"),
+    name,
+    url: canonicalUrl(path),
     isPartOf: { "@id": `${SITE_URL}/#website` },
     mainEntity: {
       "@type": "ItemList",
-      itemListElement: posts.map((post, index) => ({
+      itemListElement: entries.map((entry, index) => ({
         "@type": "ListItem",
         position: index + 1,
-        url: canonicalUrl(`/blog/${post.slug}`),
-        name: post.metadata.title,
+        url: canonicalUrl(`${path}/${entry.slug}`),
+        name: entry.metadata.title,
       })),
     },
   };
 }
 
-export const authorPersonSchema = {
-  "@type": "Person",
-  "@id": `${SITE_URL}/#author`,
-  name: "Rida F'kih",
-  url: "https://rida.dev",
-  sameAs: ["https://github.com/ridafkih"],
-};
+export function changelogCollectionSchema(
+  description: string,
+  entries: Array<{ slug: string; title: string }>,
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": entityId("/changelog", "collectionpage"),
+    name: "What's new in Keeper.sh",
+    description,
+    url: canonicalUrl("/changelog"),
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: entries.map((entry, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        url: canonicalUrl(`/changelog/${entry.slug}`),
+        name: entry.title,
+      })),
+    },
+  };
+}
+
+export function changelogEntrySchema(entry: {
+  title: string;
+  description: string;
+  slug: string;
+  date: string;
+}) {
+  const path = `/changelog/${entry.slug}`;
+  const url = canonicalUrl(path);
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "@id": entityId(path, "blogposting"),
+    headline: entry.title,
+    description: entry.description,
+    image: canonicalUrl(DEFAULT_IMAGE_PATH),
+    url,
+    datePublished: entry.date,
+    dateModified: entry.date,
+    author: authorReference,
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
+  };
+}
+
+export function personSchema(description: string) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "@id": PERSON_ID,
+    name: AUTHOR_NAME,
+    description,
+    url: canonicalUrl("/about"),
+    sameAs: ["https://github.com/ridafkih", "https://rida.dev"],
+    worksFor: { "@id": `${SITE_URL}/#organization` },
+    mainEntityOfPage: { "@id": entityId("/about", "webpage") },
+  };
+}
 
 export function blogPostingSchema(post: {
   title: string;
   description: string;
-  slug: string;
+  path: string;
   createdAt: string;
   updatedAt: string;
   tags: string[];
   imagePath?: string;
 }) {
-  const url = canonicalUrl(`/blog/${post.slug}`);
+  const url = canonicalUrl(post.path);
   return {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
-    "@id": entityId(`/blog/${post.slug}`, "blogposting"),
+    "@id": entityId(post.path, "blogposting"),
     headline: post.title,
     description: post.description,
     image: canonicalUrl(post.imagePath ?? DEFAULT_IMAGE_PATH),
@@ -268,7 +373,7 @@ export function blogPostingSchema(post: {
     datePublished: post.createdAt,
     dateModified: post.updatedAt,
     keywords: post.tags,
-    author: authorPersonSchema,
+    author: authorReference,
     publisher: { "@id": `${SITE_URL}/#organization` },
     isPartOf: { "@id": `${SITE_URL}/#website` },
     mainEntityOfPage: { "@type": "WebPage", "@id": url },

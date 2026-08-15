@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { KEEPER_API_RESOURCE_SCOPES } from "@keeper.sh/constants";
 import { GDPR_COUNTRIES } from "@/config/gdpr";
 import { getGithubStarsSnapshot } from "./github-stars";
 import { proxyRequest } from "./proxy/http";
@@ -32,19 +33,58 @@ const resolveInternalProxyPath = (pathname: string): string | null => {
   return null;
 };
 
-const RESOURCE_SCOPES = [
-  "keeper.read",
-  "keeper.sources.read",
-  "keeper.destinations.read",
-  "keeper.mappings.read",
-  "keeper.events.read",
-  "keeper.sync-status.read",
-];
-
 const buildProtectedResourceMetadata = (requestOrigin: string) => ({
   resource: `${requestOrigin}/mcp`,
   authorization_servers: [`${requestOrigin}/api/auth`],
-  scopes_supported: RESOURCE_SCOPES,
+  scopes_supported: KEEPER_API_RESOURCE_SCOPES,
+});
+
+const MCP_SERVER_CARD_PATH = "/mcp/server-card";
+const MCP_SERVER_CARD_MEDIA_TYPE = "application/mcp-server-card+json";
+// SEP-2127 pins this exact string through the `$schema` pattern, so it stays as
+// written even though it does not resolve until the proposal merges.
+const MCP_SERVER_CARD_SCHEMA =
+  "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json";
+const MCP_SERVER_NAMESPACE = "sh.keeper";
+const MCP_SERVER_NAME = "keeper";
+const MCP_SERVER_VERSION = "1.0.0";
+
+/* The same icon set server.json publishes to the registry, so the two
+   descriptions of this server agree. SEP-2127 types `sizes` and `mimeType`
+   loosely, but the registry schema constrains both, so these stay in the
+   stricter shape rather than drifting into one the registry would reject.
+   `theme` is the background the icon is drawn on, not the colour of the
+   mark: the "light" icons are the dark-ink ones. */
+const MCP_SERVER_ICON_SIZES = [48, 96, 192, 512] as const;
+
+const buildMcpServerIcons = (requestOrigin: string) =>
+  (["light", "dark"] as const).flatMap((theme) =>
+    MCP_SERVER_ICON_SIZES.map((size) => ({
+      src: `${requestOrigin}/${size}x${size}-on-${theme}.png`,
+      mimeType: "image/png",
+      sizes: [`${size}x${size}`],
+      theme,
+    })),
+  );
+
+const buildMcpServerCard = (requestOrigin: string) => ({
+  $schema: MCP_SERVER_CARD_SCHEMA,
+  name: `${MCP_SERVER_NAMESPACE}/${MCP_SERVER_NAME}`,
+  version: MCP_SERVER_VERSION,
+  title: "Keeper.sh",
+  description: "Read and write your connected calendars from an AI agent.",
+  websiteUrl: requestOrigin,
+  repository: {
+    url: "https://github.com/ridafkih/keeper.sh",
+    source: "github",
+  },
+  icons: buildMcpServerIcons(requestOrigin),
+  remotes: [
+    {
+      type: "streamable-http",
+      url: `${requestOrigin}/mcp`,
+    },
+  ],
 });
 
 async function serveStaticTextFile(pathname: string): Promise<Response | null> {
@@ -93,6 +133,15 @@ export async function handleInternalRoute(
 
   if (requestUrl.pathname === "/.well-known/oauth-protected-resource") {
     return Response.json(buildProtectedResourceMetadata(resolvePublicOrigin(request)));
+  }
+
+  if (requestUrl.pathname === MCP_SERVER_CARD_PATH) {
+    return new Response(JSON.stringify(buildMcpServerCard(resolvePublicOrigin(request))), {
+      headers: {
+        "content-type": MCP_SERVER_CARD_MEDIA_TYPE,
+        "cache-control": "public, max-age=3600",
+      },
+    });
   }
 
   const internalProxyPath = resolveInternalProxyPath(requestUrl.pathname);
