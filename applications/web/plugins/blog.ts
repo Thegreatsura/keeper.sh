@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import type { Plugin } from "vite";
 import { type } from "arktype";
 import { parse as parseYaml } from "yaml";
-import { CONTENT_DIRECTORIES } from "../src/lib/content-paths";
+import { buildMovedPaths, CONTENT_DIRECTORIES, MOVED_PATHS_FILE } from "../src/lib/content-paths";
 
 const OPEN_GRAPH_IMAGE_WIDTH = 1200;
 const OPEN_GRAPH_IMAGE_HEIGHT = 630;
@@ -275,6 +275,46 @@ function contentCollectionPlugin(collection: ContentCollection): Plugin {
           return [module];
         }
       }
+    },
+  };
+}
+
+export function movedPathsPlugin(): Plugin {
+  const collections: Array<{ basePath: string; directory: string }> = [
+    { basePath: "/blog", directory: CONTENT_DIRECTORIES.blog },
+    { basePath: "/compare", directory: CONTENT_DIRECTORIES.compare },
+    { basePath: "/docs", directory: CONTENT_DIRECTORIES.docs },
+    { basePath: "/guides", directory: CONTENT_DIRECTORIES.guides },
+    { basePath: "/recipes", directory: CONTENT_DIRECTORIES.recipes },
+  ];
+
+  let root: string;
+  let publicDir: string;
+
+  return {
+    name: "keeper-moved-paths",
+
+    configResolved(config) {
+      root = config.root;
+      publicDir = config.publicDir;
+    },
+
+    generateBundle() {
+      const moved = buildMovedPaths(
+        collections.flatMap(({ basePath, directory }) =>
+          processBlogDirectory(resolve(root, directory), publicDir).map((post) => ({
+            basePath,
+            replaces: post.metadata.replaces,
+            slug: post.slug,
+          })),
+        ),
+      );
+
+      this.emitFile({
+        type: "asset",
+        fileName: MOVED_PATHS_FILE,
+        source: JSON.stringify(moved, null, 2),
+      });
     },
   };
 }
