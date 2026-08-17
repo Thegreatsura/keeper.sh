@@ -105,6 +105,8 @@ function readRelease(directory: string, slug: string): ChangelogRelease {
 }
 
 export function processChangelogDirectory(changelogDir: string): ChangelogRelease[] {
+  if (!existsSync(changelogDir)) return [];
+
   const slugs = readdirSync(changelogDir).filter((entry) =>
     statSync(join(changelogDir, entry)).isDirectory(),
   );

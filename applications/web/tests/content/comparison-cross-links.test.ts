@@ -1,6 +1,7 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { SEO_CONTENT_ROOT } from "../../src/lib/content-paths";
 import { parse as parseYaml } from "yaml";
 
 const COMPARISON_TAG = "comparison";
@@ -17,7 +18,8 @@ interface Comparison {
 }
 
 function readComparisons(directory: string, basePath: string): Comparison[] {
-  const collectionDirectory = join(import.meta.dirname, "../../src/content", directory);
+  const collectionDirectory = join(import.meta.dirname, "../..", SEO_CONTENT_ROOT, directory);
+  if (!existsSync(collectionDirectory)) return [];
 
   return readdirSync(collectionDirectory)
     .filter((entry) => entry.endsWith(".mdx"))
@@ -41,7 +43,12 @@ const comparisons = COLLECTIONS.flatMap(({ basePath, directory }) =>
   readComparisons(directory, basePath),
 );
 
-describe("comparison cross-links", () => {
+
+const CONTENT_PRESENT = existsSync(
+  join(import.meta.dirname, "../..", SEO_CONTENT_ROOT, "blog"),
+);
+
+describe.skipIf(!CONTENT_PRESENT)("comparison cross-links", () => {
   it("has comparisons to check", () => {
     expect(comparisons.length).toBeGreaterThan(1);
   });

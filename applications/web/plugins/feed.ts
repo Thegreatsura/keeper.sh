@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
+import { CONTENT_DIRECTORIES } from "../src/lib/content-paths";
 import { XMLBuilder } from "fast-xml-parser";
 import { processBlogDirectory, type ProcessedBlogPost } from "./blog";
 
@@ -85,15 +86,19 @@ export function feedPlugin(): Plugin {
     apply: "build",
 
     configResolved(config) {
-      blogDir = resolve(config.root, "src/content/blog");
+      blogDir = resolve(config.root, CONTENT_DIRECTORIES.blog);
       publicDir = config.publicDir;
     },
 
     generateBundle() {
+      const posts = processBlogDirectory(blogDir, publicDir);
+
+      if (posts.length === 0) return;
+
       this.emitFile({
         type: "asset",
         fileName: FEED_FILE_NAME,
-        source: buildFeedXml(processBlogDirectory(blogDir, publicDir)),
+        source: buildFeedXml(posts),
       });
     },
   };
