@@ -162,6 +162,7 @@ type SyncOperation =
   };
 
 interface ListRemoteEventsOptions {
+  timeMax: Date;
   timeMin: Date;
 }
 
