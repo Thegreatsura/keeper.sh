@@ -6,6 +6,8 @@ import {
 } from "@keeper.sh/database/schema";
 import { and, arrayContains, eq, inArray } from "drizzle-orm";
 import env from "@/env";
+import { widelog } from "@/utils/logging";
+import { withAbortTimeout } from "@/utils/with-abort-timeout";
 
 import {
   runEnqueueDestinationSyncsForUsers,
@@ -13,13 +15,24 @@ import {
   type EnqueueDestinationSyncDependencies,
 } from "./enqueue-destination-syncs-core";
 
+const REDIS_COMMAND_TIMEOUT_MS = 10_000;
+
+const ENQUEUE_TIMEOUT_MS = 10_000;
+
+const logQueueTeardownFailure = (error: unknown): void => {
+  widelog.errorFields(error, {
+    slug: "push-sync-queue-teardown-failed",
+    retriable: false,
+  });
+};
 
 const enqueueDestinationSyncsForUsers = async (
   candidateUserIds: Iterable<string>,
   trigger: PushSyncTrigger = "cron",
 ): Promise<number> => {
   const { database, premiumService } = await import("@/context");
-  return runEnqueueDestinationSyncsForUsers(candidateUserIds, {
+  const openQueues = new Set<ReturnType<typeof createPushSyncQueue>>();
+  const dependencies: EnqueueDestinationSyncDependencies = {
     acknowledgePendingRequests: async (requests) => {
       if (requests.length === 0) {
         return;
@@ -35,7 +48,15 @@ const enqueueDestinationSyncsForUsers = async (
         }
       });
     },
-    createQueue: () => createPushSyncQueue({ url: env.REDIS_URL, maxRetriesPerRequest: null }),
+    createQueue: () => {
+      const queue = createPushSyncQueue({
+        commandTimeout: REDIS_COMMAND_TIMEOUT_MS,
+        maxRetriesPerRequest: null,
+        url: env.REDIS_URL,
+      });
+      openQueues.add(queue);
+      return queue;
+    },
     enabled: env.WORKER_JOB_QUEUE_ENABLED !== false,
     generateCorrelationId: () => crypto.randomUUID(),
     getDestinations: (userIds) => database
@@ -57,7 +78,24 @@ const enqueueDestinationSyncsForUsers = async (
       })
       .from(userSyncRequestsTable),
     resolvePlan: (userId) => premiumService.getUserPlan(userId),
-  }, trigger);
+  };
+  try {
+    return await withAbortTimeout(
+      () => runEnqueueDestinationSyncsForUsers(candidateUserIds, dependencies, trigger),
+      ENQUEUE_TIMEOUT_MS,
+    );
+  } finally {
+    /*
+     * BullMQ's disconnect() awaits an initializing promise that only settles on ioredis
+     * "ready"/"error"/"end", so against a black-hole socket it parks forever. close() takes
+     * the status=="initializing" branch and disconnects synchronously; disconnect() still
+     * covers a connection that did come up. Each is a no-op in the other's scenario.
+     */
+    for (const queue of openQueues) {
+      queue.close().catch(logQueueTeardownFailure);
+      queue.disconnect().catch(logQueueTeardownFailure);
+    }
+  }
 };
 
 export {

@@ -19,10 +19,6 @@ import { recordSegment } from "../telemetry/segments";
 
 type IngestWideEventFields = Record<string, boolean | number | string>;
 
-/*
- * Identifier lists are a capped sample; an uncapped one would push the line
- * past what the log pipeline keeps and take the counters with it.
- */
 const WIDE_EVENT_LIST_LIMIT = 20;
 const WIDE_EVENT_LIST_MAX_LENGTH = 2048;
 
@@ -49,10 +45,6 @@ const summarizeWideEventList = (
   Math.max(values.length - WIDE_EVENT_LIST_LIMIT, 0),
 );
 
-/**
- * Events the provider reported that never reach the diff, so the diff removes
- * their stored state. These counts are the only trace that removal leaves.
- */
 interface DiscardedSourceEventCounts {
   outsideSyncWindow: number;
   unrepresentable: number;
@@ -61,10 +53,6 @@ interface DiscardedSourceEventCounts {
 interface FetchEventsResult {
   events: SourceEvent[];
   discardedEventCounts?: DiscardedSourceEventCounts;
-  /**
-   * Keeper's own mirrored events, skipped on purpose. Kept out of
-   * `discardedEventCounts` so those stay zero on a healthy mirrored calendar.
-   */
   selfAuthoredEventCount?: number;
   changedEventIds?: string[];
   snapshot?: CalendarSnapshotChange;
@@ -75,11 +63,6 @@ interface FetchEventsResult {
   unchanged?: boolean;
   skippedResourceCount?: number;
   skippedResourceReasons?: string[];
-  /**
-   * Events the provider returned that Keeper cannot represent (an RDATE series,
-   * a timezone no runtime can interpret). They stay in `events` so removal stays
-   * computed against the full feed; only ingestion withholds them.
-   */
   unsupportedEventUids?: string[];
   syncWindow?: SyncWindow;
   coverage?: {
@@ -107,9 +90,13 @@ interface IngestionPersistence {
   flush: (changes: IngestionChanges) => Promise<void>;
 }
 
-type IngestionPersistenceWork = (
+type IngestionPersistencePreflight = () => Promise<IngestionResult | null>;
+
+type IngestionPersistenceWork = ((
   persistence: IngestionPersistence,
-) => Promise<IngestionResult>;
+) => Promise<IngestionResult>) & {
+  preflight?: IngestionPersistencePreflight;
+};
 
 interface BaseIngestSourceOptions {
   calendarId: string;
@@ -151,11 +138,9 @@ interface IngestionResult {
 const EMPTY_RESULT: IngestionResult = { eventsAdded: 0, eventsRemoved: 0 };
 
 /*
- * Only delta sources need this. A snapshot source re-reports its whole coverage
- * every fetch, so the snapshot diff already removes whatever it stopped
- * reporting; pruning on top of that would delete the unbounded history an ICS
- * feed still reports. A delta source only reports changes, so a stored event
- * that fell outside a narrowed window would otherwise be stranded forever.
+ * Delta sources only: a snapshot source's diff already removes what it stopped reporting, so
+ * pruning on top would delete the unbounded history an ICS feed still reports. A delta
+ * source's stored event outside a narrowed window would otherwise be stranded forever.
  */
 const getNonRecurringStoredEventIdsOutsideWindow = (
   events: (Pick<StoredSourceEventState, "endTime" | "id" | "startTime"> & {
@@ -176,6 +161,33 @@ const getNonRecurringStoredEventIdsOutsideWindow = (
   return eventIds;
 };
 
+type CurrencyProbeResult = "current" | "currency-unconfirmed" | "superseded";
+
+const resolveErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+};
+
+const probeCurrency = async (
+  wideEvent: IngestWideEventFields,
+  isCurrent?: () => Promise<boolean>,
+): Promise<CurrencyProbeResult> => {
+  if (!isCurrent) {
+    return "current";
+  }
+  try {
+    if (await isCurrent()) {
+      return "current";
+    }
+    return "superseded";
+  } catch (error) {
+    wideEvent["currency_probe.error"] = resolveErrorMessage(error);
+    return "currency-unconfirmed";
+  }
+};
+
 const ingestSource = async (options: IngestSourceOptions): Promise<IngestionResult> => {
   const { calendarId, fetchEvents, isCurrent, onIngestEvent } = options;
 
@@ -189,10 +201,8 @@ const ingestSource = async (options: IngestSourceOptions): Promise<IngestionResu
   let flushed = false;
 
   /*
-   * Part of the diff runs inside the persistence transaction's callback, which a
-   * pooled driver invokes in the async context of whoever released the connection.
-   * A widelog call there would land on another source's event, so the diff is
-   * accumulated locally and recorded once below, back in this function's context.
+   * A pooled driver invokes the transaction callback in the async context of whoever released
+   * the connection, so a widelog call there would land on another source's event.
    */
   let diffMs = 0;
   const measureDiff = <TResult>(operation: () => TResult): TResult => {
@@ -245,11 +255,6 @@ const ingestSource = async (options: IngestSourceOptions): Promise<IngestionResu
           },
         ));
       if (overBudget.length > 0) {
-        /*
-         * A widened sync range can pull a pathological series over the occurrence
-         * budget. Drop those series and keep ingesting the rest, so one bad series
-         * cannot push the whole calendar into permanent ingestion backoff.
-         */
         const overBudgetUids = new Set(overBudget.map(({ uid }) => uid));
         sourceEvents = sourceEvents.filter(({ uid }) => !overBudgetUids.has(uid));
         wideEvent["recurrence.over_budget_count"] = overBudget.length;
@@ -257,13 +262,33 @@ const ingestSource = async (options: IngestSourceOptions): Promise<IngestionResu
       }
     }
 
-    if (isCurrent && !(await isCurrent())) {
-      wideEvent["outcome"] = "superseded";
+    const preEnqueueCurrency = await probeCurrency(wideEvent, isCurrent);
+    if (preEnqueueCurrency !== "current") {
+      wideEvent["outcome"] = preEnqueueCurrency;
       wideEvent["flushed"] = false;
       return EMPTY_RESULT;
     }
 
-    return await withPersistenceTransaction(async ({ readExistingEvents, flush }) => {
+    let persistProbePending = true;
+    const persistTimePreflight = async (): Promise<IngestionResult | null> => {
+      persistProbePending = false;
+      const currency = await probeCurrency(wideEvent, isCurrent);
+      if (currency === "current") {
+        return null;
+      }
+      wideEvent["outcome"] = currency;
+      wideEvent["flushed"] = false;
+      return EMPTY_RESULT;
+    };
+
+    const persistenceWork = async ({ readExistingEvents, flush }: IngestionPersistence) => {
+      if (persistProbePending) {
+        const superseded = await persistTimePreflight();
+        if (superseded) {
+          return superseded;
+        }
+      }
+
       if (fetchResult.unchanged) {
         wideEvent["outcome"] = "unchanged";
         wideEvent["flushed"] = false;
@@ -321,9 +346,8 @@ const ingestSource = async (options: IngestSourceOptions): Promise<IngestionResu
               isDeltaSync,
             ),
             /*
-             * Removal is computed against the unfiltered fetch. An over-budget series is
-             * only withheld from ingestion; treating it as absent here would delete the
-             * states it already has, turning a stalled series into deleted user events.
+             * Removal is computed against the unfiltered fetch: treating a withheld
+             * over-budget series as absent would turn a stalled series into deleted events.
              */
             ...buildSourceEventStateIdsToRemove(
               existingEvents,
@@ -390,7 +414,11 @@ const ingestSource = async (options: IngestSourceOptions): Promise<IngestionResu
         eventsAdded: eventsToAdd.length,
         eventsRemoved: eventStateIdsToRemove.length,
       };
-    });
+    };
+
+    return await withPersistenceTransaction(
+      Object.assign(persistenceWork, { preflight: persistTimePreflight }),
+    );
   } catch (error) {
     wideEvent["outcome"] = "error";
     wideEvent["flushed"] = flushed;
@@ -426,6 +454,7 @@ export type {
   IngestWideEventFields,
   IngestSourceOptions,
   IngestionPersistence,
+  IngestionPersistencePreflight,
   IngestionPersistenceWork,
   IngestionResult,
   IngestionChanges,

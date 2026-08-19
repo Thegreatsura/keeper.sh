@@ -212,12 +212,20 @@ class CalDAVClient {
     return this.resolvedAuthMethod?.() ?? null;
   }
 
+  private async chargeRequest(): Promise<void> {
+    await this.config.onBeforeRequest?.();
+  }
+
   private async getClient(): Promise<DAVClientInstance> {
     if (!this.client) {
       const safeFetch = createSafeFetch(this.safeFetchOptions);
+      const chargedFetch: typeof safeFetch = async (...args) => {
+        await this.chargeRequest();
+        return safeFetch(...args);
+      };
       const { fetch: digestAwareFetch, getResolvedMethod } = createDigestAwareFetch({
         credentials: this.config.credentials,
-        baseFetch: safeFetch,
+        baseFetch: chargedFetch,
         knownAuthMethod: this.config.authMethod,
       });
       this.resolvedAuthMethod = getResolvedMethod;

@@ -141,9 +141,12 @@ export {
   wallTimeToInstant,
 } from "./ics/utils/timezone-instant";
 export { RateLimiter, type RateLimiterConfig } from "./core/utils/rate-limiter";
-export { createGoogleUserRateLimiter, createRedisRateLimiter, type RedisRateLimiter, type RedisRateLimiterConfig } from "./core/utils/redis-rate-limiter";
+export { createGoogleUserRateLimiter, createHostRateLimiter, createOutlookAccountSemaphore, createRedisRateLimiter, type HostRateLimiterOptions, type OutlookAccountSemaphore, type RedisRateLimiter, type RedisRateLimiterConfig } from "./core/utils/redis-rate-limiter";
+export { createLeasedSemaphore, type LeasedSemaphore, type LeasedSemaphoreConfig, type RedisLeaseClient, type SemaphoreLease } from "./core/utils/leased-semaphore";
+export { flagPacingParkAbortReason, isIngestPacingParkAbortError } from "./core/utils/pacing-park";
 export { allSettledGroupedWithConcurrency, allSettledWithConcurrency, type AllSettledGroupedOptions, type AllSettledWithConcurrencyOptions } from "./core/utils/concurrency";
 export { getErrorMessage } from "./core/utils/error";
+export { createSerialFlushWorker, isSerialFlushReserveAbortError, isSerialFlushRunDeadlineError, isSerialFlushWorkerClosedError, SerialFlushRunDeadlineError, SerialFlushWorkerClosedError, type FlushReservation, type SerialFlushWorker, type SerialFlushWorkerOptions } from "./core/utils/serial-flush-worker";
 export {
   buildCalendarBackoffState,
   RESET_CALENDAR_BACKOFF_STATE,

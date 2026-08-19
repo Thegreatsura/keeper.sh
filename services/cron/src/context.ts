@@ -1,5 +1,6 @@
 import env from "./env";
-import { createDatabase } from "@keeper.sh/database";
+import { createFlushDrainRegistry } from "./utils/flush-drains";
+import { closeDatabase, createDatabase } from "@keeper.sh/database";
 import Redis from "ioredis";
 import { createPremiumService } from "@keeper.sh/premium";
 import { resolveWebhookConfig } from "@keeper.sh/calendar";
@@ -7,6 +8,41 @@ import type { RefreshLockStore } from "@keeper.sh/calendar";
 import { Polar } from "@polar-sh/sdk";
 
 const database = await createDatabase(env.DATABASE_URL, { maxConnections: env.DATABASE_POOL_MAX });
+
+/*
+ * The flush writer gets its own single connection so ingest persistence
+ * cannot open concurrent write transactions no matter how many fetches run.
+ */
+const flushDatabase = await createDatabase(env.DATABASE_URL, { maxConnections: 1 });
+
+const flushDrainRegistry = createFlushDrainRegistry();
+
+const FLUSH_DRAIN_DEADLINE_MS = 2000;
+/*
+ * Bun's unbounded close awaits the very in-flight query the drain deadline just gave up on,
+ * so leaving teardown unbounded would hand the wedged flush back the time the deadline removed.
+ */
+const CLOSE_GRACE_SECONDS = 2;
+
+const shutdownDatabases = async (): Promise<void> => {
+  const drain = flushDrainRegistry.drain().then(
+    () => "drained",
+    () => "drain-failed",
+  );
+  let deadlineTimer: ReturnType<typeof setTimeout> | null = null;
+  const deadline = new Promise<void>((resolve) => {
+    deadlineTimer = setTimeout(resolve, FLUSH_DRAIN_DEADLINE_MS);
+  });
+  try {
+    await Promise.race([drain, deadline]);
+  } finally {
+    if (deadlineTimer !== null) {
+      clearTimeout(deadlineTimer);
+    }
+  }
+  closeDatabase(database, { graceSeconds: CLOSE_GRACE_SECONDS });
+  closeDatabase(flushDatabase, { graceSeconds: CLOSE_GRACE_SECONDS });
+};
 const webhookConfig = resolveWebhookConfig(env.WEBHOOK_PUBLIC_URL);
 
 const premiumService = createPremiumService({
@@ -52,6 +88,9 @@ const polarClient = createPolarClient();
 
 export {
   database,
+  flushDatabase,
+  flushDrainRegistry,
+  shutdownDatabases,
   premiumService,
   polarClient,
   refreshLockRedis,

@@ -49,12 +49,32 @@ const parseUrlWithCredentials = (url: string): ParsedUrl => {
 
 const ICS_USER_AGENT = "Keeper/1.0 (+https://www.keeper.sh)";
 
+const HTTP_STATUS_PARTIAL_CONTENT = 206;
+
+const CALENDAR_END_PATTERN = /(?:^|[\r\n])END:VCALENDAR[ \t]*(?:[\r\n]|$)/i;
+
+const assertCalendarBodyComplete = (ical: string): void => {
+  if (!CALENDAR_END_PATTERN.test(ical)) {
+    throw new CalendarFetchError(
+      "Calendar feed is truncated: missing END:VCALENDAR terminator.",
+    );
+  }
+};
+
 const fetchRemoteText = async (url: string, options?: SafeFetchOptions): Promise<string> => {
   const { url: cleanUrl, headers } = parseUrlWithCredentials(url);
   const safeFetch = createSafeFetch(options);
   const response = await safeFetch(cleanUrl, {
     headers: { "User-Agent": ICS_USER_AGENT, ...headers },
   });
+
+  /* Response.ok covers 206 too, and a range fragment would diff as deletions. */
+  if (response.status === HTTP_STATUS_PARTIAL_CONTENT) {
+    throw new CalendarFetchError(
+      "Calendar server returned a partial (206) response; refusing to treat a fragment as the whole feed.",
+      response.status,
+    );
+  }
 
   if (!response.ok) {
     if (response.status === HTTP_STATUS.UNAUTHORIZED || response.status === HTTP_STATUS.FORBIDDEN) {
@@ -109,9 +129,6 @@ async function pullRemoteCalendar(output: OutputJSON, url: string, options?: Saf
 
 async function pullRemoteCalendar(output: OutputICALOrJSON, url: string, options?: SafeFetchOptions): Promise<ICalOrJSON>;
 
-/**
- * @throws
- */
 async function pullRemoteCalendar(
   output: OutputJSON | OutputICal | OutputICALOrJSON,
   url: string,
@@ -120,6 +137,7 @@ async function pullRemoteCalendar(
   const outputs = normalizeOutputToArray(output);
   const normalizedUrl = normalizeCalendarUrl(url);
   const ical = await fetchRemoteText(normalizedUrl, options);
+  assertCalendarBodyComplete(ical);
   const json = parseIcsCalendarLenient({ icsString: ical, patches: [coerceCompliantDate] });
 
   if (!json.version || !json.prodId) {

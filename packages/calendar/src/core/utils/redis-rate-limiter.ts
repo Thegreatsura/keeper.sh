@@ -4,6 +4,9 @@ import {
 } from "@keeper.sh/constants";
 import { widelog } from "widelogger";
 import { measureRedisCommand, recordSegment } from "../telemetry/segments";
+import { createLeasedSemaphore } from "./leased-semaphore";
+import { flagPacingParkAbortReason } from "./pacing-park";
+import type { RedisLeaseClient, SemaphoreLease } from "./leased-semaphore";
 
 const MS_PER_MINUTE = 60_000;
 const RETRY_POLL_MS = 100;
@@ -22,18 +25,9 @@ interface RedisScriptClient {
 }
 
 /**
- * Lua script for atomic sliding window rate limiting.
- *
  * KEYS[1] = sorted set key
- * ARGV[1] = window start (now - 60s) in ms
- * ARGV[2] = current time in ms
- * ARGV[3] = count of slots to acquire
- * ARGV[4] = max requests per minute
- *
- * Returns { waitTime, occupancy }:
- *   waitTime 0 = acquired successfully
- *   waitTime > 0 = wait time in ms before retrying
- *   occupancy = slots already held in the window when the decision was taken
+ * ARGV = [window start ms, now ms, slots to acquire, max requests per minute]
+ * Returns [waitTime, occupancy]; waitTime 0 means acquired.
  */
 const ACQUIRE_SCRIPT = `
   redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
@@ -93,16 +87,22 @@ const sleep = (delayMs: number): Promise<void> =>
     setTimeout(resolve, delayMs);
   });
 
+/* Parked on the shared window, ahead of the request the permit would authorize. */
 const waitForRetry = (delayMs: number, signal?: AbortSignal): Promise<void> => {
   if (!signal) {
     return sleep(delayMs);
   }
+  /*
+   * No park flag on an already-consumed deadline: it may have been eaten by a provider call
+   * that takes no signal, and stamping it would exempt that from ingest backoff.
+   */
   if (signal.aborted) {
     return Promise.reject(signal.reason);
   }
   return new Promise((resolve, reject) => {
     const timeoutSignal = AbortSignal.timeout(delayMs);
     const onAbort = (): void => {
+      flagPacingParkAbortReason(signal.reason);
       reject(signal.reason);
     };
     const onTimeout = (): void => {
@@ -175,10 +175,8 @@ const GOOGLE_LANE_REQUESTS_PER_MINUTE: Record<GoogleRateLimitLane, number> = {
 };
 
 /*
- * One key for both lanes: Google's quota is per user however it is spent, so separate
- * keys would let the two jobs together sail past the real limit. The lanes differ only
- * in how much of that shared key each may claim, which reserves headroom for ingestion
- * without raising the total.
+ * One key for both lanes: Google's quota is per user however it is spent, so separate keys
+ * would let the two jobs together sail past the real limit.
  */
 const createGoogleUserRateLimiter = (
   redis: RedisScriptClient,
@@ -190,9 +188,56 @@ const createGoogleUserRateLimiter = (
   { requestsPerMinute: GOOGLE_LANE_REQUESTS_PER_MINUTE[lane] },
 );
 
-export { createGoogleUserRateLimiter, createRedisRateLimiter };
+const HOST_REQUESTS_PER_MINUTE = 30;
+
+interface HostRateLimiterOptions {
+  requestsPerMinute?: number;
+}
+
+const createHostRateLimiter = (
+  redis: RedisScriptClient,
+  host: string,
+  options?: HostRateLimiterOptions,
+): RedisRateLimiter => createRedisRateLimiter(
+  redis,
+  `ratelimit:host:${host}`,
+  { requestsPerMinute: options?.requestsPerMinute ?? HOST_REQUESTS_PER_MINUTE },
+);
+
+const OUTLOOK_ACCOUNT_CONCURRENCY = 3;
+const OUTLOOK_LEASE_TTL_MS = 150_000;
+
+interface OutlookAccountSemaphore {
+  acquireLease(signal?: AbortSignal): Promise<SemaphoreLease>;
+  release(lease: SemaphoreLease): Promise<void>;
+}
+
+const createOutlookAccountSemaphore = (
+  redis: RedisLeaseClient,
+  accountId: string,
+): OutlookAccountSemaphore => {
+  const semaphore = createLeasedSemaphore(redis, {
+    capacity: OUTLOOK_ACCOUNT_CONCURRENCY,
+    ttlMs: OUTLOOK_LEASE_TTL_MS,
+  });
+  const key = `outlook:account:${accountId}`;
+
+  return {
+    acquireLease: (signal?: AbortSignal) => semaphore.acquireLease(key, signal),
+    release: (lease: SemaphoreLease) => semaphore.release(lease),
+  };
+};
+
+export {
+  createGoogleUserRateLimiter,
+  createHostRateLimiter,
+  createOutlookAccountSemaphore,
+  createRedisRateLimiter,
+};
 export type {
   GoogleRateLimitLane,
+  HostRateLimiterOptions,
+  OutlookAccountSemaphore,
   RedisRateLimiter,
   RedisRateLimiterConfig,
   RedisScriptClient,

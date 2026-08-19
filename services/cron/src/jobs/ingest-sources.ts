@@ -8,6 +8,10 @@ import {
   createMicrosoftTokenRefresher,
   createCoordinatedRefresher,
   createGoogleUserRateLimiter,
+  createSerialFlushWorker,
+  createHostRateLimiter,
+  createOutlookAccountSemaphore,
+  isCalDAVProvider,
   ensureValidToken,
   isTimeoutError,
   buildCalendarBackoffState,
@@ -26,7 +30,9 @@ import {
   PROVIDER_INGEST_REQUEST_TIMEOUT_MS,
   REAUTHENTICATION_SOURCE_INGEST,
 } from "@keeper.sh/constants";
-import type { CalendarBackoffState, IngestWideEventFields, IngestionFetchEventsResult, IngestionPersistenceWork, RedisRateLimiter, RequiredSourceRanges, TokenState } from "@keeper.sh/calendar";
+import type { SemaphoreLease } from "@keeper.sh/calendar";
+import type { FlushReservation, IngestionResult } from "@keeper.sh/calendar";
+import type { CalendarBackoffState, IngestWideEventFields, IngestionFetchEventsResult, IngestionPersistenceWork, OutlookAccountSemaphore, RedisLeaseClient, RedisRateLimiter, RequiredSourceRanges, TokenState } from "@keeper.sh/calendar";
 import {
   createIcsSourceFetcher,
   interpretFullDayTimedEventsAsAllDay,
@@ -49,33 +55,62 @@ import {
   sourceDestinationMappingsTable,
   userSubscriptionsTable,
 } from "@keeper.sh/database/schema";
-import { and, arrayContains, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, arrayContains, count, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { withCronWideEvent } from "@/utils/with-wide-event";
 import { context, widelog } from "@/utils/logging";
-import { database, refreshLockRedis, refreshLockStore } from "@/context";
+import {
+  database,
+  flushDatabase,
+  flushDrainRegistry,
+  refreshLockRedis,
+  refreshLockStore,
+} from "@/context";
 import env from "@/env";
 import { safeFetchOptions } from "@/utils/safe-fetch-options";
 import {
   resolveMissingCalendarFailure,
   shouldTreatAsProviderAuthFailure,
 } from "@/utils/provider-ingest-failure";
-import { hasErrorFlag, requiresReauthentication } from "@/utils/error-flags";
+import {
+  hasErrorFlag,
+  isIngestInfrastructureError,
+  requiresReauthentication,
+} from "@/utils/error-flags";
 import { resolveOAuthIngestionState } from "@/utils/oauth-ingestion-state";
 import { withAbortTimeout } from "@/utils/with-abort-timeout";
 import { createSyncLock } from "@keeper.sh/sync";
 import { enqueueDestinationSyncsForUsers } from "@/utils/enqueue-destination-syncs";
 import { deleteEventStatesInChunks } from "@/utils/delete-event-states";
 import { selectIngestWideEventFields } from "@/utils/ingest-wide-event";
+import { WEIGHT_BUDGET, estimateIngestWeight } from "@/utils/ingest-weight";
 
 const SOURCE_TIMEOUT_MS = INGEST_SOURCE_TIMEOUT_MS;
 const SOURCE_TIMEOUT_DATABASE_GRACE_MS = 5000;
-const SOURCE_CONCURRENCY = 5;
+
+/*
+ * The same (namespace, calendarId) lock is held minutes-scale by sync-user write-back and
+ * the API caldav persist, so a contended calendar must fail ITS flush quickly instead of
+ * parking every queued flush behind it while it holds the single serial writer slot.
+ */
+const ADVISORY_LOCK_WAIT_BOUND_MS = 5000;
+/*
+ * Sized to the shared cron database pool (DATABASE_POOL_MAX 25 in deploy/compose.yaml):
+ * every launched source performs pooled reads BEFORE the weighted reserve() can park it,
+ * so groups times USER_CALENDAR_CONCURRENCY must stay within the pool with headroom for
+ * the other cron jobs sharing `database`.
+ */
+const USER_GROUP_CONCURRENCY = 12;
 /*
  * A per-pass budget against Graph's documented MailboxConcurrency of four, not a
  * hard ceiling: webhook-driven syncs in the worker hit the same mailbox
  * independently, so combined traffic can still reach the provider limit.
  */
 const USER_CALENDAR_CONCURRENCY = 2;
+/*
+ * ICS keeps a small dedicated group budget: parsing is CPU-bound and starves
+ * the Bun event loop when run wide open — observed 2026-08-17.
+ */
+const ICS_PARSE_CONCURRENCY = 4;
 const SOURCE_INGEST_LOCK_KEY_PREFIX = "source-ingest:";
 
 /*
@@ -90,7 +125,23 @@ const instrumentedLockRedis = {
     measureRedisCommand(() => refreshLockRedis.get(key)),
 };
 
-const sourceIngestLock = createSyncLock(instrumentedLockRedis);
+/*
+ * An overlapping pass is a routine identical run, not a mapping mutation, so it must
+ * acquire as "background" to keep IS_CURRENT true for the in-flight holder. Under the
+ * default "preempting" class every overlap discarded the holder's finished work, and a
+ * source slower than its deadline never recorded its first ingest.
+ */
+const sourceIngestLock = createSyncLock(instrumentedLockRedis, "background");
+
+/*
+ * The ioredis set overloads type expiry/condition tokens positionally, so the
+ * semaphore's variadic option list has to go through the generic command runner.
+ */
+const leaseLockRedis: RedisLeaseClient = {
+  del: (...keys: string[]): Promise<number> => refreshLockRedis.del(...keys),
+  set: (key: string, value: string, ...options: string[]): Promise<string | null> =>
+    refreshLockRedis.call("set", key, value, ...options) as Promise<string | null>,
+};
 
 const measureDatabaseRead = async <TResult>(
   read: () => PromiseLike<TResult>,
@@ -140,6 +191,26 @@ const logIngestBackoff = (state: CalendarBackoffState): void => {
   }
 };
 
+/*
+ * Runs after the work has committed, so a Redis blip in the probe or a failed write must
+ * never clobber the committed result with a rejection, nor feed the backoff escalator.
+ */
+const resetIngestBackoffIfCurrent = async (
+  calendarId: string,
+  isCurrent: () => Promise<boolean>,
+): Promise<void> => {
+  try {
+    if (await isCurrent()) {
+      await resetIngestBackoff(calendarId);
+    }
+  } catch (error) {
+    widelog.errorFields(error, {
+      slug: "ingest-backoff-reset-failed",
+      retriable: true,
+    });
+  }
+};
+
 const runSourceIngest = async <TResult>(
   calendarId: string,
   signal: AbortSignal,
@@ -169,8 +240,8 @@ const runSourceIngest = async <TResult>(
     }
     try {
       const result = await work(lockResult.handle.isCurrent);
-      if (attempt.failureCount > 0 && await lockResult.handle.isCurrent()) {
-        await resetIngestBackoff(calendarId);
+      if (attempt.failureCount > 0) {
+        await resetIngestBackoffIfCurrent(calendarId, lockResult.handle.isCurrent);
       }
       return result;
     } catch (error) {
@@ -180,7 +251,13 @@ const runSourceIngest = async <TResult>(
       throw error;
     }
   } finally {
-    await lockResult.handle.release();
+    /* The lock TTL already reclaims the hold, so a failed release must not reject. */
+    await lockResult.handle.release().catch((error: unknown) => {
+      widelog.errorFields(error, {
+        slug: "source-lock-release-failed",
+        retriable: true,
+      });
+    });
   }
 };
 
@@ -229,9 +306,8 @@ const resolveIngestErrorSlug = (error: unknown): string => {
 
 /*
  * A queued transaction's callback runs in the async context of whoever released the
- * connection (see packages/database/src/utils/pool-telemetry.ts), so nothing inside
- * it may call widelog. Everything is measured into this ledger and emitted once the
- * transaction promise resolves, back in the per-source context.
+ * connection (see packages/database/src/utils/pool-telemetry.ts), so nothing inside it may
+ * call widelog. Measured here and emitted once the transaction resolves, back in context.
  */
 interface PersistenceLedger {
   advisoryLockMs: number;
@@ -278,11 +354,7 @@ const measureLedgerWrite = async <TResult>(
 };
 
 const emitPersistenceLedger = (ledger: PersistenceLedger, requestedAt: number): void => {
-  /*
-   * A transaction that never got a connection is the pool-exhaustion case this
-   * exists to catch, so the wait still has to be charged; there is simply nothing
-   * after it to report.
-   */
+  /* Pool exhaustion is the case this exists to catch, so the wait is charged regardless. */
   if (ledger.grantedAt === 0) {
     recordSegment("wait.db_pool_ms", performance.now() - requestedAt);
     return;
@@ -302,15 +374,63 @@ const emitPersistenceLedger = (ledger: PersistenceLedger, requestedAt: number): 
   }
 };
 
+/*
+ * Collection is concurrent but writing is not, so high fetch concurrency can never open
+ * concurrent write transactions against Postgres. The bound matters as much as the
+ * serialization: a bare promise chain would also serialize, but with nothing to stop an
+ * unbounded backlog of fetched payloads queueing behind a slow flush.
+ */
+const FLUSH_QUEUE_CAPACITY = 50;
+
+/*
+ * Memory-weighted rather than item-counted: a source reserves its estimated payload weight
+ * BEFORE its fetch begins, so a full budget stops fetches and blocked collectors hold nothing.
+ */
+const ingestFlushWriter = createSerialFlushWorker(
+  (task: () => Promise<IngestionResult>) => task(),
+  { budget: WEIGHT_BUDGET, capacity: FLUSH_QUEUE_CAPACITY },
+);
+
+flushDrainRegistry.register(() => ingestFlushWriter.close());
+
+type IngestFlushReservation = FlushReservation<() => Promise<IngestionResult>, IngestionResult>;
+
+/* The wait is its own segment so "the budget was full" never masquerades as rate limiting. */
+const reserveIngestFlushWeight = async (
+  calendarId: string,
+  hasEverIngested: boolean,
+  signal: AbortSignal,
+): Promise<IngestFlushReservation> => {
+  const weight = await estimateIngestWeight(
+    {
+      countStoredEvents: async (targetCalendarId: string): Promise<number> => {
+        const rows = await database
+          .select({ count: count() })
+          .from(eventStatesTable)
+          .where(eq(eventStatesTable.calendarId, targetCalendarId));
+        return rows[0]?.count ?? 0;
+      },
+    },
+    calendarId,
+    hasEverIngested,
+  );
+  return await measureSegment(
+    "wait.flush_reserve_ms",
+    () => ingestFlushWriter.reserve(weight, signal),
+  );
+};
+
 const createIngestionPersistenceTransaction = (
   calendarId: string,
   signal: AbortSignal,
   deadlineAt: number,
+  reservation: IngestFlushReservation,
 ) =>
   (work: IngestionPersistenceWork) => {
     const ledger = createPersistenceLedger();
     const requestedAt = performance.now();
-    return database.transaction(async (transaction) => {
+    /* Carries the source's own deadline so a wedged run is not bounded by the generic fallback. */
+    return reservation.submit(Object.assign(() => flushDatabase.transaction(async (transaction) => {
     ledger.grantedAt = performance.now();
     const setRemainingStatementTimeout = async (): Promise<void> => {
       signal.throwIfAborted();
@@ -327,7 +447,18 @@ const createIngestionPersistenceTransaction = (
       ${String(initialRemainingMs + SOURCE_TIMEOUT_DATABASE_GRACE_MS)},
       true
     )`);
-    await setRemainingStatementTimeout();
+    /*
+     * A small constant, never the source's full remaining deadline: the lock can be held
+     * minutes-scale elsewhere while this transaction occupies the single serial writer slot.
+     */
+    const boundedLockWaitMs = Math.max(
+      1,
+      Math.min(ADVISORY_LOCK_WAIT_BOUND_MS, Math.ceil(deadlineAt - Date.now())),
+    );
+    signal.throwIfAborted();
+    await transaction.execute(
+      sql`select set_config('statement_timeout', ${String(boundedLockWaitMs)}, true)`,
+    );
     const advisoryLockRequestedAt = performance.now();
     try {
       await transaction.execute(
@@ -337,6 +468,7 @@ const createIngestionPersistenceTransaction = (
       ledger.advisoryLockMs += performance.now() - advisoryLockRequestedAt;
     }
     signal.throwIfAborted();
+    await setRemainingStatementTimeout();
 
     const result = await work({
       readExistingEvents: async () => {
@@ -400,11 +532,7 @@ const createIngestionPersistenceTransaction = (
         if (changes.coverage) {
           const { futureRange, historicRange, window } = changes.coverage;
           await setRemainingStatementTimeout();
-          /*
-           * Snapshot sources report coverage on every run. The window is anchored to
-           * the start of the day, so rewriting it unconditionally would churn this row
-           * (and its updatedAt) once per tick rather than once per day.
-           */
+          /* The window is day-anchored, so an unconditional rewrite would churn updatedAt per tick. */
           ledger.writeCount += 1;
           await measureLedgerWrite(ledger, () => transaction
             .update(calendarsTable)
@@ -443,12 +571,21 @@ const createIngestionPersistenceTransaction = (
       signal.throwIfAborted();
       ledger.callbackReturnedAt = performance.now();
       return result;
-    }).finally(() => {
+    }), {
+      deadlineAt,
       /*
-       * This is the one instrumentation site whose own failure could rewrite the
-       * ingest's result: a throw here would reject a committed transaction, or
-       * replace the real ingest error with a telemetry one.
+       * Redis I/O must settle after the queue wait but BEFORE the transaction opens, so a
+       * brownout never parks the sole flush connection, the advisory lock, or the writer slot.
        */
+      prepare: async (): Promise<IngestionResult | null> => {
+        const { preflight } = work;
+        if (!preflight) {
+          return null;
+        }
+        return await preflight();
+      },
+    })).finally(() => {
+      /* A throw here would reject a committed transaction or mask the real ingest error. */
       try {
         emitPersistenceLedger(ledger, requestedAt);
       } catch (error) {
@@ -475,12 +612,105 @@ const resolveTokenRefresher = (provider: string) => {
   return null;
 };
 
-const resolveRateLimiter = (provider: string, userId: string): RedisRateLimiter | undefined => {
-  if (provider !== "google") {
-    return;
+interface RateLimiterSourceContext {
+  accountId?: string;
+  serverUrl?: string;
+  url?: string;
+  userId: string;
+}
+
+const resolveTargetHost = (target: string | null): string | null => {
+  if (!target) {
+    return null;
+  }
+  try {
+    return new URL(target).hostname;
+  } catch {
+    return null;
+  }
+};
+
+/*
+ * Per-run concurrency, not per-request pacing: one ingest holds exactly one lease, and
+ * pagination reuses it. The TTL outlives the ingest timeout so a crashed holder still frees.
+ */
+/*
+ * Released eagerly rather than at the 150s TTL: an account's fourth calendar in a pass
+ * would otherwise wait past its own 120s deadline for a slot nobody is going to free.
+ */
+interface IngestRateLimiter extends RedisRateLimiter {
+  dispose?: () => Promise<void>;
+}
+
+const releaseOnceAcquired = async (
+  semaphore: OutlookAccountSemaphore,
+  lease: Promise<SemaphoreLease>,
+): Promise<void> => {
+  const acquired = await lease.then(
+    (held: SemaphoreLease) => held,
+    () => null,
+  );
+  if (acquired) {
+    await semaphore.release(acquired);
+  }
+};
+
+const createSemaphoreRateLimiterAdapter = (
+  semaphore: OutlookAccountSemaphore,
+): IngestRateLimiter => {
+  let lease: Promise<SemaphoreLease> | null = null;
+  return {
+    acquire: async (_count: number, signal?: AbortSignal): Promise<void> => {
+      if (!lease) {
+        lease = measureSegment("wait.rate_limiter_ms", () => semaphore.acquireLease(signal));
+      }
+      await lease;
+    },
+    /* A deadline can fire mid-acquire, so the lease is awaited here or its slot waits out the TTL. */
+    dispose: async (): Promise<void> => {
+      if (!lease) {
+        return;
+      }
+      const pending = lease;
+      lease = null;
+      await releaseOnceAcquired(semaphore, pending);
+    },
+  };
+};
+
+const resolveRateLimiter = (
+  provider: string,
+  source: RateLimiterSourceContext,
+): IngestRateLimiter | undefined => {
+  if (provider === "google") {
+    return createGoogleUserRateLimiter(refreshLockRedis, source.userId, "ingest");
   }
 
-  return createGoogleUserRateLimiter(refreshLockRedis, userId, "ingest");
+  if (provider === "outlook") {
+    if (!source.accountId) {
+      return;
+    }
+    return createSemaphoreRateLimiterAdapter(
+      createOutlookAccountSemaphore(leaseLockRedis, source.accountId),
+    );
+  }
+
+  if (isCalDAVProvider(provider)) {
+    const host = resolveTargetHost(source.serverUrl ?? null);
+    if (!host) {
+      return;
+    }
+    return createHostRateLimiter(refreshLockRedis, host);
+  }
+
+  if (provider !== "ical" && provider !== "ics") {
+    return;
+  }
+  const host = resolveTargetHost(source.url ?? null);
+  if (!host) {
+    return;
+  }
+  return createHostRateLimiter(refreshLockRedis, host);
 };
 
 const getRequiredSourceRanges = async (
@@ -864,12 +1094,6 @@ const ingestOAuthSources = async (calendarIds?: string[]): Promise<IngestionBatc
         ...buildOAuthSourceIdFilter(calendarIds),
       ),
     )
-  /*
-   * Null ingestWindowRecordedAt means exactly "never ingested": it is written by
-   * the first successful ingest of every family. The plan is coalesced because most
-   * free users have no subscription row at all, and a bare NULL would sort ahead of
-   * 'pro' under DESC.
-   */
     .orderBy(
       desc(isNull(calendarsTable.ingestWindowRecordedAt)),
       desc(sql`coalesce(${userSubscriptionsTable.plan}, 'free') = 'pro'`),
@@ -966,12 +1190,16 @@ const ingestOAuthSources = async (calendarIds?: string[]): Promise<IngestionBatc
                 if (ingestionState.fullSyncReason) {
                   widelog.set("full_sync.reason", ingestionState.fullSyncReason);
                 }
+                const rateLimiter = resolveRateLimiter(currentSource.provider, {
+                  accountId: currentSource.accountId,
+                  userId: currentSource.userId,
+                });
                 const fetcher = resolveOAuthFetcher(currentSource.provider, {
                   accessToken: tokenState.accessToken,
                   calendarId: source.calendarId,
                   externalCalendarId: currentSource.externalCalendarId,
                   syncToken: ingestionState.syncToken,
-                  rateLimiter: resolveRateLimiter(currentSource.provider, currentSource.userId),
+                  rateLimiter,
                   signal,
                   plan: createSourceIngestionPlan(
                     ranges.historicRange,
@@ -981,26 +1209,45 @@ const ingestOAuthSources = async (calendarIds?: string[]): Promise<IngestionBatc
                 if (!fetcher) {
                   return createSkippedIngestionResult(currentSource.userId);
                 }
-                const ingestionResult = await ingestSource({
-                  calendarId: source.calendarId,
-                  fetchEvents: () => fetcher.fetchEvents(),
-                  isCurrent,
-                  withPersistenceTransaction:
-                    createIngestionPersistenceTransaction(source.calendarId, signal, deadlineAt),
-                  onIngestEvent: recordIngestWideEvent,
-                });
-                return {
-                  eventsAdded: ingestionResult.eventsAdded,
-                  eventsRemoved: ingestionResult.eventsRemoved,
-                  reauthentication: {
-                    accountId: currentSource.accountId,
-                    demand: "authenticated" as const,
-                  },
-                  shouldPush: ingestionState.authorityChanged
-                    || ingestionResult.eventsAdded > 0
-                    || ingestionResult.eventsRemoved > 0,
-                  userId: currentSource.userId,
-                };
+                const reservation = await reserveIngestFlushWeight(
+                  source.calendarId,
+                  currentSource.ingestWindowRecordedAt !== null,
+                  signal,
+                );
+                try {
+                  const ingestionResult = await ingestSource({
+                    calendarId: source.calendarId,
+                    fetchEvents: () => fetcher.fetchEvents(),
+                    isCurrent,
+                    withPersistenceTransaction: createIngestionPersistenceTransaction(
+                      source.calendarId,
+                      signal,
+                      deadlineAt,
+                      reservation,
+                    ),
+                    onIngestEvent: recordIngestWideEvent,
+                  });
+                  return {
+                    eventsAdded: ingestionResult.eventsAdded,
+                    eventsRemoved: ingestionResult.eventsRemoved,
+                    reauthentication: {
+                      accountId: currentSource.accountId,
+                      demand: "authenticated" as const,
+                    },
+                    shouldPush: ingestionState.authorityChanged
+                      || ingestionResult.eventsAdded > 0
+                      || ingestionResult.eventsRemoved > 0,
+                    userId: currentSource.userId,
+                  };
+                } finally {
+                  reservation.release();
+                  await rateLimiter?.dispose?.().catch((error: unknown) => {
+                    widelog.errorFields(error, {
+                      slug: "rate-limiter-dispose-failed",
+                      retriable: true,
+                    });
+                  });
+                }
               }, shouldApplyOAuthIngestBackoff),
             );
             if (!result) {
@@ -1048,7 +1295,7 @@ const ingestOAuthSources = async (calendarIds?: string[]): Promise<IngestionBatc
       SOURCE_TIMEOUT_MS);
     }),
 oauthSources.map((source) => source.userId),
-    { groupConcurrency: SOURCE_CONCURRENCY, taskConcurrency: USER_CALENDAR_CONCURRENCY },
+    { groupConcurrency: USER_GROUP_CONCURRENCY, taskConcurrency: USER_CALENDAR_CONCURRENCY },
   );
 
   return summariseIngestionSettlements(
@@ -1146,8 +1393,15 @@ const ingestCalDAVSources = async (): Promise<IngestionBatchResult> => {
                   return createSkippedIngestionResult(source.userId);
                 }
                 const ranges = await getRequiredSourceRanges(source.calendarId);
+                const rateLimiter = resolveRateLimiter(currentSource.provider, {
+                  serverUrl: currentSource.serverUrl,
+                  userId: currentSource.userId,
+                });
                 const fetcher = createCalDAVSourceFetcher({
                   calendarUrl: currentSource.calendarUrl ?? currentSource.serverUrl,
+                  onBeforeRequest: async () => {
+                    await rateLimiter?.acquire(1, signal);
+                  },
                   serverUrl: currentSource.serverUrl,
                   username: currentSource.username,
                   password: decryptPassword(currentSource.encryptedPassword, encryptionKey),
@@ -1157,34 +1411,49 @@ const ingestCalDAVSources = async (): Promise<IngestionBatchResult> => {
                     ranges.futureRange,
                   ),
                 });
-                const ingestionResult = await ingestSource({
-                  calendarId: source.calendarId,
-                  fetchEvents: async () => {
-                    const fetchResult = await fetcher.fetchEvents();
-                    recordSkippedResources(
-                      fetchResult.skippedResourceCount ?? 0,
-                      fetchResult.skippedResourceReasons ?? [],
-                    );
-                    return fetchResult;
-                  },
-                  isCurrent,
-                  withPersistenceTransaction:
-                    createIngestionPersistenceTransaction(source.calendarId, signal, deadlineAt),
-                  onIngestEvent: recordIngestWideEvent,
-                });
-                return {
-                  eventsAdded: ingestionResult.eventsAdded,
-                  eventsRemoved: ingestionResult.eventsRemoved,
-                  reauthentication: {
-                    accountId: source.accountId,
-                    demand: "authenticated" as const,
-                  },
-                  shouldPush: hasSourceAuthorityChanged(currentSource, ranges)
-                    || ingestionResult.eventsAdded > 0
-                    || ingestionResult.eventsRemoved > 0,
-                  userId: currentSource.userId,
-                };
-              }, (error) => !shouldTreatAsProviderAuthFailure(error)),
+                const reservation = await reserveIngestFlushWeight(
+                  source.calendarId,
+                  currentSource.ingestWindowRecordedAt !== null,
+                  signal,
+                );
+                try {
+                  const ingestionResult = await ingestSource({
+                    calendarId: source.calendarId,
+                    fetchEvents: async () => {
+                      const fetchResult = await fetcher.fetchEvents();
+                      recordSkippedResources(
+                        fetchResult.skippedResourceCount ?? 0,
+                        fetchResult.skippedResourceReasons ?? [],
+                      );
+                      return fetchResult;
+                    },
+                    isCurrent,
+                    withPersistenceTransaction: createIngestionPersistenceTransaction(
+                      source.calendarId,
+                      signal,
+                      deadlineAt,
+                      reservation,
+                    ),
+                    onIngestEvent: recordIngestWideEvent,
+                  });
+                  return {
+                    eventsAdded: ingestionResult.eventsAdded,
+                    eventsRemoved: ingestionResult.eventsRemoved,
+                    reauthentication: {
+                      accountId: source.accountId,
+                      demand: "authenticated" as const,
+                    },
+                    shouldPush: hasSourceAuthorityChanged(currentSource, ranges)
+                      || ingestionResult.eventsAdded > 0
+                      || ingestionResult.eventsRemoved > 0,
+                    userId: currentSource.userId,
+                  };
+                } finally {
+                  reservation.release();
+                }
+              }, (error) =>
+                !shouldTreatAsProviderAuthFailure(error)
+                && !isIngestInfrastructureError(error)),
             );
             if (!result) {
               widelog.set("outcome", "skipped");
@@ -1225,7 +1494,7 @@ const ingestCalDAVSources = async (): Promise<IngestionBatchResult> => {
       SOURCE_TIMEOUT_MS);
     }),
 caldavSources.map((source) => source.userId),
-    { groupConcurrency: SOURCE_CONCURRENCY, taskConcurrency: USER_CALENDAR_CONCURRENCY },
+    { groupConcurrency: USER_GROUP_CONCURRENCY, taskConcurrency: USER_CALENDAR_CONCURRENCY },
   );
 
   return summariseIngestionSettlements(
@@ -1299,6 +1568,10 @@ const ingestIcsSources = async (): Promise<IngestionBatchResult> => {
                   return createSkippedIngestionResult(source.userId);
                 }
                 const ranges = await getRequiredSourceRanges(source.calendarId);
+                const rateLimiter = resolveRateLimiter("ical", {
+                  url: currentSource.url,
+                  userId: currentSource.userId,
+                });
                 const fetcher = createIcsSourceFetcher({
                   calendarId: source.calendarId,
                   url: currentSource.url,
@@ -1309,31 +1582,46 @@ const ingestIcsSources = async (): Promise<IngestionBatchResult> => {
                     ranges.futureRange,
                   ),
                 });
-                const ingestionResult = await ingestSource({
-                  calendarId: source.calendarId,
-                  fetchEvents: () =>
-                    fetcher.fetchEvents({
-                      interpretEvents: (events, fetchContext) =>
-                        interpretFullDayTimedEventsAsAllDay(events, {
-                          calendarTimeZone: fetchContext.calendarTimeZone,
-                          enabled: currentSource.treatFullDayTimedEventsAsAllDay,
-                        }),
-                    }),
-                  isCurrent,
-                  withPersistenceTransaction:
-                    createIngestionPersistenceTransaction(source.calendarId, signal, deadlineAt),
-                  onIngestEvent: recordIngestWideEvent,
-                });
-                return {
-                  eventsAdded: ingestionResult.eventsAdded,
-                  eventsRemoved: ingestionResult.eventsRemoved,
-                  reauthentication: null,
-                  shouldPush: hasSourceAuthorityChanged(currentSource, ranges)
-                    || ingestionResult.eventsAdded > 0
-                    || ingestionResult.eventsRemoved > 0,
-                  userId: currentSource.userId,
-                };
-              }, () => true),
+                const reservation = await reserveIngestFlushWeight(
+                  source.calendarId,
+                  currentSource.ingestWindowRecordedAt !== null,
+                  signal,
+                );
+                try {
+                  const ingestionResult = await ingestSource({
+                    calendarId: source.calendarId,
+                    fetchEvents: async () => {
+                      await rateLimiter?.acquire(1, signal);
+                      return await fetcher.fetchEvents({
+                        interpretEvents: (events, fetchContext) =>
+                          interpretFullDayTimedEventsAsAllDay(events, {
+                            calendarTimeZone: fetchContext.calendarTimeZone,
+                            enabled: currentSource.treatFullDayTimedEventsAsAllDay,
+                          }),
+                      });
+                    },
+                    isCurrent,
+                    withPersistenceTransaction: createIngestionPersistenceTransaction(
+                      source.calendarId,
+                      signal,
+                      deadlineAt,
+                      reservation,
+                    ),
+                    onIngestEvent: recordIngestWideEvent,
+                  });
+                  return {
+                    eventsAdded: ingestionResult.eventsAdded,
+                    eventsRemoved: ingestionResult.eventsRemoved,
+                    reauthentication: null,
+                    shouldPush: hasSourceAuthorityChanged(currentSource, ranges)
+                      || ingestionResult.eventsAdded > 0
+                      || ingestionResult.eventsRemoved > 0,
+                    userId: currentSource.userId,
+                  };
+                } finally {
+                  reservation.release();
+                }
+              }, (error) => !isIngestInfrastructureError(error)),
             );
             if (!result) {
               widelog.set("outcome", "skipped");
@@ -1361,7 +1649,7 @@ const ingestIcsSources = async (): Promise<IngestionBatchResult> => {
       SOURCE_TIMEOUT_MS);
     }),
 icsSources.map((source) => source.userId),
-    { groupConcurrency: SOURCE_CONCURRENCY, taskConcurrency: USER_CALENDAR_CONCURRENCY },
+    { groupConcurrency: ICS_PARSE_CONCURRENCY, taskConcurrency: USER_CALENDAR_CONCURRENCY },
   );
 
   return summariseIngestionSettlements(
@@ -1407,5 +1695,5 @@ export default withCronWideEvent({
   overrunProtection: false,
 }) satisfies CronOptions;
 
-export { ingestOAuthSources };
+export { ingestOAuthSources, resolveRateLimiter };
 export type { IngestionBatchResult };
