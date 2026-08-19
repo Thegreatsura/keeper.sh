@@ -23,6 +23,7 @@ import {
   parseICalCalendarsToRemoteEvents,
   parseICalToRemoteEvent,
 } from "../shared/ics";
+import type { EventUpdate } from "../../../core/sync-engine/types";
 import type { SafeFetchOptions } from "../../../utils/safe-fetch";
 import { normalizeCalDAVEvent } from "./normalize-event";
 
@@ -162,6 +163,13 @@ const toListingDiagnostics = (listing: CalDAVListingStats): Record<string, numbe
   "remote_objects.unrequested_count": listing.unrequestedCount,
 });
 
+const toCalendarBaseUrl = (calendarUrl: string): string => {
+  if (calendarUrl.endsWith("/")) {
+    return calendarUrl;
+  }
+  return `${calendarUrl}/`;
+};
+
 const createCalDAVSyncProvider = (config: CalDAVSyncProviderConfig) => {
   const calendarHost = new URL(config.calendarUrl).hostname;
   const removeCounts: CalDAVRemoveCounts = {
@@ -236,6 +244,53 @@ const createCalDAVSyncProvider = (config: CalDAVSyncProviderConfig) => {
             }
 
             return { deleteId: uid, echo: CALDAV_PUSH_ECHO, remoteId: uid, success: true };
+          } catch (error) {
+            if (config.safeFetchOptions?.signal?.aborted) {
+              throw error;
+            }
+            return createFailureResult(error);
+          }
+        }, config.safeFetchOptions?.signal),
+      ),
+    );
+
+  const calendarBaseUrl = toCalendarBaseUrl(config.calendarUrl);
+
+  const toObjectUrl = (deleteId: string): string => {
+    if (deleteId.includes("/")) {
+      return new URL(deleteId, calendarBaseUrl).href;
+    }
+    return new URL(`${deleteId}.ics`, calendarBaseUrl).href;
+  };
+
+  /*
+   * Servers may return the href percent-encoded, and every Keeper UID contains an
+   * "@". Comparing decoded basenames keeps the write on the object the mapping
+   * already points at instead of a reconstructed href that never matches.
+   */
+  const resolveUpdateTargetUrl = (deleteId: string, uid: string): string => {
+    const objectUrl = toObjectUrl(deleteId);
+    const filename = decodeURIComponent(new URL(objectUrl).pathname.split("/").at(-1) ?? "");
+    if (filename !== `${uid}.ics`) {
+      throw new Error(`CalDAV update target ${objectUrl} does not belong to event ${uid}`);
+    }
+    return objectUrl;
+  };
+
+  const updateEvents = (updates: EventUpdate[]): Promise<PushResult[]> =>
+    Promise.all(
+      updates.map(({ deleteId, event }) =>
+        rateLimiter.execute(async (): Promise<PushResult> => {
+          try {
+            const uid = generateDeterministicEventUid(event.id);
+            const objectUrl = resolveUpdateTargetUrl(deleteId, uid);
+
+            await client.updateCalendarObjectByUrl({
+              iCalString: eventToICalString(event, uid),
+              objectUrl,
+            });
+
+            return { deleteId, echo: CALDAV_PUSH_ECHO, remoteId: uid, success: true };
           } catch (error) {
             if (config.safeFetchOptions?.signal?.aborted) {
               throw error;
@@ -369,6 +424,7 @@ const createCalDAVSyncProvider = (config: CalDAVSyncProviderConfig) => {
 
   return {
     pushEvents,
+    updateEvents,
     deleteEvents,
     getSyncDiagnostics,
     listRemoteEvents,

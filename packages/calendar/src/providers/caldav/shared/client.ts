@@ -58,7 +58,7 @@ class CalDAVIncompleteMultiGetError extends Error {
   }
 }
 
-type CalDAVWriteOperation = "create" | "delete";
+type CalDAVWriteOperation = "create" | "delete" | "update";
 
 class CalDAVHttpError extends Error {
   readonly operation: CalDAVWriteOperation;
@@ -308,6 +308,19 @@ class CalDAVClient {
       etag: params.etag,
       objectUrl: CalDAVClient.normalizeUrl(params.calendarUrl, params.filename),
     });
+  }
+
+  async updateCalendarObjectByUrl(params: {
+    objectUrl: string;
+    iCalString: string;
+  }): Promise<void> {
+    const client = await this.getClient();
+
+    const response = await client.updateCalendarObject({
+      calendarObject: { data: params.iCalString, url: params.objectUrl },
+    });
+
+    await assertSuccessfulResponse(response, "update");
   }
 
   async deleteCalendarObjectByUrl(params: {
