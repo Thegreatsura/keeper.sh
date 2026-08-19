@@ -8,9 +8,11 @@ import {
   createMicrosoftTokenRefresher,
   createCoordinatedRefresher,
   createGoogleUserRateLimiter,
+  createCalDAVAccountRateLimiter,
   createHostRateLimiter,
   createOutlookAccountSemaphore,
   isCalDAVProvider,
+  isHostedCalDAVProvider,
   ensureValidToken,
   isTimeoutError,
   buildCalendarBackoffState,
@@ -727,6 +729,9 @@ const resolveRateLimiter = (
   }
 
   if (isCalDAVProvider(provider)) {
+    if (isHostedCalDAVProvider(provider) && source.accountId) {
+      return createCalDAVAccountRateLimiter(refreshLockRedis, source.accountId);
+    }
     const host = resolveTargetHost(source.serverUrl ?? null);
     if (!host) {
       return;
@@ -1451,6 +1456,7 @@ const ingestCalDAVSources = async (lane: IngestLane): Promise<IngestionBatchResu
                 }
                 const ranges = await getRequiredSourceRanges(lane, source.calendarId);
                 const rateLimiter = resolveRateLimiter(currentSource.provider, {
+                  accountId: currentSource.accountId,
                   serverUrl: currentSource.serverUrl,
                   userId: currentSource.userId,
                 });

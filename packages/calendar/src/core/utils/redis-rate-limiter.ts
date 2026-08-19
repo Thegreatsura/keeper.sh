@@ -190,6 +190,17 @@ const createGoogleUserRateLimiter = (
   { requestsPerMinute: GOOGLE_LANE_REQUESTS_PER_MINUTE[lane] },
 );
 
+const CALDAV_ACCOUNT_REQUESTS_PER_MINUTE = 240;
+
+const createCalDAVAccountRateLimiter = (
+  redis: RedisScriptClient,
+  accountId: string,
+): RedisRateLimiter => createRedisRateLimiter(
+  redis,
+  `ratelimit:caldav-account:${accountId}`,
+  { requestsPerMinute: CALDAV_ACCOUNT_REQUESTS_PER_MINUTE },
+);
+
 const HOST_REQUESTS_PER_MINUTE = 600;
 
 interface HostRateLimiterOptions {
@@ -232,6 +243,8 @@ const createOutlookAccountSemaphore = (
 
 export {
   createGoogleUserRateLimiter,
+  CALDAV_ACCOUNT_REQUESTS_PER_MINUTE,
+  createCalDAVAccountRateLimiter,
   createHostRateLimiter,
   createOutlookAccountSemaphore,
   createRedisRateLimiter,
