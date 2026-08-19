@@ -1,4 +1,4 @@
-import type { RefreshLockStore } from "./refresh-coordinator";
+import type { CredentialRefreshResult, RefreshLockStore } from "./refresh-coordinator";
 import { runWithCredentialRefreshLock } from "./refresh-coordinator";
 import { isOAuthReauthRequiredError } from "./error-classification";
 import {
@@ -9,7 +9,7 @@ import {
   calendarAccountsTable,
   oauthCredentialsTable,
 } from "@keeper.sh/database/schema";
-import { REAUTHENTICATION_TOKEN_REFRESH } from "@keeper.sh/constants";
+import { REAUTHENTICATION_TOKEN_REFRESH, TOKEN_REFRESH_BUFFER_MS } from "@keeper.sh/constants";
 import { classifyDatabaseError } from "@keeper.sh/database";
 import { widelog } from "widelogger";
 import { abortableSleep } from "../utils/backoff";
@@ -66,6 +66,36 @@ interface CoordinatedRefresherOptions {
 const createCoordinatedRefresher = (options: CoordinatedRefresherOptions) => {
   const { database, oauthCredentialId, calendarAccountId, refreshLockStore, rawRefresh } = options;
 
+  /*
+   * A peer that won the lock persists before releasing it, so its result is readable here.
+   * Refreshing again would rotate the refresh token out from under it.
+   */
+  const readFreshCredential = async (): Promise<CredentialRefreshResult | null> => {
+    const [stored] = await database
+      .select({
+        accessToken: oauthCredentialsTable.accessToken,
+        expiresAt: oauthCredentialsTable.expiresAt,
+      })
+      .from(oauthCredentialsTable)
+      .where(eq(oauthCredentialsTable.id, oauthCredentialId))
+      .limit(1);
+    if (!stored?.expiresAt || !stored.accessToken) {
+      return null;
+    }
+    /*
+     * The caller refreshes whenever less than TOKEN_REFRESH_BUFFER_MS remains, so adopting
+     * anything shorter hands back a credential it will immediately try to refresh again.
+     */
+    const remainingMs = stored.expiresAt.getTime() - Date.now();
+    if (remainingMs <= TOKEN_REFRESH_BUFFER_MS) {
+      return null;
+    }
+    return {
+      access_token: stored.accessToken,
+      expires_in: Math.floor(remainingMs / MS_PER_SECOND),
+    };
+  };
+
   return (refreshToken: string) =>
     runWithCredentialRefreshLock(
       oauthCredentialId,
@@ -112,6 +142,7 @@ const createCoordinatedRefresher = (options: CoordinatedRefresherOptions) => {
         }
       },
       refreshLockStore,
+      readFreshCredential,
     );
 };
 

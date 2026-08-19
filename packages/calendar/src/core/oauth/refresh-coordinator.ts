@@ -6,39 +6,80 @@ interface CredentialRefreshResult {
   refresh_token?: string;
 }
 
+type ReadFreshCredential = () => Promise<CredentialRefreshResult | null>;
+
 interface RefreshLockStore {
   tryAcquire(key: string, ttlSeconds: number): Promise<boolean>;
   release(key: string): Promise<void>;
 }
 
 const REFRESH_LOCK_PREFIX = "oauth:refresh-lock:";
-const REFRESH_LOCK_TTL_SECONDS = 30;
+const REFRESH_LOCK_TTL_SECONDS = 120;
 
 const inFlightRefreshByCredentialId = new Map<string, Promise<CredentialRefreshResult>>();
+
+const ACQUIRE_RETRY_MS = 100;
+const ACQUIRE_BUDGET_MS = 45_000;
+
+const adoptPeerCredential = async (
+  readFreshCredential: ReadFreshCredential | null,
+): Promise<CredentialRefreshResult | null> => {
+  const persisted = await readFreshCredential?.();
+  if (!persisted) {
+    return null;
+  }
+  widelog.set("token.refresh_adopted_peer", true);
+  return persisted;
+};
+
+/* Resolves to the peer's credential, or to null once this caller holds the lock itself. */
+const acquireOrAdopt = async (
+  tryAcquire: () => Promise<boolean>,
+  readFreshCredential: ReadFreshCredential | null,
+): Promise<CredentialRefreshResult | null> => {
+  const deadlineAt = Date.now() + ACQUIRE_BUDGET_MS;
+  for (;;) {
+    if (Date.now() >= deadlineAt) {
+      throw new Error("Token refresh already in progress on another instance");
+    }
+    if (await tryAcquire()) {
+      return null;
+    }
+    const adopted = await adoptPeerCredential(readFreshCredential);
+    if (adopted) {
+      return adopted;
+    }
+    await Bun.sleep(ACQUIRE_RETRY_MS);
+  }
+};
 
 const executeWithDistributedLock = async (
   lockStore: RefreshLockStore | null,
   lockKey: string,
   runRefresh: () => Promise<CredentialRefreshResult>,
+  readFreshCredential: ReadFreshCredential | null,
 ): Promise<CredentialRefreshResult> => {
   if (!lockStore) {
     return runRefresh();
   }
 
-  const acquired = await lockStore
+  const tryAcquire = (): Promise<boolean> => lockStore
     .tryAcquire(lockKey, REFRESH_LOCK_TTL_SECONDS)
     .catch(() => false);
 
-  if (!acquired) {
-    throw new Error("Token refresh already in progress on another instance");
+  const adoptedWhileWaiting = await acquireOrAdopt(tryAcquire, readFreshCredential);
+  if (adoptedWhileWaiting) {
+    return adoptedWhileWaiting;
   }
 
   try {
+    const adopted = await adoptPeerCredential(readFreshCredential);
+    if (adopted) {
+      return adopted;
+    }
     return await runRefresh();
   } finally {
-    await lockStore.release(lockKey).catch(() => {
-      // Lock release is best-effort; TTL ensures cleanup
-    });
+    await lockStore.release(lockKey).catch(() => null);
   }
 };
 
@@ -46,6 +87,7 @@ const runWithCredentialRefreshLock = (
   oauthCredentialId: string,
   runRefresh: () => Promise<CredentialRefreshResult>,
   lockStore: RefreshLockStore | null = null,
+  readFreshCredential: ReadFreshCredential | null = null,
 ): Promise<CredentialRefreshResult> => {
   const inFlight = inFlightRefreshByCredentialId.get(oauthCredentialId);
   if (inFlight) {
@@ -59,7 +101,12 @@ const runWithCredentialRefreshLock = (
   }
 
   const lockKey = `${REFRESH_LOCK_PREFIX}${oauthCredentialId}`;
-  const refreshTask = executeWithDistributedLock(lockStore, lockKey, runRefresh).finally(() => {
+  const refreshTask = executeWithDistributedLock(
+    lockStore,
+    lockKey,
+    runRefresh,
+    readFreshCredential,
+  ).finally(() => {
     if (inFlightRefreshByCredentialId.get(oauthCredentialId) === refreshTask) {
       inFlightRefreshByCredentialId.delete(oauthCredentialId);
     }
@@ -70,5 +117,5 @@ const runWithCredentialRefreshLock = (
   return refreshTask;
 };
 
-export { runWithCredentialRefreshLock };
-export type { CredentialRefreshResult, RefreshLockStore };
+export { ACQUIRE_BUDGET_MS, REFRESH_LOCK_TTL_SECONDS, runWithCredentialRefreshLock };
+export type { CredentialRefreshResult, ReadFreshCredential, RefreshLockStore };
