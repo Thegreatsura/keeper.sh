@@ -8,6 +8,7 @@ const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 const MAX_REDIRECTS = 10;
 const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 const STALE_SOCKET_ERROR_CODE = "ECONNRESET";
+const SITE_BOUNDARY_OPTIONS = { allowPrivateDomains: true };
 
 interface SafeFetchOptions {
   blockPrivateResolution?: boolean;
@@ -74,14 +75,61 @@ const validateProtocol = (protocol: string): void => {
   }
 };
 
-const validateHostResolution = async (host: string, hostname: string, options: SafeFetchOptions): Promise<void> => {
-  if (options.allowedPrivateHosts?.has(host)) {
-    return;
+interface PinnedConnection {
+  urls: string[];
+  host: string;
+  serverName: string | null;
+}
+
+const formatAddressForUrl = (address: string): string => {
+  if (ipaddr.parse(address).kind() === "ipv6") {
+    return `[${address}]`;
   }
+  return address;
+};
+
+const pinnedServerName = (parsed: URL): string | null => {
+  if (parsed.protocol === "https:") {
+    return parsed.hostname;
+  }
+  return null;
+};
+
+const pinnedUrl = (parsed: URL, address: string): string => {
+  const pinned = new URL(parsed.href);
+  const literal = formatAddressForUrl(address);
+  pinned.hostname = literal;
+
+  if (pinned.hostname !== literal) {
+    throw new UrlSafetyError("The validated address could not be pinned to the request.");
+  }
+
+  return pinned.href;
+};
+
+const buildPinnedConnection = (parsed: URL, addresses: string[]): PinnedConnection => ({
+  host: parsed.host,
+  serverName: pinnedServerName(parsed),
+  urls: addresses.map((address) => pinnedUrl(parsed, address)),
+});
+
+const resolveConnection = async (url: string, options?: SafeFetchOptions): Promise<PinnedConnection | null> => {
+  const parsed = new URL(url);
+  validateProtocol(parsed.protocol);
+
+  if (!options?.blockPrivateResolution) {
+    return null;
+  }
+
+  if (options.allowedPrivateHosts?.has(parsed.host)) {
+    return null;
+  }
+
+  const hostname = stripBrackets(parsed.hostname);
 
   if (ipaddr.isValid(hostname)) {
     assertUnicastAddress(hostname, "The provided URL points to a private or reserved network address.");
-    return;
+    return null;
   }
 
   const addresses = await resolveAllAddresses(hostname);
@@ -89,17 +137,12 @@ const validateHostResolution = async (host: string, hostname: string, options: S
   for (const address of addresses) {
     assertUnicastAddress(address, "The provided URL resolves to a private or reserved network address.");
   }
+
+  return buildPinnedConnection(parsed, addresses);
 };
 
 const validateUrlSafety = async (url: string, options?: SafeFetchOptions): Promise<void> => {
-  const parsed = new URL(url);
-  validateProtocol(parsed.protocol);
-
-  if (!options?.blockPrivateResolution) {
-    return;
-  }
-
-  await validateHostResolution(parsed.host, stripBrackets(parsed.hostname), options);
+  await resolveConnection(url, options);
 };
 
 const resolveRedirectUrl = (response: Response, originalUrl: string): string | null => {
@@ -119,8 +162,8 @@ const isTransportDowngrade = (current: URL, next: URL): boolean =>
   current.protocol === "https:" && next.protocol !== "https:";
 
 const isDifferentSite = (current: URL, next: URL): boolean => {
-  const currentDomain = getDomain(current.hostname);
-  const nextDomain = getDomain(next.hostname);
+  const currentDomain = getDomain(current.hostname, SITE_BOUNDARY_OPTIONS);
+  const nextDomain = getDomain(next.hostname, SITE_BOUNDARY_OPTIONS);
   if (!currentDomain || !nextDomain) {
     return current.hostname !== next.hostname;
   }
@@ -144,6 +187,52 @@ const toHeaderRecord = (headers: RequestInit["headers"]): Record<string, string>
   return record;
 };
 
+const mergeHeaderRecord = (input: string | Request | URL, init: RequestInit | undefined): Record<string, string> => {
+  const merged = new Headers();
+
+  if (input instanceof Request) {
+    for (const [key, value] of input.headers.entries()) {
+      merged.set(key, value);
+    }
+  }
+
+  for (const [key, value] of new Headers(init?.headers).entries()) {
+    merged.set(key, value);
+  }
+
+  return toHeaderRecord(merged);
+};
+
+const pinnedTlsOptions = (connection: PinnedConnection): Pick<BunFetchRequestInit, "tls"> => {
+  if (!connection.serverName) {
+    return {};
+  }
+  return { tls: { serverName: connection.serverName } };
+};
+
+const pinnedInput = (input: string | Request | URL, url: string): string | Request => {
+  if (input instanceof Request) {
+    return new Request(url, input);
+  }
+  return url;
+};
+
+interface PinnedRequest {
+  input: string | Request | URL;
+  init: BunFetchRequestInit;
+}
+
+const buildPinnedRequest = (
+  input: string | Request | URL,
+  init: BunFetchRequestInit,
+  headers: Record<string, string>,
+  connection: PinnedConnection,
+  url: string,
+): PinnedRequest => ({
+  init: { ...init, headers: { ...headers, host: connection.host }, ...pinnedTlsOptions(connection) },
+  input: pinnedInput(input, url),
+});
+
 const withoutAuthorization = (headers: Record<string, string>): Record<string, string> => Object.fromEntries(Object.entries(headers).filter(([key]) => key.toLowerCase() !== "authorization"));
 
 const isRedirect = (response: Response): boolean => REDIRECT_STATUS_CODES.has(response.status);
@@ -157,6 +246,23 @@ const getHeadersForRedirect = (
     return withoutAuthorization(headers);
   }
   return headers;
+};
+
+/*
+ * A caller that follows the redirect itself takes the target as its new base URL and
+ * authenticates against it later, so a boundary-crossing hop leaks the credentials even
+ * when this request carried none: digest authentication sends its first request
+ * unauthenticated and only answers the challenge the target issues.
+ */
+const assertManualRedirectKeepsCredentials = (currentUrl: string, response: Response): void => {
+  const redirectUrl = resolveRedirectUrl(response, currentUrl);
+  if (!redirectUrl || !shouldWithholdAuthorization(currentUrl, redirectUrl)) {
+    return;
+  }
+
+  throw new UrlSafetyError(
+    `Redirect to ${redirectUrl} crosses a credential boundary and the caller follows redirects itself, so the credentials cannot be withheld from it.`,
+  );
 };
 
 const WITHHELD_CREDENTIALS = Symbol.for("keeper.sh/safe-fetch/withheld-credentials");
@@ -182,7 +288,26 @@ const isStaleSocketError = (error: unknown): boolean => error instanceof Error &
 
 const isReplayableBody = (body: RequestInit["body"]): boolean => !body || typeof body === "string" || body instanceof URLSearchParams || body instanceof Blob || body instanceof ArrayBuffer || ArrayBuffer.isView(body);
 
+const REPLAYABLE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "TRACE", "PROPFIND", "REPORT"]);
+
+const requestMethod = (input: string | Request | URL, init: RequestInit | undefined): string => {
+  if (init?.method) {
+    return init.method.toUpperCase();
+  }
+  if (input instanceof Request) {
+    return input.method.toUpperCase();
+  }
+  return "GET";
+};
+
+/*
+ * A socket can reset after the server has already applied the write, so re-sending is not
+ * a retry but a second write. Replaying a create-only PUT also turns a success into a 412.
+ */
 const isReplayableRequest = (input: string | Request | URL, init: RequestInit | undefined): boolean => {
+  if (!REPLAYABLE_METHODS.has(requestMethod(input, init))) {
+    return false;
+  }
   if (input instanceof Request && input.body) {
     return false;
   }
@@ -209,14 +334,56 @@ const fetchWithStaleSocketRetry = async (
   }
 };
 
+const isTransportFailure = (error: unknown): boolean => {
+  if (!(error instanceof Error) || error.name === "AbortError") {
+    return false;
+  }
+  return "code" in error && typeof error.code === "string";
+};
+
+const fetchPinned = async (
+  input: string | Request | URL,
+  init: BunFetchRequestInit,
+  headers: Record<string, string>,
+  connection: PinnedConnection,
+): Promise<Response> => {
+  let lastError: unknown = new UrlSafetyError("The provided URL could not be resolved to any IP address.");
+
+  for (const url of connection.urls) {
+    const request = buildPinnedRequest(input, init, headers, connection, url);
+    try {
+      return await fetchWithStaleSocketRetry(request.input, request.init);
+    } catch (error) {
+      if (!isTransportFailure(error) || !isReplayableRequest(input, init)) {
+        throw error;
+      }
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+};
+
+const performFetch = (
+  input: string | Request | URL,
+  init: BunFetchRequestInit,
+  headers: Record<string, string>,
+  connection: PinnedConnection | null,
+): Promise<Response> => {
+  if (!connection) {
+    return fetchWithStaleSocketRetry(input, init);
+  }
+  return fetchPinned(input, init, headers, connection);
+};
+
 const followRedirects = async (
   initialUrl: string,
   initialResponse: Response,
   init: RequestInit | undefined,
+  headers: Record<string, string>,
   options: SafeFetchOptions | undefined,
   signal: AbortSignal | null | undefined,
 ): Promise<Response> => {
-  const headers = toHeaderRecord(init?.headers);
   let currentUrl = initialUrl;
   let currentResponse = initialResponse;
   let currentHeaders = headers;
@@ -235,7 +402,7 @@ const followRedirects = async (
       return settle(currentResponse);
     }
 
-    await validateUrlSafety(redirectUrl, options);
+    const connection = await resolveConnection(redirectUrl, options);
 
     const nextHeaders = getHeadersForRedirect(currentHeaders, currentUrl, redirectUrl);
     if (!withheldAt && currentHeaders.authorization && !nextHeaders.authorization) {
@@ -244,12 +411,12 @@ const followRedirects = async (
     currentHeaders = nextHeaders;
     currentUrl = redirectUrl;
 
-    currentResponse = await fetchWithStaleSocketRetry(currentUrl, {
-      ...init,
-      headers: currentHeaders,
-      redirect: "manual",
-      signal,
-    });
+    currentResponse = await performFetch(
+      currentUrl,
+      { ...init, headers: currentHeaders, redirect: "manual", signal },
+      currentHeaders,
+      connection,
+    );
 
     if (!isRedirect(currentResponse)) {
       return settle(currentResponse);
@@ -309,26 +476,28 @@ const resolveExternalSignal = (
 
 const createSafeFetch = (options?: SafeFetchOptions): SafeFetch => async (input, init) => {
     const url = extractUrl(input);
-    await validateUrlSafety(url, options);
+    const connection = await resolveConnection(url, options);
 
     const callerWantsManual = init?.redirect === "manual";
 
     const externalSignal = resolveExternalSignal(input, init, options);
     const timeout = resolveTimeoutSignal(options, externalSignal);
     const signal = resolveRequestSignal(timeout, externalSignal);
+    const headers = mergeHeaderRecord(input, init);
 
     try {
-      const response = await fetchWithStaleSocketRetry(input, {
-        ...init,
-        redirect: "manual",
-        signal,
-      });
+      const response = await performFetch(input, { ...init, redirect: "manual", signal }, headers, connection);
 
-      if (callerWantsManual || !isRedirect(response)) {
+      if (!isRedirect(response)) {
         return response;
       }
 
-      return await followRedirects(url, response, init, options, signal);
+      if (callerWantsManual) {
+        assertManualRedirectKeepsCredentials(url, response);
+        return response;
+      }
+
+      return await followRedirects(url, response, init, headers, options, signal);
     } catch (error) {
       if (timeout?.isTimeout() && options?.timeoutMs) {
         throw new RequestTimeoutError(options.timeoutMs);
