@@ -13,6 +13,7 @@ import { overlapsTimeWindow } from "../events/time-range";
 import type { SyncWindow } from "./sync-range";
 
 interface ReconciliationScope {
+  authoritativeMappingIds?: ReadonlySet<string>;
   authoritativeWindow: SyncWindow | null;
   authoritativeSourceWindows?: ReadonlyMap<string, SyncWindow>;
   configuredSourceCalendarIds?: ReadonlySet<string>;
@@ -392,6 +393,7 @@ const identifyStaleMappings = (
   localEventIds: Set<string>,
   remoteEventsByMappingId: Map<string, RemoteEvent>,
   localEventsById: Map<string, MaterializedSyncableEvent>,
+  authoritativeMappingIds?: ReadonlySet<string>,
 ): StaleMappingResult => {
   const staleMappingIds: string[] = [];
   const staleMappedEventIds = new Set<string>();
@@ -402,7 +404,9 @@ const identifyStaleMappings = (
     const syncEventId = getMappingSyncEventId(mapping);
     const localEventExists = localEventIds.has(syncEventId);
     const remoteEvent = remoteEventsByMappingId.get(mapping.id);
-    if (localEventExists && !remoteEvent) {
+    const remoteReadCoversMapping = !authoritativeMappingIds
+      || authoritativeMappingIds.has(mapping.id);
+    if (localEventExists && !remoteEvent && remoteReadCoversMapping) {
       staleReasonCounts.remoteMissing += 1;
       staleMappingIds.push(mapping.id);
       staleMappedEventIds.add(syncEventId);
@@ -600,6 +604,10 @@ const buildRemoveOperations = (
       continue;
     }
 
+    if (scope.authoritativeMappingIds) {
+      continue;
+    }
+
     if (!scope.authoritativeWindow || !overlapsTimeWindow(
       remoteEvent,
       scope.authoritativeWindow.timeMin,
@@ -679,6 +687,7 @@ const computeSyncOperations = (
       localEventIds,
       remoteEventsByMappingId,
       localEventsById,
+      scope.authoritativeMappingIds,
     );
   const staleMappingIdSet = new Set(staleMappingIds);
   const mappingUpdatesById = new Map<string, MappingUpdate>();

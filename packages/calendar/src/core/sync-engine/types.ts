@@ -19,6 +19,7 @@ interface CalendarSyncProvider {
   updateEvents?: (updates: EventUpdate[]) => Promise<PushResult[]>;
   deleteEvents: (eventIds: string[]) => Promise<DeleteResult[]>;
   listRemoteEvents: (options: ListRemoteEventsOptions) => Promise<RemoteEvent[]>;
+  getRemoteEventsByIds?: (eventIds: string[]) => Promise<RemoteEvent[]>;
   getThrottleMetrics?: () => ProviderThrottleMetrics;
   getSyncDiagnostics?: () => Record<string, number | string>;
 }

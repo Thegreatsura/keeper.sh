@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { KEEPER_EVENT_SUFFIX } from "@keeper.sh/constants";
 import { computeSyncOperations } from "@keeper.sh/calendar";
 import type { EventMapping } from "@keeper.sh/calendar";
@@ -53,7 +53,7 @@ describe("resolveStoredSourceCoverage", () => {
 });
 
 describe("readDestinationReconciliationState", () => {
-  it("finishes remote I/O before entering the local snapshot transaction", async () => {
+  it("takes the local snapshot first, so the remote read can be narrowed to it", async () => {
     const order: string[] = [];
 
     const state = await readDestinationReconciliationState(
@@ -67,22 +67,30 @@ describe("readDestinationReconciliationState", () => {
       },
     );
 
-    expect(order).toEqual(["remote", "local-transaction"]);
+    expect(order).toEqual(["local-transaction", "remote"]);
     expect(state).toEqual({ existingMappings: [], localEvents: [], remoteEvents: [] });
   });
 
-  it("does not open a local transaction when the remote read fails", async () => {
-    const readLocalState = vi.fn(() => Promise.resolve({
-      existingMappings: [],
-      localEvents: [],
-    }));
+  it("hands the local snapshot to the remote read, which is the point of the order", async () => {
+    const seen: string[] = [];
+    const mappings = [{ id: "mapping-1" }] as never;
 
+    await readDestinationReconciliationState(
+      (localState) => {
+        seen.push(...localState.existingMappings.map((mapping) => mapping.id));
+        return Promise.resolve([]);
+      },
+      () => Promise.resolve({ existingMappings: mappings, localEvents: [] }),
+    );
+
+    expect(seen).toEqual(["mapping-1"]);
+  });
+
+  it("still surfaces a failing remote read rather than reconciling against nothing", async () => {
     await expect(readDestinationReconciliationState(
       () => Promise.reject(new Error("remote read failed")),
-      readLocalState,
+      () => Promise.resolve({ existingMappings: [], localEvents: [] }),
     )).rejects.toThrow("remote read failed");
-
-    expect(readLocalState).not.toHaveBeenCalled();
   });
 });
 
@@ -276,6 +284,7 @@ describe("createDestinationReconciliationScope", () => {
 
   const createScope = (overBudgetSourceEventStateIds: string[]) =>
     createDestinationReconciliationScope({
+      authoritativeMappingIds: null,
       authoritativeSourceWindows: new Map([[SOURCE_CALENDAR_ID, WINDOW]]),
       authoritativeWindow: WINDOW,
       eventReadDiagnostics: { ...baseDiagnostics, overBudgetSourceEventStateIds },
