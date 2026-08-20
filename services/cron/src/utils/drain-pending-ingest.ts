@@ -253,6 +253,27 @@ const runDrainPendingIngest = async (
     return 0;
   }
 
+  const outstandingByUserId = new Map<string, number>();
+  for (const member of eligible) {
+    const userId = userIdByCalendarId.get(member.calendarId) ?? "";
+    outstandingByUserId.set(userId, (outstandingByUserId.get(userId) ?? 0) + 1);
+  }
+  const awaitingUserIds = new Set<string>();
+
+  const takeSyncableUserIds = (ownerId: string, affectedUserIds: string[]): string[] => {
+    for (const userId of affectedUserIds) {
+      awaitingUserIds.add(userId);
+    }
+    outstandingByUserId.set(ownerId, (outstandingByUserId.get(ownerId) ?? 1) - 1);
+    const syncable = [...awaitingUserIds].filter(
+      (userId) => (outstandingByUserId.get(userId) ?? 0) <= 0,
+    );
+    for (const userId of syncable) {
+      awaitingUserIds.delete(userId);
+    }
+    return syncable;
+  };
+
   /*
    * One calendar per ingest call so a member's destination write leaves as soon as ITS
    * ingest lands: a 29s sibling used to hold a 200ms calendar's sync for the whole batch.
@@ -260,27 +281,42 @@ const runDrainPendingIngest = async (
    * serial flush writer are process-wide, not per call.
    */
   const outcomes = await Promise.all(eligible.map(async (member) => {
+    const ownerId = userIdByCalendarId.get(member.calendarId) ?? "";
+    let affectedUserIds: string[] = [];
+    let failedId = "";
+    let releasedCount = 0;
     try {
-      const { affectedUserIds } = await dependencies.ingestCalendars(
+      ({ affectedUserIds } = await dependencies.ingestCalendars(
         [member.calendarId],
         collectCorrelationIds([member]),
-      );
+      ));
       const released = await dependencies.releasePending([member]);
-      /*
-       * Attribution scans the whole eligible set, not just this member: a user with an
-       * untagged and a tagged calendar in the same batch would otherwise enqueue untagged
-       * first, and BullMQ's dedupe on the deterministic job id drops the tagged retry.
-       */
-      await dependencies.enqueueDestinationSyncs(
-        affectedUserIds,
-        attributeCorrelationIdsToUsers(eligible, userIdByCalendarId, affectedUserIds),
-        attributeWebhookReceiptToUsers(eligible, userIdByCalendarId, affectedUserIds),
-      );
-      return { affectedUserIds, failedId: "", releasedCount: released.length };
+      releasedCount = released.length;
     } catch (error) {
       dependencies.recordError(error, DRAIN_BATCH_FAILED_SLUG);
-      return { affectedUserIds: [], failedId: member.calendarId, releasedCount: 0 };
+      failedId = member.calendarId;
     }
+
+    // A failed member still settles its owner, or a sibling's sync would wait on it forever.
+    const syncableUserIds = takeSyncableUserIds(ownerId, affectedUserIds);
+    if (syncableUserIds.length > 0) {
+      try {
+        /*
+         * Attribution scans the whole eligible set, not just this member: a user with an
+         * untagged and a tagged calendar in the same batch would otherwise enqueue untagged
+         * first, and BullMQ's dedupe on the deterministic job id drops the tagged retry.
+         */
+        await dependencies.enqueueDestinationSyncs(
+          syncableUserIds,
+          attributeCorrelationIdsToUsers(eligible, userIdByCalendarId, syncableUserIds),
+          attributeWebhookReceiptToUsers(eligible, userIdByCalendarId, syncableUserIds),
+        );
+      } catch (error) {
+        dependencies.recordError(error, DRAIN_BATCH_FAILED_SLUG);
+        failedId = member.calendarId;
+      }
+    }
+    return { affectedUserIds, failedId, releasedCount };
   }));
 
   const affectedUserIds = new Set<string>();
