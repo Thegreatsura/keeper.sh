@@ -3,6 +3,7 @@ import { createPendingSignalReader } from "@/utils/pending-signal-consumer";
 import { createScopedClaimPending } from "@/utils/scoped-drain-pending-ingest";
 import { runDrainPendingIngest } from "@/utils/drain-pending-ingest";
 import { context, widelog } from "@/utils/logging";
+import { recordStartedSignalReader } from "@/utils/signal-reader-state";
 import type { BlockingSignalRedis, PendingSignalConsumer } from "@/utils/pending-signal-consumer";
 import type { ScopedClaimRedis } from "@/utils/scoped-drain-pending-ingest";
 
@@ -57,6 +58,7 @@ const startPendingSignalReader = (
     },
   });
   reader.start();
+  recordStartedSignalReader(reader);
   return reader;
 };
 
