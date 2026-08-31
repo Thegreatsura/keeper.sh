@@ -24,10 +24,8 @@ import {
   BLOCKING_LOCK_TIMEOUT,
   withoutLockTimeout,
 } from "../src/database/concurrent-index";
-import {
-  describeNonUtcTimeZone,
-  isUtcTimeZoneName,
-} from "../src/database/migration-timezone";
+import { isUtcTimeZoneName } from "../src/database/migration-timezone";
+import { SERVER_CLOCK_REPAIR_PLAN_QUERY } from "../src/database/server-clock-timestamps";
 
 const connectionString = Bun.env.DATABASE_URL;
 
@@ -397,20 +395,33 @@ const isPostMigrationRuntimeReady = async (): Promise<boolean> => {
   return state.rows[0]?.ready === true;
 };
 
-const assertUtcServerTimeZone = async (): Promise<void> => {
+const readServerTimeZone = async (): Promise<string> => {
   const state = await connection.query<{ TimeZone: string }>("SHOW TimeZone");
-  const [row] = state.rows;
-  if (isUtcTimeZoneName(row?.TimeZone)) {
+  const zone = state.rows[0]?.TimeZone;
+  if (!zone) {
+    throw new Error("The database did not report a server time zone");
+  }
+  return zone;
+};
+
+const normalizeServerClockTimestamps = async (zone: string): Promise<void> => {
+  if (isUtcTimeZoneName(zone)) {
     return;
   }
-  throw new Error(describeNonUtcTimeZone(row?.TimeZone));
+  const plan = await connection.query<{ statement: string }>(
+    SERVER_CLOCK_REPAIR_PLAN_QUERY,
+    [zone],
+  );
+  for (const { statement } of plan.rows) {
+    await connection.query(statement);
+  }
 };
 
 try {
   await connection.query(`
     SELECT pg_advisory_lock(hashtext('keeper.sh:database-migration'))
   `);
-  await assertUtcServerTimeZone();
+  const serverTimeZone = await readServerTimeZone();
   /*
    * With the session in UTC a timestamp -> timestamptz change is binary-identical, so
    * Postgres records it as metadata and skips the table rewrite. The same ALTER under any
@@ -419,6 +430,7 @@ try {
   await connection.query(`SET TimeZone = 'UTC'`);
   await connection.query(`SET lock_timeout = '${BLOCKING_LOCK_TIMEOUT}'`);
   await connection.query(`SET statement_timeout = '30min'`);
+  await normalizeServerClockTimestamps(serverTimeZone);
   await installPreMigrationTombstoneProtection();
   await consolidateLegacyRecurringEventStates();
 
