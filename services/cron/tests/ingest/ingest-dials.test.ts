@@ -13,7 +13,7 @@ describe("resolveIngestDials", () => {
       intervals: DEFAULT_INGEST_INTERVAL_DIALS,
       leaseMs: 2 * INGEST_SOURCE_TIMEOUT_MS,
       loopEnabled: true,
-      providerRequestsPerMinute: { google: null, outlook: null },
+      outlookRequestsPerMinute: null,
       wake: { batchSize: 50, capacity: 16, idleMs: 1000 },
     });
   });
@@ -73,12 +73,10 @@ describe("resolveIngestDials", () => {
     expect(resolveIngestDials({ INGEST_LOOP_ENABLED: true }).loopEnabled).toBe(true);
   });
 
-  it("enables a provider-wide limit only for a positive rate", () => {
-    const dials = resolveIngestDials({
-      GOOGLE_INGEST_REQUESTS_PER_MINUTE: 6000,
-      OUTLOOK_INGEST_REQUESTS_PER_MINUTE: 0,
-    });
-
-    expect(dials.providerRequestsPerMinute).toEqual({ google: 6000, outlook: null });
+  it("enables the Outlook-wide limit only for a positive rate", () => {
+    expect(resolveIngestDials({ OUTLOOK_INGEST_REQUESTS_PER_MINUTE: 6000 }).outlookRequestsPerMinute)
+      .toBe(6000);
+    expect(resolveIngestDials({ OUTLOOK_INGEST_REQUESTS_PER_MINUTE: 0 }).outlookRequestsPerMinute)
+      .toBeNull();
   });
 });

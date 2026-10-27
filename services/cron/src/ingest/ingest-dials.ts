@@ -17,15 +17,11 @@ interface IngestDials {
   intervals: IngestIntervalDials;
   leaseMs: number;
   loopEnabled: boolean;
-  providerRequestsPerMinute: {
-    google: number | null;
-    outlook: number | null;
-  };
+  outlookRequestsPerMinute: number | null;
   wake: IngestLaneDials;
 }
 
 interface IngestDialEnvironment {
-  GOOGLE_INGEST_REQUESTS_PER_MINUTE?: number;
   INGEST_CLAIM_BATCH?: number;
   INGEST_DORMANT_AFTER_DAYS?: number;
   INGEST_DORMANT_POLL_SECONDS?: number;
@@ -105,10 +101,7 @@ const resolveIngestDials = (environment: IngestDialEnvironment): IngestDials => 
     },
     leaseMs: secondsOr(environment.INGEST_LEASE_SECONDS, DEFAULT_LEASE_MS),
     loopEnabled: environment.INGEST_LOOP_ENABLED !== false,
-    providerRequestsPerMinute: {
-      google: resolveProviderLimit(environment.GOOGLE_INGEST_REQUESTS_PER_MINUTE),
-      outlook: resolveProviderLimit(environment.OUTLOOK_INGEST_REQUESTS_PER_MINUTE),
-    },
+    outlookRequestsPerMinute: resolveProviderLimit(environment.OUTLOOK_INGEST_REQUESTS_PER_MINUTE),
     wake: {
       batchSize,
       capacity: Math.floor(positive(environment.INGEST_WAKE_CONCURRENCY, DEFAULT_WAKE_CONCURRENCY)),
